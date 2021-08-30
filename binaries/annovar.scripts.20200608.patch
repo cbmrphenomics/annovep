@@ -1,0 +1,21 @@
+diff -rwu 20200608/convert2annovar.pl 20200608.patched/convert2annovar.pl
+--- 20200608/convert2annovar.pl	2020-06-08 06:53:25.000000000 +0200
++++ 20200608.patched/convert2annovar.pl	2021-08-23 11:17:35.320000000 +0200
+@@ -2093,7 +2093,7 @@
+ 			next;
+ 		}
+ 		
+-		$verbose and print STDERR "NOTICE: Processing line $_\n";
++		# $verbose and print STDERR "NOTICE: Processing line $_\n";
+ 		
+ 		my $otherinfo = $_;			#this is the complete line (when -includeinfo is set, the entire line will be included in output file)
+ 		my @field=split(/\t/,$_);
+@@ -3234,7 +3234,7 @@
+ 
+ =back
+ 
+-The code was written by Dr. Kai Wang and modified by Dr. Germán Gastón Leparc. 
++The code was written by Dr. Kai Wang and modified by Dr. Germï¿½n Gastï¿½n Leparc. 
+ Various users have provided sample input files for many SNP callin software, for 
+ the development of conversion subroutines. We thank these users for their 
+ continued support to improve the functionality of the script.

@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+# -*- coding: utf8 -*-
+import os
+import subprocess
+import sys
+
+from pathlib import Path
+
+
+def run_docker(image, root, argv):
+    command = ["docker", "run", "-i"]
+    if sys.stdin.isatty():
+        command.append("-t")
+
+    command += [
+        "--rm",
+        "-e",
+        f"ANNOVEP_USER={os.getuid()}",
+        "-v",
+        f"{root}:/data/cache",
+        "-v",
+        f"{os.getcwd()}:/data/user",
+        image,
+    ]
+
+    return subprocess.call(
+        command + argv,
+        stdin=sys.stdin,
+    )
+
+
+def main(argv):
+    image = os.environ.get("ANNOVEP_IMAGE", "annovep:v1")
+    root = os.environ.get("ANNOVEP_ROOT", Path("~/annovep/").expanduser())
+
+    try:
+        return run_docker(image, root, argv)
+    except KeyboardInterrupt:
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
