@@ -22,6 +22,10 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 		python3-pip \
 		python3-pysam
 
+	# Needed to index FASTAs downloaded for VEP
+	apt-get install -y \
+		samtools
+
 	# Needed for LOFTEE plugin (exact version unclear, so install both)
 	apt-get install -y \
 		libdbd-sqlite2-perl \
