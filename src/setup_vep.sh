@@ -22,7 +22,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             info "Downloading $(basename ${dst_file})"
 
             log_command mkdir -p $(dirname "${tmp_file}")
-            if ! log_command curl -L "${src_url}" -o "${tmp_file}"; then
+            if ! log_command curl --fail -L "${src_url}" -o "${tmp_file}"; then
                 rm -fv "${tmp_file}"
                 exit 1
             fi
