@@ -90,7 +90,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     download_ancestral_fa "ftp://ftp.ensembl.org/pub/current_fasta/ancestral_alleles/homo_sapiens_ancestor_GRCh38.tar.gz"
 
     # ClinVAR VCF used for --custom annotation
-    download_vcf "clinvar_20210821.vcf.gz" "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar_20210821.vcf.gz"
+    download_vcf "clinvar_20210821.vcf.gz" "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/weekly/clinvar_20210821.vcf.gz"
     # TODO:
     download_vcf "dbsnp_20180418.vcf.gz" "https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b151_GRCh38p7/VCF/All_20180418.vcf.gz"
 
