@@ -2,6 +2,7 @@
 
 # Exit on unset variables
 set -o nounset
+# Exit on unhandled failure in pipes
 set -o pipefail
 
 # Print debug message and terminate script on non-zero return codes
