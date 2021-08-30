@@ -31,7 +31,19 @@ def run_docker(image, root, argv):
 
 def main(argv):
     image = os.environ.get("ANNOVEP_IMAGE", "annovep:v1")
-    root = os.environ.get("ANNOVEP_ROOT", Path("~/annovep/").expanduser())
+    root = os.environ.get("ANNOVEP_CACHE", Path("~/annovep/").expanduser())
+
+    # The root folder must already exist, since docker will otherwise create it using
+    # permissions that prevent the container from creating subfolders. This is only
+    # relevant during the initial setup of the cache.
+    try:
+        os.makedirs(root, exist_ok=True)
+    except OSError as error:
+        print(f"Failed to create cache-dir at {root!r}:", file=sys.stderr)
+        print("Specify a read/writable location using the command", file=sys.stderr)
+        print("  $ export ANNOVEP_CACHE=/path/to/annovep/cache", file=sys.stderr)
+        print(f"AnnoVEP cannot proceed, aborting.", file=sys.stderr)
+        return 1
 
     try:
         return run_docker(image, root, argv)
