@@ -7,6 +7,11 @@ import sys
 from pathlib import Path
 
 
+def eprint(*args, **kwargs):
+    kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
+
+
 def run_docker(image, root, argv):
     command = ["docker", "run", "-i"]
     if sys.stdin.isatty():
@@ -39,10 +44,18 @@ def main(argv):
     try:
         os.makedirs(root, exist_ok=True)
     except OSError as error:
-        print(f"Failed to create cache-dir at {root!r}:", file=sys.stderr)
-        print("Specify a read/writable location using the command", file=sys.stderr)
-        print("  $ export ANNOVEP_CACHE=/path/to/annovep/cache", file=sys.stderr)
-        print(f"AnnoVEP cannot proceed, aborting.", file=sys.stderr)
+        eprint(f"Failed to create cache-dir at {root!r}:")
+        eprint("Specify a read/writable location using the command")
+        eprint("  $ export ANNOVEP_CACHE=/path/to/annovep/cache")
+        eprint("AnnoVEP cannot proceed, aborting.")
+        return 1
+
+    if not os.access(root, os.X_OK | os.R_OK):
+        eprint(f"Cannot open cache directory at {root!r}.")
+        eprint("Please ensure that the cache is readable to the current user or")
+        eprint("specify a read/writable location using the command")
+        eprint("  $ export ANNOVEP_CACHE=/path/to/annovep/cache")
+        eprint("AnnoVEP cannot proceed, aborting.")
         return 1
 
     try:
