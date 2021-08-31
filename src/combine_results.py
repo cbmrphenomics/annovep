@@ -437,15 +437,16 @@ class AnnotateVEP(Annotator):
             "gnomAD_filters",
         )
 
-    def _read_record(self, vcf, row):
+    def _read_record(self, vcf, row, _regex=re.compile(r":(-)?NaN\b", flags=re.I)):
         # There is a single VEP associated with each VCF record (provided that the
         # --allow_non_variant option used. Thus we only need to read a new record when
         # a new VCF record is passed.
         if self._cached_for is not vcf:
             line = self._handle.readline()
-            # Workaround for non-standard JSON output observed in some records; Python
-            # accepts "NaN", but null seems more reasonable
-            line = re.sub(r":(-)?nan\b", r":null", line, flags=re.I)
+            # Workaround for non-standard JSON output observed in some records, where
+            # an expected string value was -nan. Python accepts "NaN", but null seems
+            # more reasonable
+            line = _regex.sub(":null", line)
 
             self._cached_record = json.loads(line)
             self._cached_for = vcf
