@@ -88,7 +88,8 @@ class AnnotateBasicsInfo(Annotator):
 
         # There is no easy way to get just the INFO field a str
         vcf_as_text = str(vcf).split("\t", 8)
-        row["Info"] = vcf_as_text[7]
+        # For VCF files with no genotypes, the INFO field may contain trailing newlines
+        row["Info"] = vcf_as_text[7].rstrip()
 
         genotype_counts = self._calculate_genotype_counts(vcf)
         frequencies = self._calculate_allele_freqs(genotype_counts)
