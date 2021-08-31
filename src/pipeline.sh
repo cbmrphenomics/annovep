@@ -107,6 +107,10 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     else
         info "Running VEP on input VCF:"
 
+        # The following are required to the meet expectations of the combine script:
+        #   --dont_skip: Ensure that variants on unknown sequences are still written
+        #   --allow_non_variant: Ensure that non-variant sites are still written
+
         log_command perl "${VEP_ROOT}/vep" \
             --verbose \
             --offline \
@@ -115,6 +119,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --format "vcf" \
             --json \
             --compress_output "gzip" \
+            --dont_skip \
             --allow_non_variant \
             --dir_cache "${VEP_CACHE}" \
             --dir_plugins "${VEP_PLUGINS}" \
