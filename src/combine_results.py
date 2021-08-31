@@ -243,7 +243,7 @@ class AnnotateBasicsInfo(Annotator):
     def _construct_vep_alleles(self, vcf):
         start = vcf.pos
         ref = vcf.ref
-        alts = vcf.alts
+        alts = list(vcf.alts)
 
         if any(len(vcf.ref) != len(allele) for allele in alts):
             # find out if all the alts start with the same base, ignoring "*"
@@ -255,20 +255,20 @@ class AnnotateBasicsInfo(Annotator):
             if len(first_bases) == 1:
                 start += 1
                 ref = ref[1:] or "-"
-                vep_alts = []
-                for alt in alts:
+                for idx, alt in enumerate(alts):
                     if alt.startswith("*"):
-                        vep_alts.append(alt)
+                        alts[idx] = alt
                     else:
-                        vep_alts.append((alt[1:] or "-"))
+                        alts[idx] = alt[1:] or "-"
 
-                alts = vep_alts
+        allele_string = "/".join([ref] + alts)
 
         return {
             vcf_alt: {
                 "start": start,
                 "ref": ref,
                 "alt": vep_alt,
+                "alleles": allele_string,
             }
             for vcf_alt, vep_alt in zip(vcf.alts, alts)
         }
@@ -424,15 +424,11 @@ class AnnotateVEP(Annotator):
 
         contigs = list(contigs)
         self._contigs = {value: key for key, value in enumerate(contigs)}
-        self._cached_pos = (0, float("-inf"))
+        self._cached_pos = None
         self._cached_record = {}
 
     def annotate(self, vcf, row):
-        vep = self._read_record(row["Chr"], row["Pos"])
-        if not vep["input"].startswith("{Chr}\t{Pos}\t".format(**row)):
-            # FIXME: Input should be in the same order?
-            raise ValueError((row, vep))
-
+        vep = self._read_record(row)
         consequence = self._get_allele_consequence(vep, row[":vep:"]["alt"])
 
         self._add_gene_names(consequence, row)
@@ -462,21 +458,24 @@ class AnnotateVEP(Annotator):
             "gnomAD_filters",
         )
 
-    def _read_record(self, chrom, pos):
-        target_pos = (self._contigs[chrom], int(pos))
-        while self._cached_pos < target_pos:
+    def _read_record(self, row):
+        expected_pos = (row["Chr"], row[":vep:"]["start"], row[":vep:"]["alleles"])
+        if expected_pos != self._cached_pos:
             line = self._handle.readline()
             # Workaround for non-standard JSON output observed in some records; Python
             # accepts "NaN", but null seems more reasonable
             line = re.sub(r":(-)?nan\b", r":null", line, flags=re.I)
 
             self._cached_record = json.loads(line)
-            vep_chrom, vep_pos, _ = self._cached_record["input"].split("\t", 2)
+            self._cached_pos = (
+                self._cached_record["seq_region_name"],
+                self._cached_record["start"],
+                self._cached_record["allele_string"],
+            )
 
-            self._cached_pos = (self._contigs[vep_chrom], int(vep_pos))
-
-        if self._cached_pos != target_pos:
-            raise ValueError(f"{chrom}:{pos} not found in {self._path}")
+            # VEP output is expected to be in the same order as the input
+            if expected_pos != self._cached_pos:
+                raise ValueError(f"{self._cached_pos} != {expected_pos}")
 
         return self._cached_record
 
