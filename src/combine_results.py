@@ -14,6 +14,8 @@ import coloredlogs
 import liftover
 import pysam
 
+
+# https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
 VEP_CONSEQUENCES = [
     "transcript_ablation",
     "splice_acceptor_variant",
