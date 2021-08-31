@@ -361,39 +361,43 @@ class AnnotateAnnovar(Annotator):
 class AnnotateLiftOver(Annotator):
     def __init__(self, source: str, cache: Path) -> None:
         if source == "hg19":
-            destination = "hd38"
+            destination = "hg38"
         elif source == "hg38":
             destination = "hg19"
         else:
             raise ValueError(source)
 
-        self._src_db = source.upper()
-        self._dst_db = destination.upper()
+        self._src_db = source.lower()
+        self._dst_db = destination.lower()
         self._lifter = liftover.get_lifter(source, destination, cache)
 
     def annotate(self, vcf, row):
         src_chrom = row["Chr"]
         src_pos = row["Pos"]
+        src_liftover = "{}:{}+".format(src_chrom, src_pos)
 
-        row[f"Chr_{self._src_db}"] = src_chrom
-        row[f"Pos_{self._src_db}"] = src_pos
+        # Returns list of overlapping liftover coordinates, an empty list if the
+        # position does not exist in the target genome, or KeyError if unknown.
+        try:
+            coordinates = self._lifter.query(src_chrom, int(src_pos))
+        except KeyError:
+            coordinates = []
+            # Src coordinates were not usable, so we also write them as missing
+            src_liftover = "."
 
-        # Returns list of overlapping liftover coordinates. May be an empty list if
-        # the position does not exist in the target genome.
-        # FIXME: Are multiple positions possible? And if so, how best to handle?
-        coordinates = self._lifter.query(src_chrom, int(src_pos))
-        if len(coordinates) == 1:
-            ((chrom, pos, _strand),) = coordinates
-        else:
-            chrom = pos = "."
+        positions = []
+        for (chrom, pos, strand) in coordinates:
+            positions.append("{}:{}{}".format(chrom, pos, strand))
 
-        row[f"Chr_{self._dst_db}"] = chrom
-        row[f"Pos_{self._dst_db}"] = pos
+        dst_liftover = ";".join(positions) or "."
+
+        row[f"Liftover_{self._src_db}"] = src_liftover
+        row[f"Liftover_{self._dst_db}"] = dst_liftover
 
         return [row]
 
     def keys(self):
-        return ("Chr_HG19", "Pos_HG19", "Chr_HG38", "Pos_HG38")
+        return ("Liftover_hg19", "Liftover_hg38")
 
 
 class AnnotateQC(Annotator):
