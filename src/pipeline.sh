@@ -115,6 +115,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --format "vcf" \
             --json \
             --compress_output "gzip" \
+            --allow_non_variant \
             --dir_cache "${VEP_CACHE}" \
             --dir_plugins "${VEP_PLUGINS}" \
             --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
