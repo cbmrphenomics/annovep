@@ -455,6 +455,9 @@ class AnnotateVEP(Annotator):
             "Func_polyphen",
             "Func_polyphen_score",
             "Func_conservation_score",
+            "Func_lof_filter",
+            "Func_lof_flags",
+            "Func_lof_info",
             "ClinVar_ID",
             "ClinVar_Disease",
             "ClinVar_Significance",
@@ -556,6 +559,9 @@ class AnnotateVEP(Annotator):
             "least_significant",
             "most_significant",
             "n_most_significant",
+            "lof_filter",
+            "lof_flags",
+            "lof_info",
         ):
             dst[f"Func_{key}"] = consequence.get(key, ".")
 
