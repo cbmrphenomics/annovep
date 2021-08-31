@@ -278,15 +278,11 @@ class AnnotateBasicsInfo(Annotator):
 class AnnotateAnnovar(Annotator):
     CACHE_SIZE = 1000
 
-    def __init__(self, filepath: Path, contigs: Iterable[str]) -> None:
+    def __init__(self, filepath: Path) -> None:
         self._log = logging.getLogger("annovar")
         self._log.info("reading Annovar annotations from '%s'", filepath)
 
-        self._path = filepath
         self._handle = filepath.open("rt")
-        self._contigs = {name: idx for idx, name in enumerate(contigs)}
-        self._cache = collections.defaultdict(list)
-        self._eof = False
         self._header = self._handle.readline().rstrip().split("\t")
 
         self._mapping = {
@@ -308,57 +304,41 @@ class AnnotateAnnovar(Annotator):
         }
 
     def annotate(self, vcf, row):
-        annovar = row[":annovar:"]
-        self._update_cache(row["Chr"], annovar["start"])
+        data = self._read_record(row)
 
-        key = (
-            self._contigs[row["Chr"]],
+        for dst, src in self._mapping.items():
+            row[dst] = data[src]
+
+        yield row
+
+    def keys(self):
+        return self._mapping.keys()
+
+    def _read_record(self, row):
+        annovar = row[":annovar:"]
+        expected = (
+            row["Chr"],
             annovar["start"],
             annovar["end"],
             annovar["ref"],
             annovar["alt"],
         )
 
-        for data in self._cache.pop(key):
-            copy = dict(row)
-            for dst, src in self._mapping.items():
-                copy[dst] = data[src]
+        # Annovar will occassionally generate multiple lines for the same allele
+        line = self._handle.readline().rstrip()
+        row = dict(zip(self._header, line.split("\t")))
+        observed = (
+            row["Chr"],
+            int(row["Start"]),
+            int(row["End"]),
+            row["Ref"],
+            row["Alt"],
+        )
 
-            yield copy
+        if expected != observed:
+            raise ValueError(f"Annovar: {observed} != {expected}")
 
-    def keys(self):
-        return self._mapping.keys()
-
-    def _update_cache(self, chrom, pos):
-        stale_records = []
-        lower_bound = (self._contigs[chrom], pos - self.CACHE_SIZE)
-        for key in self._cache:
-            if key >= lower_bound:
-                break
-            stale_records.append(key)
-
-        for key in stale_records:
-            print(f"WARNING: unused annovar record: {key}", file=sys.stderr)
-            self._cache.pop(key)
-
-        if not self._eof:
-            try:
-                for _ in range(self.CACHE_SIZE - len(self._cache)):
-                    line = self._handle.readline().rstrip()
-                    if line:
-
-                        row = dict(zip(self._header, line.split("\t")))
-                        key = (
-                            self._contigs[row["Chr"]],
-                            int(row["Start"]),
-                            int(row["End"]),
-                            row["Ref"],
-                            row["Alt"],
-                        )
-
-                        self._cache[key].append(row)
-            except StopIteration:
-                self._eof = True
+        return row
 
 
 class AnnotateLiftOver(Annotator):
@@ -416,20 +396,18 @@ class AnnotateQC(Annotator):
 class AnnotateVEP(Annotator):
     CACHE_SIZE = 1000
 
-    def __init__(self, filepath: Path, contigs: Iterable[str]) -> None:
+    def __init__(self, filepath: Path) -> None:
         self._log = logging.getLogger("vep")
         self._log.info("reading VEP annotations from '%s'", filepath)
 
-        self._path = filepath
         self._handle = gzip.open(filepath, "rt")
 
-        contigs = list(contigs)
-        self._contigs = {value: key for key, value in enumerate(contigs)}
-        self._cached_pos = None
+        self._cached_for = None
         self._cached_record = {}
 
     def annotate(self, vcf, row):
-        vep = self._read_record(row)
+        vep = self._read_record(vcf, row)
+
         consequence = self._get_allele_consequence(vep, row[":vep:"]["alt"])
 
         self._add_gene_names(consequence, row)
@@ -459,24 +437,29 @@ class AnnotateVEP(Annotator):
             "gnomAD_filters",
         )
 
-    def _read_record(self, row):
-        expected_pos = (row["Chr"], row[":vep:"]["start"], row[":vep:"]["alleles"])
-        if expected_pos != self._cached_pos:
+    def _read_record(self, vcf, row):
+        # There is a single VEP associated with each VCF record (provided that the
+        # --allow_non_variant option used. Thus we only need to read a new record when
+        # a new VCF record is passed.
+        if self._cached_for is not vcf:
             line = self._handle.readline()
             # Workaround for non-standard JSON output observed in some records; Python
             # accepts "NaN", but null seems more reasonable
             line = re.sub(r":(-)?nan\b", r":null", line, flags=re.I)
 
             self._cached_record = json.loads(line)
-            self._cached_pos = (
+            self._cached_for = vcf
+
+            expected_pos = (row["Chr"], row[":vep:"]["start"], row[":vep:"]["alleles"])
+            observed_pos = (
                 self._cached_record["seq_region_name"],
                 self._cached_record["start"],
                 self._cached_record["allele_string"],
             )
 
             # VEP output is expected to be in the same order as the input
-            if expected_pos != self._cached_pos:
-                raise ValueError(f"{self._cached_pos} != {expected_pos}")
+            if expected_pos != observed_pos:
+                raise ValueError(f"VEP: {observed_pos} != {expected_pos}")
 
         return self._cached_record
 
@@ -625,16 +608,10 @@ def setup_annotators(args, log, vcf) -> List[Annotator]:
         )
 
     if args.annovar_output:
-        annotations["annovar"] = AnnotateAnnovar(
-            filepath=args.annovar_output,
-            contigs=vcf.header.contigs,
-        )
+        annotations["annovar"] = AnnotateAnnovar(args.annovar_output)
 
     if args.vep_output:
-        annotations["vep"] = AnnotateVEP(
-            filepath=args.vep_output,
-            contigs=vcf.header.contigs,
-        )
+        annotations["vep"] = AnnotateVEP(args.vep_output)
 
     selection: List[Annotator] = []
     for key, value in annotations.items():
