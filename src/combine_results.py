@@ -84,6 +84,7 @@ class AnnotateBasicsInfo(Annotator):
         row["Chr"] = vcf.contig
         row["Pos"] = vcf.pos
         row["Ref"] = self._validate_sequence(vcf.ref, "ACGTN*")
+        row["Filters"] = ";".join(vcf.filter or ".")
         row["DP"] = self._calculate_depth(vcf)
 
         # There is no easy way to get just the INFO field a str
@@ -140,6 +141,7 @@ class AnnotateBasicsInfo(Annotator):
             "Pos",
             "Ref",
             "Alt",
+            "Filters",
             "DP",
             "Freq",
             "GT_00",
