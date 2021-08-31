@@ -340,6 +340,9 @@ class AnnotateAnnovar(Annotator):
 
         # Annovar will occassionally generate multiple lines for the same allele
         line = self._handle.readline().rstrip()
+        if not line:
+            raise RuntimeError("annovar annotations are truncated")
+
         row = dict(zip(self._header, line.split("\t")))
         observed = (
             row["Chr"],
@@ -475,6 +478,9 @@ class AnnotateVEP(Annotator):
         # a new VCF record is passed.
         if self._cached_for is not vcf:
             line = self._handle.readline()
+            if not line:
+                raise RuntimeError("vep annotations are truncated")
+
             # Workaround for non-standard JSON output observed in some records, where
             # an expected string value was -nan. Python accepts "NaN", but null seems
             # more reasonable
