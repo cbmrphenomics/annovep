@@ -83,8 +83,8 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     require_file "Ancestral FASTA" "${VEP_ANCESTRAL}"
 
     # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
-    # readonly VEP_CONSERVATION="${VEP_CACHE}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
-    # require_file "GERP Scores" "${VEP_CONSERVATION}"
+    readonly VEP_CONSERVATION="${VEP_CACHE}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
+    require_file "GERP Scores" "${VEP_CONSERVATION}"
 
     readonly VEP_LOFTEE_FA="${VEP_CACHE}/human_ancestor.fa.gz"
     require_file "loftee ancestral FASTA" "${VEP_LOFTEE_FA}"
@@ -107,7 +107,6 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     else
         info "Running VEP on input VCF:"
 
-        #            --plugin "Conservation,${VEP_CONSERVATION}" \
         log_command perl "${VEP_ROOT}/vep" \
             --verbose \
             --offline \
@@ -119,6 +118,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --dir_cache "${VEP_CACHE}" \
             --dir_plugins "${VEP_PLUGINS}" \
             --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
+            --plugin "Conservation,${VEP_CONSERVATION}" \
             --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
             --custom "${VEP_CLINVAR},ClinVar,vcf,exact,0,ALLELEID,CLNDN,CLNDISDB,CLNREVSTAT,CLNSIG" \
             --custom "${VEP_GNOMAD_COVERAGE},gnomAD_coverage,vcf,overlap,0,gnomAD_mean,gnomAD_median,gnomAD_over_15,gnomAD_over_50" \
