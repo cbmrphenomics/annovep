@@ -453,7 +453,6 @@ class AnnotateVEP(Annotator):
             "Polyphen_prediction",
             "ClinVar_ID",
             "ClinVar_Disease",
-            "ClinVar_Disease_ID",
             "ClinVar_Significance",
             # gnomAD are last since annovar gnomADs are appended afterwards
             "gnomAD_mean",
@@ -592,7 +591,6 @@ class AnnotateVEP(Annotator):
             fields={
                 "ALLELEID": "ClinVar_ID",
                 "CLNDN": "ClinVar_Disease",
-                "CLNDISDB": "ClinVar_Disease_ID",
                 "CLNSIG": "ClinVar_Significance",
             },
         )
