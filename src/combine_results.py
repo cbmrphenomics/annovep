@@ -422,11 +422,16 @@ class AnnotateVEP(Annotator):
     def annotate(self, vcf, row):
         vep = self._read_record(vcf, row)
 
+        # Add functional annotation
         consequence = self._get_allele_consequence(vep, row[":vep:"]["alt"])
-
-        self._add_gene_names(consequence, row)
+        self._add_gene_info(consequence, row)
         self._add_ancestral_allele(consequence, row)
-        self._add_polyphen_prediction(consequence, row)
+
+        row["Func_conservation_score"] = consequence.get("conservation", ".")
+        row["Func_polyphen"] = consequence.get("polyphen_prediction", ".")
+        row["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
+
+        # add other annotation
         self._add_gnomad_annotation(vep, row)
         self._add_clinvar_annotation(vep, row)
 
@@ -435,11 +440,21 @@ class AnnotateVEP(Annotator):
     def keys(self):
         return (
             "AncestralAllele",
-            "Gene_id",
-            "Gene_symbol",
-            "Gene_symbol_source",
-            "Polyphen_score",
-            "Polyphen_prediction",
+            "Func_n_most_significant",
+            "Func_most_significant",
+            "Func_least_significant",
+            "Func_cdna_end",
+            "Func_cdna_start",
+            "Func_gene_id",
+            "Func_transcript_id",
+            "Func_gene_symbol",
+            "Func_gene_symbol_source",
+            "Func_all_gene_symbols",
+            "Func_impact",
+            "Func_strand",
+            "Func_polyphen",
+            "Func_polyphen_score",
+            "Func_conservation_score",
             "ClinVar_ID",
             "ClinVar_Disease",
             "ClinVar_Significance",
@@ -484,20 +499,65 @@ class AnnotateVEP(Annotator):
         intergenic_consequences = vep.get("intergenic_consequences", ())
         assert not (transcript_consequences and intergenic_consequences), vep
 
+        consequences = []
+        gene_symbols = set()
         for consequence in transcript_consequences or intergenic_consequences:
             if consequence["variant_allele"] == allele:
-                return consequence
+                for term in consequence["consequence_terms"]:
+                    rank = VEP_CONSEQUENCE_RANKS[term]
+                    # Gene ID will be missing for intergenetic consequences
+                    gene = consequence.get("gene_id", ".")
 
-        if allele == vep["allele_string"] or allele.startswith("*"):
-            # No consequences for non-variable sites
-            return {}
+                    consequences.append((rank, term, gene, consequence))
 
-        raise ValueError((allele, vep))
+                    gene_symbol = consequence.get("gene_symbol")
+                    if gene_symbol is not None:
+                        gene_symbols.add(gene_symbol)
 
-    def _add_gene_names(self, consequence, dst):
-        dst["Gene_id"] = consequence.get("gene_id")
-        dst["Gene_symbol"] = consequence.get("gene_symbol")
-        dst["Gene_symbol_source"] = consequence.get("gene_symbol_source")
+        if not consequences:
+            if allele == vep["allele_string"] or allele.startswith("*"):
+                # No consequences for non-variable sites
+                return {}
+
+            raise ValueError((allele, vep))
+
+        consequences.sort(key=lambda it: it[0])
+        # One of the most significant consequences is picked "randomly"
+        _, most_significant, gene_id, consequence = consequences[0]
+
+        consequence["all_gene_symbols"] = ";".join(gene_symbols) or "."
+
+        consequence["most_significant"] = most_significant
+        consequence["n_most_significant"] = 0
+        for _, term, _, _ in consequences:
+            if term != most_significant:
+                break
+
+            consequence["n_most_significant"] += 1
+
+        for _, term, gene_id_, _ in reversed(consequences):
+            if gene_id_ == gene_id:
+                consequence["least_significant"] = term
+                break
+
+        return consequence
+
+    def _add_gene_info(self, consequence, dst):
+        for key in (
+            "cdna_end",
+            "cdna_start",
+            "gene_id",
+            "transcript_id",
+            "gene_symbol",
+            "gene_symbol_source",
+            "all_gene_symbols",
+            "impact",
+            "strand",
+            "least_significant",
+            "most_significant",
+            "n_most_significant",
+        ):
+            dst[f"Func_{key}"] = consequence.get(key, ".")
 
     def _add_ancestral_allele(self, consequence, dst):
         allele = consequence.get("aa")
@@ -507,10 +567,6 @@ class AnnotateVEP(Annotator):
             allele = "." * len(dst["Ref"])
 
         dst["AncestralAllele"] = allele
-
-    def _add_polyphen_prediction(self, consequence, dst):
-        dst["Polyphen_score"] = consequence.get("polyphen_score", ".")
-        dst["Polyphen_prediction"] = consequence.get("polyphen_prediction", ".")
 
     def _add_custom_annotation(self, src, dst, name, fields, default="."):
         data = {}
