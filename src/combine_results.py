@@ -102,7 +102,7 @@ class AnnotateBasicsInfo(Annotator):
 
             copy = dict(row)
             copy["Alt"] = allele
-            copy["Freq"] = frequencies[allele]
+            copy["Freq"] = frequencies.get(allele, ".")
 
             gt_00 = genotype_counts.get((vcf.ref, vcf.ref), 0)
             gt_01 = genotype_counts.get((vcf.ref, allele), 0)
