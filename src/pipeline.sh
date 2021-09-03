@@ -15,6 +15,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
     . "${ANNOVEP_ROOT}/utilities.sh"
 
+    MISSING_FILES=0
     function require_files() {
         local -r desc=$1
         shift
@@ -24,7 +25,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
                 info "[✓] ${desc} file found at ${filename}"
             else
                 error "[☓] ${desc} file not found at ${filename}"
-                exit 1
+                MISSING_FILES=1
             fi
         done
     }
@@ -99,6 +100,11 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly VEP_DBSNP="${CUSTOM_CACHE}/dbsnp_155_20210513_custom.vcf.gz"
     readonly VEP_DBSNP_FIELDS="ids,alts,functions"
     require_files "dbSNP summaries (custom)" "${VEP_DBSNP}" "${VEP_DBSNP}.tbi"
+
+    # if require_files failed one or more times
+    if [ ${MISSING_FILES} -ne 0 ]; then
+        exit 1
+    fi
 
     ####################################################################################
 
