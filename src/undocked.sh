@@ -19,7 +19,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 	export VEP_PLUGINS="${VEP_PLUGINS:-${INSTALL}/vep-plugins/Plugins}"
 
 	# Misc exports
-	export LIFTOVER_CACHE="${LIFTOVER_CACHE:-${ANNOVEP}/liftover}"
+	export LIFTOVER_CACHE="${LIFTOVER_CACHE:-${ANNOVEP_CACHE}/liftover}"
 
 	. "${INSTALL}/annovep/pipeline.sh" "$@"
 
