@@ -23,6 +23,7 @@ RUN mkdir -p /data/user && touch /data/user/not_mounted
 
 COPY ./src/ /opt/annovep/
 
+# Mountpoint for the current working directory
 WORKDIR /data/user
 
 ENTRYPOINT [ "/usr/bin/python3", "/opt/annovep/entrypoint.py" ]
