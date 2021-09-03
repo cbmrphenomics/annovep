@@ -80,15 +80,15 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
     # Custom made gnomAD VCFs containing coverage statistics
     #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
-    #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD_coverage.vcf.gz
-    readonly VEP_GNOMAD_COVERAGE="${CUSTOM_CACHE}/gnomAD_coverage.vcf.gz"
+    #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
+    readonly VEP_GNOMAD_COVERAGE="${CUSTOM_CACHE}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
     readonly VEP_GNOMAD_COVERAGE_FIELDS="gnomAD_mean,gnomAD_median,gnomAD_over_15,gnomAD_over_50"
     require_files "gnomAD coverage" "${VEP_GNOMAD_COVERAGE}" "${VEP_GNOMAD_COVERAGE}.tbi"
 
     # Custom made gnomAD VCF containing allele frequencies
     #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
-    #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.sites.vcf.gz
-    readonly VEP_GNOMAD_SITES="${CUSTOM_CACHE}/gnomad.genomes.r3.0.sites.vcf.gz"
+    #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
+    readonly VEP_GNOMAD_SITES="${CUSTOM_CACHE}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
     readonly VEP_GNOMAD_SITES_FIELDS="AF,AF_afr,AF_ami,AF_amr,AF_asj,AF_eas,AF_fin,AF_nfe,AF_oth,AF_sas"
     require_files "gnomAD sites (custom)" "${VEP_GNOMAD_SITES}" "${VEP_GNOMAD_SITES}.tbi"
 
