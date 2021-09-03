@@ -11,15 +11,22 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 # [1/2] Most versions of Bash read scripts line by line, causing misbehavior if
 # the file changes during runtime. The {} forces Bash to read the entire thing
 {
+    readonly ANNOVEP_ROOT="$(dirname "$(readlink -f "$0")")"
+
     . "${ANNOVEP_ROOT}/utilities.sh"
 
-    function require_file() {
-        if [ -e "${2}" ]; then
-            info "[✓] ${1} file found at ${2}"
-        else
-            error "[☓] ${1} file not found at ${2}"
-            exit 1
-        fi
+    function require_files() {
+        local -r desc=$1
+        shift
+
+        for filename in "${@}"; do
+            if [ -e "${filename}" ]; then
+                info "[✓] ${desc} file found at ${filename}"
+            else
+                error "[☓] ${desc} file not found at ${filename}"
+                exit 1
+            fi
+        done
     }
 
     if [ $# -lt 2 -o $# -gt 3 ]; then
@@ -35,47 +42,57 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly output_tsv="${2}.tsv"
     readonly threads=${3:-1}
 
-    require_file "Input VCF file" "${input_vcf}"
+    require_files "Input VCF file" "${input_vcf}"
 
-    ## Plugin annotations
+    ####################################################################################
+    ## Paths VEP plugin annotations
+
+    readonly PLUGINS_CACHE="${ANNOVEP_CACHE}/plugins"
 
     # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
-    readonly VEP_ANCESTRAL="${VEP_CACHE}/homo_sapiens_ancestor_GRCh38.fa.gz"
-    require_file "Ancestral FASTA" "${VEP_ANCESTRAL}"
+    readonly VEP_ANCESTRAL="${PLUGINS_CACHE}/homo_sapiens_ancestor_GRCh38.fa.gz"
+    require_files "Ancestral FASTA" "${VEP_ANCESTRAL}" "${VEP_ANCESTRAL}.fai" "${VEP_ANCESTRAL}.gzi"
 
     # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
-    readonly VEP_CONSERVATION="${VEP_CACHE}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
-    require_file "GERP Scores" "${VEP_CONSERVATION}"
+    readonly VEP_CONSERVATION="${PLUGINS_CACHE}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
+    require_files "GERP Scores" "${VEP_CONSERVATION}"
 
     # https://github.com/konradjk/loftee
-    readonly VEP_LOFTEE_FA="${VEP_CACHE}/human_ancestor.fa.gz"
-    require_file "loftee ancestral FASTA" "${VEP_LOFTEE_FA}"
-    require_file "loftee ancestral FASTA (FAI)" "${VEP_LOFTEE_FA}.fai"
-    require_file "loftee ancestral FASTA (GZI)" "${VEP_LOFTEE_FA}.gzi"
+    readonly VEP_LOFTEE_FA="${PLUGINS_CACHE}/human_ancestor.fa.gz"
+    require_files "loftee ancestral FASTA" "${VEP_LOFTEE_FA}" "${VEP_LOFTEE_FA}.fai" "${VEP_LOFTEE_FA}.gzi"
 
-    readonly VEP_LOFTEE_SQL="${VEP_CACHE}/phylocsf_gerp.sql"
-    require_file "loftee conservation database" "${VEP_LOFTEE_SQL}"
+    readonly VEP_LOFTEE_SQL="${PLUGINS_CACHE}/phylocsf_gerp.sql"
+    require_files "loftee conservation database" "${VEP_LOFTEE_SQL}"
 
-    ## Custom annotations
+    ####################################################################################
+    ## Paths and fields for VEP custom annotations
+
+    readonly CUSTOM_CACHE="${ANNOVEP_CACHE}/custom"
 
     # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
-    readonly VEP_CLINVAR="${VEP_CACHE}/clinvar_20210821.vcf.gz"
+    readonly VEP_CLINVAR="${CUSTOM_CACHE}/clinvar_20210821.vcf.gz"
     readonly VEP_CLINVAR_FIELDS="ALLELEID,CLNDN,CLNDISDB,CLNREVSTAT,CLNSIG"
-    require_file "ClinVar" "${VEP_CLINVAR}"
+    require_files "ClinVar" "${VEP_CLINVAR}" "${VEP_CLINVAR}.tbi"
 
-    readonly VEP_1K_GENOMES="${VEP_CACHE}/1000Genomes_20200805.vcf.gz"
+    readonly VEP_1K_GENOMES="${CUSTOM_CACHE}/1000Genomes_20200805.vcf.gz"
     readonly VEP_1K_GENOMES_FIELDS="$(printf "AF_%s_unrel," AMR AFR EAS EUR SAS)"
-    require_file "1000 genomes (custom)" "${VEP_1K_GENOMES}"
+    require_files "1000 genomes (custom)" "${VEP_1K_GENOMES}" "${VEP_1K_GENOMES}.tbi"
 
     # Custom made gnomAD VCFs containing coverage statistics
-    readonly VEP_GNOMAD_COVERAGE="${VEP_CACHE}/gnomAD_coverage.vcf.gz"
+    #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
+    #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD_coverage.vcf.gz
+    readonly VEP_GNOMAD_COVERAGE="${CUSTOM_CACHE}/gnomAD_coverage.vcf.gz"
     readonly VEP_GNOMAD_COVERAGE_FIELDS="gnomAD_mean,gnomAD_median,gnomAD_over_15,gnomAD_over_50"
-    require_file "gnomAD coverage" "${VEP_GNOMAD_COVERAGE}"
+    require_files "gnomAD coverage" "${VEP_GNOMAD_COVERAGE}" "${VEP_GNOMAD_COVERAGE}.tbi"
 
-    # Custom made gnomAD VCFs containing SNP filters
-    readonly VEP_GNOMAD_SITES="${VEP_CACHE}/gnomad.genomes.r3.0.sites.vcf.gz"
+    # Custom made gnomAD VCF containing allele frequencies
+    #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
+    #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.sites.vcf.gz
+    readonly VEP_GNOMAD_SITES="${CUSTOM_CACHE}/gnomad.genomes.r3.0.sites.vcf.gz"
     readonly VEP_GNOMAD_SITES_FIELDS="AF,AF_afr,AF_ami,AF_amr,AF_asj,AF_eas,AF_fin,AF_nfe,AF_oth,AF_sas"
-    require_file "gnomAD sites (custom)" "${VEP_GNOMAD_SITES}"
+    require_files "gnomAD sites (custom)" "${VEP_GNOMAD_SITES}" "${VEP_GNOMAD_SITES}.tbi"
+
+    ####################################################################################
 
     if [ "${output_vep_json}" -nt "${input_vcf}" ]; then
         info "VEP has already been run on input VCF"
@@ -96,7 +113,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --compress_output "gzip" \
             --dont_skip \
             --allow_non_variant \
-            --dir_cache "${VEP_CACHE}" \
+            --dir_cache "${ANNOVEP_CACHE}/cache" \
             --dir_plugins "${VEP_PLUGINS}" \
             --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
             --plugin "Conservation,${VEP_CONSERVATION}" \
@@ -114,7 +131,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
     info "Aggregating results ..."
     log_command python3 "${ANNOVEP_ROOT}/combine_results.py" \
-        --liftover-cache "${LIFTOVER_CACHE}" \
+        --liftover-cache "${ANNOVEP_CACHE}/liftover" \
         --vep-output "${output_vep_json}" \
         "${input_vcf}" \
         "${output_tsv}"

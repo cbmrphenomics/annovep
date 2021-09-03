@@ -11,12 +11,12 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 # [1/2] Most versions of Bash read scripts line by line, causing misbehavior if
 # the file changes during runtime. The {} forces Bash to read the entire thing
 {
-    . "${ANNOVEP_ROOT}/utilities.sh"
+    . "$(dirname "$(readlink -f "$0")")/utilities.sh"
 
     function download() {
-        local -r src_url="${1}"
-        local -r dst_file="${2}"
-        local -r tmp_file="${2}.${RANDOM}.tmp"
+        local -r dst_file="${1}"
+        local -r tmp_file="${1}.${RANDOM}.tmp"
+        local -r src_url="${2}"
 
         if [ ! -e "${dst_file}" ]; then
             info "Downloading $(basename ${dst_file})"
@@ -35,12 +35,12 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     }
 
     function download_ancestral_fa() {
-        local -r src_url="${1}"
-        local -r dst_tar="${VEP_CACHE}/$(basename "${1}")"
+        local -r dst_tar="${1}"
         local -r dst_fa="${dst_tar/.tar.gz/.fa.gz}"
+        local -r src_url="${2}"
         local -r tmp_fa="${dst_fa}.${RANDOM}.tmp"
 
-        download "${src_url}" "${dst_tar}"
+        download "${dst_tar}" "${src_url}"
 
         if [ ! -e "${dst_fa}" ]; then
             info "Unpacking ancestral FASTA to ${dst_fa}"
@@ -66,48 +66,55 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     }
 
     function download_vcf() {
-        local -r src_url="${2}"
-        local -r dst_file="${VEP_CACHE}/$1"
-
-        download "${src_url}" "${dst_file}"
-
-        if [ ! -e "${dst_file}.tbi" ]; then
-            info "Indexing VCF file ${dst_file}"
-            log_command tabix -p vcf "${dst_file}"
-        else
-            info "Already indexed VCF file ${dst_file}"
-        fi
+        download "${1}" "${2}"
+        download "${1}.tbi" "${2}.tbi"
     }
 
-    # Download genome cache
+    ####################################################################################
+    ## Main VEP cache
+
     log_command perl ${VEP_ROOT}/INSTALL.pl \
         --AUTO "cf" \
         --SPECIES "homo_sapiens" \
         --ASSEMBLY "GRCh38" \
-        --CACHEDIR "${VEP_CACHE}"
+        --CACHEDIR "${ANNOVEP_CACHE}/cache"
+
+    ####################################################################################
+    ## Plugins cache
+    readonly plugins_cache="${ANNOVEP_CACHE}/plugins"
 
     # FASTA used by the AncestralAllele plugin
-    download_ancestral_fa "ftp://ftp.ensembl.org/pub/current_fasta/ancestral_alleles/homo_sapiens_ancestor_GRCh38.tar.gz"
+    readonly ancestral_fa="${plugins_cache}/homo_sapiens_ancestor_GRCh38.tar.gz"
+    readonly ancestral_fa_url="ftp://ftp.ensembl.org/pub/current_fasta/ancestral_alleles/homo_sapiens_ancestor_GRCh38.tar.gz"
+    download_ancestral_fa "${ancestral_fa}" "${ancestral_fa_url}"
 
-    # ClinVAR VCF used for --custom annotation
-    download_vcf "clinvar_20210821.vcf.gz" "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/weekly/clinvar_20210821.vcf.gz"
-    # TODO:
-    download_vcf "dbsnp_20180418.vcf.gz" "https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b151_GRCh38p7/VCF/All_20180418.vcf.gz"
+    # GERP scores for the Conservation plugin
+    download "${plugins_cache}/gerp_conservation_scores.homo_sapiens.GRCh38.bw" "http://ftp.ensembl.org/pub/current_compara/conservation_scores/90_mammals.gerp_conservation_score/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
 
     # FASTA used by the LOFTEE plugin
-    download "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz" "${VEP_CACHE}/human_ancestor.fa.gz"
-    download "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai" "${VEP_CACHE}/human_ancestor.fa.gz.fai"
-    download "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi" "${VEP_CACHE}/human_ancestor.fa.gz.gzi"
+    download "${plugins_cache}/human_ancestor.fa.gz" "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz"
+    download "${plugins_cache}/human_ancestor.fa.gz.fai" "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai"
+    download "${plugins_cache}/human_ancestor.fa.gz.gzi" "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi"
 
     # SQLite database used by the LOFTEE plugin
-    if [ ! -e "${VEP_CACHE}/phylocsf_gerp.sql" ]; then
-        download "https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz" "${VEP_CACHE}/phylocsf_gerp.sql.gz"
+    if [ ! -e "${plugins_cache}/phylocsf_gerp.sql" ]; then
+        download "${plugins_cache}/phylocsf_gerp.sql.gz" "https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz"
 
-        log_command gunzip -k "${VEP_CACHE}/phylocsf_gerp.sql.gz"
+        log_command gunzip -k "${plugins_cache}/phylocsf_gerp.sql.gz"
     fi
 
-    # TODO
-    # download "http://ftp.ensembl.org/pub/current_compara/conservation_scores/90_mammals.gerp_conservation_score/gerp_conservation_scores.homo_sapiens.GRCh38.bw" "${VEP_CACHE}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
+    ####################################################################################
+    ## Custom annotations
+    readonly custom_cache="${ANNOVEP_CACHE}/custom"
+
+    # Assembly information needed to convert refseq names to those used by our FASTA
+    download "${custom_cache}/GCF_000001405.39_GRCh38.p13_assembly_report.txt" "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt"
+
+    # ClinVAR VCF used for --custom annotation
+    download_vcf "${custom_cache}/clinvar_20210821.vcf.gz" "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/weekly/clinvar_20210821.vcf.gz"
+
+    # DBSNP VCF used for --custom annotation (requires processing)
+    download_vcf "${custom_cache}/dbsnp_155_20210513.vcf.gz" "https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz"
 
     # [2/2] Prevent Bash from reading past this point once script is done
     exit $?

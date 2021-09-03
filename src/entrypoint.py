@@ -18,15 +18,12 @@ MARKER = "not_mounted"
 
 DATA_ROOT = Path("/data")
 USER_ROOT = DATA_ROOT / "user"
-USER_MARKER = USER_ROOT / MARKER
 CACHE_ROOT = DATA_ROOT / "cache"
-CACHE_MARKER = CACHE_ROOT / MARKER
 
 ANNOVEP_ROOT = Path("/opt/annovep")
 
 VEP_ROOT = Path("/opt/vep/src/ensembl-vep")
 VEP_PLUGINS = Path("/opt/vep-plugins/Plugins/")
-VEP_CACHE = CACHE_ROOT / "vep"
 
 
 COMMANDS: Dict[str, List[Union[Path, str]]] = {
@@ -62,17 +59,17 @@ def check_container(log):
     log.info("Checking container ..")
 
     folders = [
-        ["cache", CACHE_ROOT, CACHE_MARKER],
-        ["user data", USER_ROOT, USER_MARKER],
+        ["cache", CACHE_ROOT],
+        ["user data", USER_ROOT],
     ]
 
-    for name, root, marker in folders:
+    for name, root in folders:
         if not root.is_dir():
             log.error(" %s annovep %s folder does not exist: %s", ERR, name, root)
             return False
         log.info("  %s annovep %s folder exists ..", OK, name)
 
-        if marker.exists():
+        if (root / MARKER).exists():
             log.error(" %s annovep %s folder not mounted in docker!", ERR, name)
             return False
         log.info("  %s annovep %s folder mounted ..", OK, name)
@@ -81,7 +78,7 @@ def check_container(log):
 
 
 def check_databases(log):
-    log.info("VEP cache accessible at '%s'", VEP_CACHE)
+    log.info("VEP cache accessible at '%s'", CACHE_ROOT)
 
     return True
 
@@ -92,7 +89,7 @@ def change_user(log):
         target_uid = int(target_uid)
     except Exception:
         log.info("invalid ANNOVEP_USER: %r", target_uid)
-        return 1
+        return False
 
     if target_uid < 1000:
         # FIXME: Better solution needed
@@ -153,13 +150,10 @@ def main(argv):
 
     env["HOME"] = str(USER_ROOT)
 
-    env["ANNOVEP_ROOT"] = str(ANNOVEP_ROOT)
+    env["ANNOVEP_CACHE"] = str(CACHE_ROOT)
 
-    env["VEP_CACHE"] = str(VEP_CACHE)
     env["VEP_ROOT"] = str(VEP_ROOT)
     env["VEP_PLUGINS"] = str(VEP_PLUGINS)
-
-    env["LIFTOVER_CACHE"] = str(CACHE_ROOT / "liftover")
 
     log.info("Running %s", " ".join(quote_command(commandline + argv)))
 
