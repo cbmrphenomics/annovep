@@ -441,6 +441,7 @@ class AnnotateVEP(Annotator):
         row["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
 
         # add other annotation
+        self._add_1k_genomes_annotation(vep, row)
         self._add_gnomad_annotation(vep, row)
         self._add_clinvar_annotation(vep, row)
 
@@ -476,7 +477,21 @@ class AnnotateVEP(Annotator):
             "gnomAD_median",
             "gnomAD_over_15",
             "gnomAD_over_50",
-            "gnomAD_filters",
+            "gnomAD_filter",
+            "gnomAD_AFR_AF",
+            "gnomAD_AMI_AF",
+            "gnomAD_AMR_AF",
+            "gnomAD_ASJ_AF",
+            "gnomAD_EAS_AF",
+            "gnomAD_FIN_AF",
+            "gnomAD_NFE_AF",
+            "gnomAD_OTH_AF",
+            "gnomAD_SAS_AF",
+            "1KG_AFR_AF",
+            "1KG_AMR_AF",
+            "1KG_EAS_AF",
+            "1KG_EUR_AF",
+            "1KG_SAS_AF",
         )
 
     def _read_record(self, vcf, row, _regex=re.compile(r":(-)?NaN\b", flags=re.I)):
@@ -604,7 +619,22 @@ class AnnotateVEP(Annotator):
             fields = dict(zip(fields, fields))
 
         for src_key, dst_key in fields.items():
+
             dst[dst_key] = data.get(src_key, default)
+
+    def _add_1k_genomes_annotation(self, src, dst):
+        self._add_custom_annotation(
+            src=src,
+            dst=dst,
+            name="1KGenomes",
+            fields={
+                "AF_AFR_unrel": "1KG_AFR_AF",
+                "AF_AMR_unrel": "1KG_AMR_AF",
+                "AF_EAS_unrel": "1KG_EAS_AF",
+                "AF_EUR_unrel": "1KG_EUR_AF",
+                "AF_SAS_unrel": "1KG_SAS_AF",
+            },
+        )
 
     def _add_gnomad_annotation(self, src, dst):
         self._add_custom_annotation(
@@ -622,8 +652,20 @@ class AnnotateVEP(Annotator):
         self._add_custom_annotation(
             src=src,
             dst=dst,
-            name="gnomAD_filters",
-            fields=("gnomAD_filters",),
+            name="gnomAD_sites",
+            fields={
+                "FILTER": "gnomAD_filter",
+                "AF": "gnomAD_ALL_AF",
+                "AF_afr": "gnomAD_AFR_AF",
+                "AF_ami": "gnomAD_AMI_AF",
+                "AF_amr": "gnomAD_AMR_AF",
+                "AF_asj": "gnomAD_ASJ_AF",
+                "AF_eas": "gnomAD_EAS_AF",
+                "AF_fin": "gnomAD_FIN_AF",
+                "AF_nfe": "gnomAD_NFE_AF",
+                "AF_oth": "gnomAD_OTH_AF",
+                "AF_sas": "gnomAD_SAS_AF",
+            },
         )
 
     def _add_clinvar_annotation(self, src, dst):
