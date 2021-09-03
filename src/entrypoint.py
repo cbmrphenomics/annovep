@@ -145,10 +145,7 @@ def main(argv):
     # Set home to user data folder
     env = dict(os.environ)
 
-    # Prevent the creation of a `.bash_history` file in the current working directory
-    env.pop("HISTFILE", None)
-
-    env["HOME"] = str(USER_ROOT)
+    env["HOME"] = "/home/dummy"
 
     env["ANNOVEP_CACHE"] = str(CACHE_ROOT)
 
