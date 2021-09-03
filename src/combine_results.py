@@ -283,6 +283,7 @@ class AnnotateVEP(Annotator):
         self._cached_record = {}
 
     def annotate(self, vcf, row):
+        # https://m.ensembl.org/info/docs/tools/vep/vep_formats.html#json
         vep = self._read_record(vcf, row)
 
         # Add functional annotation
@@ -308,13 +309,16 @@ class AnnotateVEP(Annotator):
             "Func_n_most_significant",
             "Func_most_significant",
             "Func_least_significant",
-            "Func_cdna_end",
-            "Func_cdna_start",
             "Func_gene_id",
             "Func_transcript_id",
             "Func_gene_symbol",
             "Func_gene_symbol_source",
             "Func_all_gene_symbols",
+            "Func_cdna_position",
+            "Func_cds_position",
+            "Func_protein_position",
+            "Func_amino_acids",
+            "Func_codons",
             "Func_impact",
             "Func_strand",
             "Func_polyphen",
@@ -432,6 +436,8 @@ class AnnotateVEP(Annotator):
 
     def _add_gene_info(self, consequence, dst):
         for key in (
+            "amino_acids",
+            "codons",
             "cdna_end",
             "cdna_start",
             "gene_id",
@@ -450,6 +456,29 @@ class AnnotateVEP(Annotator):
             "lof_info",
         ):
             dst[f"Func_{key}"] = consequence.get(key, ".")
+
+        for key in (
+            "cdna",
+            "cds",
+            "protein",
+        ):
+            dst[f"Func_{key}_position"] = self._format_coordinates(consequence, key)
+
+    def _format_coordinates(self, consequence, key):
+        start = consequence.get(f"{key}_start")
+        end = consequence.get(f"{key}_end")
+
+        if start is None:
+            if end is None:
+                return "."
+
+            return f"?-{end}"
+        elif end is None:
+            return f"{start}-?"
+        elif start == end:
+            return start
+
+        return f"{start}-{end}"
 
     def _add_ancestral_allele(self, consequence, dst):
         allele = consequence.get("aa")
