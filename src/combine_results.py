@@ -591,10 +591,11 @@ class AnnotateVEP(Annotator):
     def _add_custom_annotation(self, src, dst, name, fields, default="."):
         data = {}
 
+        alt = dst[":vep:"]["alt"]
         # annotation = {"fields": ..., "name": "chr:start-end"}
         annotations = src.get("custom_annotations", {}).get(name, {})
         for annotation in annotations:
-            if annotation.get("allele", dst["Alt"]) == dst["Alt"]:
+            if annotation.get("allele", alt) == alt:
                 # data = {"FILTER": ".", field1: value1, ...}
                 data = annotation.get("fields", {})
                 break
