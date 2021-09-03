@@ -270,20 +270,6 @@ class AnnotateLiftOver(Annotator):
         return ("Liftover_hg19", "Liftover_hg38")
 
 
-class AnnotateQC(Annotator):
-    def __init__(self) -> None:
-        self._log = logging.getLogger("qc")
-        self._log.warning("qc pass not implemented")
-
-    def annotate(self, vcf, row):
-        row["QC"] = "."
-
-        return [row]
-
-    def keys(self):
-        return ["QC"]
-
-
 class AnnotateVEP(Annotator):
     CACHE_SIZE = 1000
 
@@ -580,46 +566,6 @@ class AnnotateVEP(Annotator):
         )
 
 
-class AnnotateSplitByAllele(Annotator):
-    def annotate(self, vcf, row):
-        for data in row.pop("alleles").values():
-            data.update(row)
-
-            yield data
-
-    def keys(self):
-        return ()
-
-
-def setup_annotators(args, log, vcf) -> List[Annotator]:
-    # order of operations
-    annotations: Dict[str, Optional[Annotator]] = {
-        "basic": AnnotateBasicsInfo(),
-        "liftover": None,
-        "vep": None,
-        # "split": AnnotateSplitByAllele(),
-        "qc": AnnotateQC(),
-    }
-
-    if args.liftover_cache:
-        annotations["liftover"] = AnnotateLiftOver(
-            source=args.database,
-            cache=args.liftover_cache,
-        )
-
-    if args.vep_output:
-        annotations["vep"] = AnnotateVEP(args.vep_output)
-
-    selection: List[Annotator] = []
-    for key, value in annotations.items():
-        if value is None:
-            log.warning("%s annotations disabled", key)
-        else:
-            selection.append(value)
-
-    return selection
-
-
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("width", 79)
@@ -648,6 +594,7 @@ def parse_args(argv):
 
     parser.add_argument(
         "--vep-output",
+        required=True,
         type=Path,
     )
 
@@ -680,7 +627,15 @@ def main(argv):
     log.info("reading variants from '%s'", args.in_vcf)
 
     with pysam.VariantFile(str(args.in_vcf)) as handle:
-        annotations = setup_annotators(args, log, handle)
+        # order of operations
+        annotations = [
+            AnnotateBasicsInfo(),
+            AnnotateLiftOver(
+                source=args.database,
+                cache=args.liftover_cache,
+            ),
+            AnnotateVEP(args.vep_output),
+        ]
 
         header = []
         for annotator in annotations:
