@@ -294,8 +294,9 @@ class AnnotateVEP(Annotator):
         row["Func_polyphen"] = consequence.get("polyphen_prediction", ".")
         row["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
 
-        # add other annotation
+        # add custom annotation
         self._add_1k_genomes_annotation(vep, row)
+        self._add_dbsnp_annotation(vep, row)
         self._add_gnomad_annotation(vep, row)
         self._add_clinvar_annotation(vep, row)
 
@@ -323,6 +324,9 @@ class AnnotateVEP(Annotator):
             "Func_lof_filter",
             "Func_lof_flags",
             "Func_lof_info",
+            "DBSNP_ids",
+            "DBSNP_alts",
+            "DBSNP_functions",
             "ClinVar_ID",
             "ClinVar_Disease",
             "ClinVar_Significance",
@@ -486,6 +490,18 @@ class AnnotateVEP(Annotator):
                 "AF_EAS_unrel": "1KG_EAS_AF",
                 "AF_EUR_unrel": "1KG_EUR_AF",
                 "AF_SAS_unrel": "1KG_SAS_AF",
+            },
+        )
+
+    def _add_dbsnp_annotation(self, src, dst):
+        self._add_custom_annotation(
+            src=src,
+            dst=dst,
+            name="DBSNP",
+            fields={
+                "ids": "DBSNP_ids",
+                "alts": "DBSNP_alts",
+                "functions": "DBSNP_functions",
             },
         )
 

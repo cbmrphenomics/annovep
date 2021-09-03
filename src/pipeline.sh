@@ -92,6 +92,14 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly VEP_GNOMAD_SITES_FIELDS="AF,AF_afr,AF_ami,AF_amr,AF_asj,AF_eas,AF_fin,AF_nfe,AF_oth,AF_sas"
     require_files "gnomAD sites (custom)" "${VEP_GNOMAD_SITES}" "${VEP_GNOMAD_SITES}.tbi"
 
+    # Custom made dbSNP VCF containing aggregated information
+    #   $ wget https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz -O dbsnp_155_20210513.vcf.gz
+    #   $ wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt
+    #   $ python3 convert_to_custom dbsnp dbsnp_155_20210513.vcf.gz GCF_000001405.39_GRCh38.p13_assembly_report.txt | bgzip > dbsnp_155_20210513_custom.vcf.gz
+    readonly VEP_DBSNP="${CUSTOM_CACHE}/dbsnp_155_20210513_custom.vcf.gz"
+    readonly VEP_DBSNP_FIELDS="ids,alts,functions"
+    require_files "dbSNP summaries (custom)" "${VEP_DBSNP}" "${VEP_DBSNP}.tbi"
+
     ####################################################################################
 
     if [ "${output_vep_json}" -nt "${input_vcf}" ]; then
@@ -120,6 +128,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
             --custom "${VEP_1K_GENOMES},1KGenomes,vcf,exact,0,${VEP_1K_GENOMES_FIELDS}" \
             --custom "${VEP_CLINVAR},ClinVar,vcf,exact,0,${VEP_CLINVAR_FIELDS}" \
+            --custom "${VEP_DBSNP},DBSNP,vcf,exact,0,${VEP_DBSNP_FIELDS}" \
             --custom "${VEP_GNOMAD_COVERAGE},gnomAD_coverage,vcf,overlap,0,${VEP_GNOMAD_COVERAGE_FIELDS}" \
             --custom "${VEP_GNOMAD_SITES},gnomAD_sites,vcf,exact,0,${VEP_GNOMAD_SITES_FIELDS}" \
             --polyphen b \
