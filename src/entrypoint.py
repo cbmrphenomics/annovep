@@ -28,8 +28,6 @@ VEP_PLUGINS = Path("/opt/vep-plugins/Plugins/")
 
 COMMANDS: Dict[str, List[Union[Path, str]]] = {
     "bash": ["/bin/bash"],
-    # Conversion of formats/tables
-    "convert:gnomadflags": ["python3", ANNOVEP_ROOT / "convert_gnomad_flags.py"],
     # VEP setup and direct execution
     "vep": ["perl", VEP_ROOT / "vep"],
     "vep:setup": ["bash", ANNOVEP_ROOT / "setup_vep.sh"],
