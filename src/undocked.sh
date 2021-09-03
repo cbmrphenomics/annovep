@@ -14,9 +14,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 	export ANNOVEP="${ANNOVEP:-${HOME}/annovep}"
 	readonly INSTALL="${ANNOVEP}/install"
 
-	# Annovar exports
 	export ANNOVEP_ROOT="${ANNOVEP_ROOT:-${INSTALL}/annovep}"
-	export ANNOVAR_CACHE="${ANNOVAR_CACHE:-${ANNOVEP}/annovar}"
 
 	# VEP exports
 	export VEP_ROOT="${VEP_ROOT:-${INSTALL}/vep/src/ensembl-vep}"
@@ -24,7 +22,6 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 	export VEP_PLUGINS="${VEP_PLUGINS:-${INSTALL}/vep-plugins/Plugins}"
 
 	# Misc exports
-	export ANNOVAR_ROOT="${ANNOVAR_ROOT:-${INSTALL}/annovar}"
 	export LIFTOVER_CACHE="${LIFTOVER_CACHE:-${ANNOVEP}/liftover}"
 
 	. "${ANNOVEP_ROOT}/pipeline.sh" "$@"

@@ -24,9 +24,6 @@ CACHE_MARKER = CACHE_ROOT / MARKER
 
 ANNOVEP_ROOT = Path("/opt/annovep")
 
-ANNOVAR_ROOT = Path("/opt/annovar")
-ANNOVAR_CACHE = CACHE_ROOT / "annovar"
-
 VEP_ROOT = Path("/opt/vep/src/ensembl-vep")
 VEP_PLUGINS = Path("/opt/vep-plugins/Plugins/")
 VEP_CACHE = CACHE_ROOT / "vep"
@@ -36,10 +33,6 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
     "bash": ["/bin/bash"],
     # Conversion of formats/tables
     "convert:gnomadflags": ["python3", ANNOVEP_ROOT / "convert_gnomad_flags.py"],
-    # Annovar setup and direct execution
-    "annovar:setup": ["bash", ANNOVEP_ROOT / "setup_annovar.sh"],
-    "annovar:convert": ["perl", ANNOVAR_ROOT / "convert2annovar.pl"],
-    "annovar:table": ["perl", ANNOVAR_ROOT / "table_annovar.pl"],
     # VEP setup and direct execution
     "vep": ["perl", VEP_ROOT / "vep"],
     "vep:setup": ["bash", ANNOVEP_ROOT / "setup_vep.sh"],
@@ -88,7 +81,6 @@ def check_container(log):
 
 
 def check_databases(log):
-    log.info("Annovar cache accessible at '%s'", ANNOVAR_CACHE)
     log.info("VEP cache accessible at '%s'", VEP_CACHE)
 
     return True
@@ -162,9 +154,6 @@ def main(argv):
     env["HOME"] = str(USER_ROOT)
 
     env["ANNOVEP_ROOT"] = str(ANNOVEP_ROOT)
-
-    env["ANNOVAR_CACHE"] = str(ANNOVAR_CACHE)
-    env["ANNOVAR_ROOT"] = str(ANNOVAR_ROOT)
 
     env["VEP_CACHE"] = str(VEP_CACHE)
     env["VEP_ROOT"] = str(VEP_ROOT)

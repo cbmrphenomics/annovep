@@ -30,47 +30,12 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
     readonly input_vcf="${1}"
     readonly output_prefix="${2}"
-    readonly output_av_input="${2}.hg38_multianno.input"
-    readonly output_av_table="${2}.hg38_multianno.txt"
     readonly output_vep_json="${2}.vep.json.gz"
     readonly output_vep_html="${2}.vep.html"
     readonly output_tsv="${2}.tsv"
     readonly threads=${3:-1}
 
     require_file "Input VCF file" "${input_vcf}"
-
-    # We manually convert the VCF to the Annovar input format. While table_annovar.pl
-    # can do this, enabling VCF input also enables VCF output that we don't need.
-    if [ "${output_av_input}" -nt "${input_vcf}" ]; then
-        info "Input VCF already converted to Annovar input format"
-    else
-        info "Converting input VCF to Annovar input format:"
-
-        log_command perl "${ANNOVAR_ROOT}/convert2annovar.pl" \
-            --allsample \
-            --withfreq \
-            --format "vcf4" \
-            --outfile "${output_av_input}" \
-            "${input_vcf}"
-    fi
-
-    if [ "${output_av_table}" -nt "${output_av_input}" ]; then
-        info "Annovar has already been run on '${output_av_input}'"
-    else
-        info "Running annovar on '${output_av_input}':"
-        log_command perl "${ANNOVAR_ROOT}/table_annovar.pl" \
-            --buildver "hg38" \
-            --nastring "." \
-            --dot2underline \
-            --polish \
-            --remove \
-            --protocol "gnomad30_genome,AFR.sites.2015_08,AMR.sites.2015_08,EAS.sites.2015_08,EUR.sites.2015_08,SAS.sites.2015_08" \
-            --operation "f,f,f,f,f,f" \
-            --outfile "${output_prefix}" \
-            "${output_av_input}" \
-            "${ANNOVAR_CACHE}" \
-            --thread "${threads}"
-    fi
 
     ## Plugin annotations
 

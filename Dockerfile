@@ -16,14 +16,6 @@ RUN cd /opt/vep-plugins && \
     tar xvzf ./loftee-v1.0.3.tar.gz && \
     cp -a loftee-1.0.3/* Plugins/
 
-# Install annovar (https://annovar.openbioinformatics.org/)
-COPY ./binaries/annovar.scripts.20200608.tar.gz /opt/annovar/
-RUN cd /opt/annovar/ && tar xvzf annovar.scripts.20200608.tar.gz --strip-component=1
-
-# Apply tweaks to scripts
-COPY ./binaries/annovar.scripts.20200608.patch /opt/annovar/annovar.patch
-RUN cd /opt/annovar/ && patch -p1 <annovar.patch
-
 # Create folder for mounting the (shared) cache
 RUN mkdir -p /data/cache && touch /data/cache/not_mounted
 # Create folder for user data (i.e. the user's current working directory)

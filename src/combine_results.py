@@ -98,9 +98,8 @@ class AnnotateBasicsInfo(Annotator):
         # Workaround for non-variants; additional logic is found in the VEP annotator
         alts = ["."] if vcf.alts is None else vcf.alts
 
-        # Construct the cleaned up alleles / positions used by Annovar/VEP
+        # Construct the cleaned up alleles / positions used by VEP
         vep_alleles = self._construct_vep_alleles(vcf)
-        annovar_alleles = self._construct_annovar_alleles(vcf)
 
         for allele in alts:
             allele = self._validate_sequence(allele, "ACGTN*.")
@@ -129,8 +128,7 @@ class AnnotateBasicsInfo(Annotator):
                 - gt_na
             )
 
-            # Cleaned up coordinates/sequences used by annovar and vep
-            copy[":annovar:"] = annovar_alleles[allele]
+            # Cleaned up coordinates/sequences used by VEP
             copy[":vep:"] = vep_alleles[allele]
 
             yield copy
@@ -192,67 +190,6 @@ class AnnotateBasicsInfo(Annotator):
 
         return frequencies
 
-    def _construct_annovar_alleles(self, vcf):
-        # Annovar will use the reference allele if there is no alternative allele
-        if vcf.alts is None:
-            pos = vcf.pos
-            ref = vcf.ref
-
-            return {".": {"start": pos, "end": pos, "ref": ref, "alt": ref}}
-
-        alleles = {}
-        for vcf_alt in vcf.alts:
-            start, end, ref, alt = self._construct_annovar_variant(
-                vcf.pos, vcf.ref, vcf_alt
-            )
-
-            alleles[vcf_alt] = {"start": start, "end": end, "ref": ref, "alt": alt}
-
-        return alleles
-
-    def _construct_annovar_variant(self, start, ref, alt):
-        # Annovar doens't understand "*"
-        if alt == "*":
-            alt = "0"
-
-        end = start + len(ref) - 1
-        if len(ref) == 1 and len(alt) == 1:  # SNV
-            return (start, end, ref, alt)
-        elif self._keepindelref:
-            return (start, end, ref, alt)
-        elif ref.startswith(alt):  # Deletion
-            start = start + len(alt)
-            (ref, alt) = (ref[len(alt) :], "-")
-        elif alt.startswith(ref):  # Insertion
-            start = end
-            (ref, alt) = ("-", alt[len(ref) :])
-        elif ref[:-1] == alt[:-1]:  # Block substitution
-            start = end
-            (ref, alt) = (ref[-1], alt[-1])
-
-        # 20150324: further adjust when only part of alt and ref matches
-        return self._trim_ref_and_alt(start, end, ref, alt)
-
-    def _trim_ref_and_alt(self, start, end, ref, alt):
-        while ref and alt and ref[-1] == alt[-1]:
-            ref = ref[:-1]
-            alt = alt[:-1]
-            end -= 1
-
-        while ref and alt and ref[0] == alt[0]:
-            ref = ref[1:]
-            alt = alt[1:]
-            start += 1
-
-        if not ref:
-            ref = "-"
-            # now it is an insertion so the start should decrease by 1 (20150925)
-            start -= 1
-        elif not alt:
-            alt = "-"
-
-        return (start, end, ref, alt)
-
     def _construct_vep_alleles(self, vcf):
         start = vcf.pos
         ref = vcf.ref
@@ -289,75 +226,6 @@ class AnnotateBasicsInfo(Annotator):
             }
             for vcf_alt, vep_alt in zip(vcf.alts, alts)
         }
-
-
-class AnnotateAnnovar(Annotator):
-    CACHE_SIZE = 1000
-
-    def __init__(self, filepath: Path) -> None:
-        self._log = logging.getLogger("annovar")
-        self._log.info("reading Annovar annotations from '%s'", filepath)
-
-        self._handle = filepath.open("rt")
-        self._header = self._handle.readline().rstrip().split("\t")
-
-        self._mapping = {
-            "gnomAD_ALL_AF": "AF",
-            "gnomAD_AFR_AF": "AF_afr",
-            "gnomAD_AMI_AF": "AF_ami",
-            "gnomAD_AMR_AF": "AF_amr",
-            "gnomAD_ASJ_AF": "AF_asj",
-            "gnomAD_EAS_AF": "AF_eas",
-            "gnomAD_FIN_AF": "AF_fin",
-            "gnomAD_NFE_AF": "AF_nfe",
-            "gnomAD_OTH_AF": "AF_oth",
-            "gnomAD_SAS_AF": "AF_sas",
-            "1KG_AFR_AF": "AFR.sites.2015_08",
-            "1KG_AMR_AF": "AMR.sites.2015_08",
-            "1KG_EAS_AF": "EAS.sites.2015_08",
-            "1KG_EUR_AF": "EUR.sites.2015_08",
-            "1KG_SAS_AF": "SAS.sites.2015_08",
-        }
-
-    def annotate(self, vcf, row):
-        data = self._read_record(row)
-
-        for dst, src in self._mapping.items():
-            row[dst] = data[src]
-
-        yield row
-
-    def keys(self):
-        return self._mapping.keys()
-
-    def _read_record(self, row):
-        annovar = row[":annovar:"]
-        expected = (
-            row["Chr"],
-            annovar["start"],
-            annovar["end"],
-            annovar["ref"],
-            annovar["alt"],
-        )
-
-        # Annovar will occassionally generate multiple lines for the same allele
-        line = self._handle.readline().rstrip()
-        if not line:
-            raise RuntimeError("annovar annotations are truncated")
-
-        row = dict(zip(self._header, line.split("\t")))
-        observed = (
-            row["Chr"],
-            int(row["Start"]),
-            int(row["End"]),
-            row["Ref"],
-            row["Alt"],
-        )
-
-        if expected != observed:
-            raise ValueError(f"Annovar: {observed} != {expected}")
-
-        return row
 
 
 class AnnotateLiftOver(Annotator):
@@ -472,7 +340,6 @@ class AnnotateVEP(Annotator):
             "ClinVar_ID",
             "ClinVar_Disease",
             "ClinVar_Significance",
-            # gnomAD are last since annovar gnomADs are appended afterwards
             "gnomAD_mean",
             "gnomAD_median",
             "gnomAD_over_15",
@@ -731,7 +598,6 @@ def setup_annotators(args, log, vcf) -> List[Annotator]:
         "liftover": None,
         "vep": None,
         # "split": AnnotateSplitByAllele(),
-        "annovar": None,
         "qc": AnnotateQC(),
     }
 
@@ -740,9 +606,6 @@ def setup_annotators(args, log, vcf) -> List[Annotator]:
             source=args.database,
             cache=args.liftover_cache,
         )
-
-    if args.annovar_output:
-        annotations["annovar"] = AnnotateAnnovar(args.annovar_output)
 
     if args.vep_output:
         annotations["vep"] = AnnotateVEP(args.vep_output)
@@ -781,11 +644,6 @@ def parse_args(argv):
         "--database",
         default="hg38",
         choices=("hg19", "hg38"),
-    )
-
-    parser.add_argument(
-        "--annovar-output",
-        type=Path,
     )
 
     parser.add_argument(
