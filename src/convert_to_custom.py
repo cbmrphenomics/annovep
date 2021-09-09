@@ -196,10 +196,8 @@ def dbsnp_to_vcf(log, counter, args):
 def _dbsnp_info_string(alt_string, records, alt_string_set):
     info = {}
 
-    # Other alleles at the current site
-    if len(alt_string_set) > 1:
-        other_alts = alt_string_set - set((alt_string,))
-        info["alts"] = ",".join(sorted(other_alts))
+    # All ALT allele strings at the current site with matching REF
+    info["alts"] = ",".join(sorted(alt_string_set))
 
     ids = set()
     functions = set()
