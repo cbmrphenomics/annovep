@@ -83,6 +83,7 @@ class AnnotateBasicsInfo(Annotator):
     def annotate(self, vcf, row):
         row["Chr"] = vcf.contig
         row["Pos"] = vcf.pos
+        row["ID"] = vcf.id or "."
         row["Ref"] = self._validate_sequence(vcf.ref, "ACGTN*")
         row["Filters"] = ";".join(vcf.filter or ".")
         row["DP"] = self._calculate_depth(vcf)
@@ -137,6 +138,7 @@ class AnnotateBasicsInfo(Annotator):
         return (
             "Chr",
             "Pos",
+            "ID",
             "Ref",
             "Alt",
             "Filters",
