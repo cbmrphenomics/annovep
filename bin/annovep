@@ -12,15 +12,17 @@ def eprint(*args, **kwargs):
     print(*args, **kwargs)
 
 
-def run_docker(image, root, argv):
-    command = ["docker", "run", "-i"]
+def run_podman(image, root, argv):
+    command = ["podman", "run", "-i"]
     if sys.stdin.isatty():
         command.append("-t")
 
     command += [
+        # ensure that file permissions are reflected in the (rootless) container
+        "--userns=keep-id",
+        # ensure that files are created as the current user
+        f"--user={os.getuid()}:{os.getgid()}",
         "--rm",
-        "-e",
-        f"ANNOVEP_USER={os.getuid()}",
         "-v",
         f"{root}:/data/cache",
         "-v",
@@ -38,17 +40,7 @@ def main(argv):
     image = os.environ.get("ANNOVEP_IMAGE", "annovep:v1")
     root = os.environ.get("ANNOVEP_CACHE", Path("~/annovep/").expanduser())
 
-    # The root folder must already exist, since docker will otherwise create it using
-    # permissions that prevent the container from creating subfolders. This is only
-    # relevant during the initial setup of the cache.
-    try:
-        os.makedirs(root, exist_ok=True)
-    except OSError as error:
-        eprint(f"Failed to create cache-dir at {root!r}:")
-        eprint("Specify a read/writable location using the command")
-        eprint("  $ export ANNOVEP_CACHE=/path/to/annovep/cache")
-        eprint("AnnoVEP cannot proceed, aborting.")
-        return 1
+    os.makedirs(root, exist_ok=True)
 
     if not os.access(root, os.X_OK | os.R_OK):
         eprint(f"Cannot open cache directory at {root!r}.")
@@ -59,7 +51,7 @@ def main(argv):
         return 1
 
     try:
-        return run_docker(image, root, argv)
+        return run_podman(image, root, argv)
     except KeyboardInterrupt:
         return 1
 

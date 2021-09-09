@@ -68,7 +68,7 @@ def check_container(log):
         log.info("  %s annovep %s folder exists ..", OK, name)
 
         if (root / MARKER).exists():
-            log.error(" %s annovep %s folder not mounted in docker!", ERR, name)
+            log.error(" %s annovep %s folder not mounted in podman!", ERR, name)
             return False
         log.info("  %s annovep %s folder mounted ..", OK, name)
 
@@ -77,32 +77,6 @@ def check_container(log):
 
 def check_databases(log):
     log.info("VEP cache accessible at '%s'", CACHE_ROOT)
-
-    return True
-
-
-def change_user(log):
-    target_uid = os.environ.get("ANNOVEP_USER", "1000")
-    try:
-        target_uid = int(target_uid)
-    except Exception:
-        log.info("invalid ANNOVEP_USER: %r", target_uid)
-        return False
-
-    if target_uid < 1000:
-        # FIXME: Better solution needed
-        log.error("cannot change user to %i", target_uid)
-        return False
-
-    target_uid = int(target_uid)
-    if not user_exists(target_uid):
-        log.info("adding dummy user")
-        user_add(target_uid, "dummy")
-
-    log.info("changing to gid %s", target_uid)
-    os.setgid(target_uid)
-    log.info("changing to uid %s", target_uid)
-    os.setuid(target_uid)
 
     return True
 
@@ -127,9 +101,6 @@ def main(argv):
     commandline = COMMANDS.get(command.lower())
     if commandline is None:
         log.error("unknown command %r", command)
-        return 1
-
-    if not change_user(log):
         return 1
 
     if not check_container(log):
