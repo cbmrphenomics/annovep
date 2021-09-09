@@ -180,7 +180,7 @@ def dbsnp_to_vcf(log, counter, args):
                     print(
                         TEMPLATE.format(
                             chrom=contig,
-                            pos=record.pos + 1,
+                            pos=record.pos,
                             id=".",
                             ref=record.ref,
                             alt=",".join(record.alts or "."),
