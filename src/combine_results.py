@@ -294,6 +294,9 @@ class AnnotateVEP(Annotator):
         # https://m.ensembl.org/info/docs/tools/vep/vep_formats.html#json
         vep = self._read_record(vcf, row)
 
+        # The position and sequences that VEP reports for this allele
+        row["VEPAllele"] = "{start}:{ref}:{alt}".format(**row[":vep:"])
+
         # Add functional annotation
         consequence = self._get_allele_consequence(vep, row[":vep:"]["alt"])
         self._add_gene_info(consequence, row)
@@ -316,6 +319,7 @@ class AnnotateVEP(Annotator):
         gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
 
         return {
+            "VEPAllele": "The pos:ref:alt corresponding to VEP output",
             "AncestralAllele": "",
             "Func_n_most_significant": "Number of consequences ranked as most"
             "significant in terms of impact",
