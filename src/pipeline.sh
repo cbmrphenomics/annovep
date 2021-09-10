@@ -30,9 +30,9 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
         done
     }
 
-    if [ $# -lt 2 -o $# -gt 3 ]; then
+    if [ $# -lt 2 ]; then
         error "Wrong number of arguments (${#}); usage is"
-        error "  annovep pipeline <input.vcf.gz> <output_prefix> [<threads>]"
+        error "  annovep pipeline <input.vcf.gz> <output_prefix> [<vep args, ...>]"
         exit 1
     fi
 
@@ -41,7 +41,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly output_vep_json="${2}.vep.json.gz"
     readonly output_vep_html="${2}.vep.html"
     readonly output_tsv="${2}.tsv"
-    readonly threads=${3:-1}
+    shift 2
 
     require_files "Input VCF file" "${input_vcf}"
 
@@ -142,7 +142,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --input_file "${input_vcf}" \
             --output_file "${output_vep_json}" \
             --stats_file "${output_vep_html}" \
-            --fork "${threads}"
+            "${@}"
     fi
 
     info "Aggregating results ..."
