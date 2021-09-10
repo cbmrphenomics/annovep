@@ -613,6 +613,28 @@ class AnnotateVEP(Annotator):
         )
 
 
+class Output:
+    def __init__(self, keys):
+        self.keys = keys
+
+
+class JSONOutput(Output):
+    def print_header(self, out):
+        pass
+
+    def print_row(self, out, data):
+        json.dump({key: data[key] for key in self.keys}, out)
+        out.write("\n")
+
+
+class TSVOutput(Output):
+    def print_header(self, out):
+        print("\t".join(map(str, self.keys)), file=out)
+
+    def print_row(self, out, data):
+        print("\t".join(map(str, (data[key] for key in self.keys))), file=out)
+
+
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("width", 79)
@@ -628,9 +650,17 @@ def parse_args(argv):
     )
 
     parser.add_argument(
-        "out_tsv",
+        "out_file",
         nargs="?",
         type=Path,
+    )
+
+    parser.add_argument(
+        "--output-format",
+        type=str.lower,
+        default="tsv",
+        choices=("json", "tsv"),
+        help="Output format for aggregated annotations",
     )
 
     parser.add_argument(
@@ -689,11 +719,16 @@ def main(argv):
             header.extend(annotator.keys())
 
         out_handle = sys.stdout
-        if args.out_tsv:
-            out_handle = open(args.out_tsv, "wt")
+        if args.out_file:
+            out_handle = open(args.out_file, "wt")
+
+        if args.output_format == "json":
+            writer = JSONOutput(header)
+        else:
+            writer = TSVOutput(header)
 
         try:
-            print("\t".join(map(str, header)), file=out_handle)
+            writer.print_header(out_handle)
             for read in handle.fetch():
                 rows = [{}]
                 for annotator in annotations:
@@ -704,10 +739,7 @@ def main(argv):
                     rows = annotated_rows
 
                 for row in rows:
-                    print(
-                        "\t".join(map(str, (row[key] for key in header))),
-                        file=out_handle,
-                    )
+                    writer.print_row(out_handle, row)
         except BrokenPipeError:
             # Gracefully handle use of head, tail, less, etc.
             return 0
