@@ -135,7 +135,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
             --custom "${VEP_1K_GENOMES},1KGenomes,vcf,exact,0,${VEP_1K_GENOMES_FIELDS}" \
             --custom "${VEP_CLINVAR},ClinVar,vcf,exact,0,${VEP_CLINVAR_FIELDS}" \
-            --custom "${VEP_DBSNP},DBSNP,vcf,exact,0,${VEP_DBSNP_FIELDS}" \
+            --custom "${VEP_DBSNP},dbSNP,vcf,exact,0,${VEP_DBSNP_FIELDS}" \
             --custom "${VEP_GNOMAD_COVERAGE},gnomAD_coverage,vcf,overlap,0,${VEP_GNOMAD_COVERAGE_FIELDS}" \
             --custom "${VEP_GNOMAD_SITES},gnomAD_sites,vcf,exact,0,${VEP_GNOMAD_SITES_FIELDS}" \
             --polyphen b \

@@ -341,9 +341,9 @@ class AnnotateVEP(Annotator):
             "Func_lof_filter": "Reason for LoF not being HC",
             "Func_lof_flags": "Possible warning flags for LoF",
             "Func_lof_info": "Info used for LoF annotation",
-            "DBSNP_ids": "DBSNP ids for alleles alleles matching this pos:ref/alt",
-            "DBSNP_alts": "DBSNP allele strings records matching pos:ref/*",
-            "DBSNP_functions": "GO terms recorded in DBSNP",
+            "dbSNP_ids": "dbSNP ids for alleles alleles matching this pos:ref/alt",
+            "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
+            "dbSNP_functions": "GO terms recorded in dbSNP",
             "ClinVar_ID": "The ClinVar Allele ID",
             "ClinVar_Disease": "ClinVar's preferred disease name",
             "ClinVar_Significance": "Clinical significance for this single variant",
@@ -539,11 +539,11 @@ class AnnotateVEP(Annotator):
         self._add_custom_annotation(
             src=src,
             dst=dst,
-            name="DBSNP",
+            name="dbSNP",
             fields={
-                "ids": "DBSNP_ids",
-                "alts": "DBSNP_alts",
-                "functions": "DBSNP_functions",
+                "ids": "dbSNP_ids",
+                "alts": "dbSNP_alts",
+                "functions": "dbSNP_functions",
             },
         )
 
