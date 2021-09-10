@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import sys
+import textwrap
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
@@ -135,22 +136,22 @@ class AnnotateBasicsInfo(Annotator):
             yield copy
 
     def keys(self):
-        return (
-            "Chr",
-            "Pos",
-            "ID",
-            "Ref",
-            "Alt",
-            "Filters",
-            "DP",
-            "Freq",
-            "GT_00",
-            "GT_01",
-            "GT_11",
-            "GT_NA",
-            "GT_Other",
-            "Info",
-        )
+        return {
+            "Chr": "Chromosome/Contig recorded in input VCF",
+            "Pos": "Position recorded in input VCF",
+            "ID": "ID recorded in input VCF",
+            "Ref": "Reference allele recorded in input VCF",
+            "Alt": "Single alt. allele recorded in input VCF",
+            "Filters": "Filters recorded in input VCF",
+            "DP": "Sum of read depth for this position",
+            "Freq": "Frequency of alternative allele in samples",
+            "GT_00": "Number of samples with ref/ref genotype",
+            "GT_01": "Number of samples with ref/alt genotype",
+            "GT_11": "Number of samples with alt/alt genotype",
+            "GT_NA": "Number of samples with missing genotypes",
+            "GT_Other": "Number of samples with other genotypes",
+            "Info": "INFO string from input VCF",
+        }
 
     def _validate_sequence(self, sequence, whitelist):
         sequence = sequence.upper()
@@ -269,7 +270,12 @@ class AnnotateLiftOver(Annotator):
         return [row]
 
     def keys(self):
-        return ("Liftover_hg19", "Liftover_hg38")
+        return {
+            "Liftover_hg19": "Corresponding coordinates in hg19 genome. May be . if "
+            "position is invalid or missing from the genome.",
+            "Liftover_hg38": "Corresponding coordinates in hg38 genome. May be . if "
+            "position is invalid or missing from the genome.",
+        }
 
 
 class AnnotateVEP(Annotator):
@@ -306,56 +312,61 @@ class AnnotateVEP(Annotator):
         return [row]
 
     def keys(self):
-        return (
-            "AncestralAllele",
-            "Func_n_most_significant",
-            "Func_most_significant",
-            "Func_least_significant",
-            "Func_gene_id",
-            "Func_transcript_id",
-            "Func_gene_symbol",
-            "Func_gene_symbol_source",
-            "Func_all_gene_symbols",
-            "Func_cdna_position",
-            "Func_cds_position",
-            "Func_protein_position",
-            "Func_amino_acids",
-            "Func_codons",
-            "Func_impact",
-            "Func_strand",
-            "Func_polyphen",
-            "Func_polyphen_score",
-            "Func_conservation_score",
-            "Func_lof",
-            "Func_lof_filter",
-            "Func_lof_flags",
-            "Func_lof_info",
-            "DBSNP_ids",
-            "DBSNP_alts",
-            "DBSNP_functions",
-            "ClinVar_ID",
-            "ClinVar_Disease",
-            "ClinVar_Significance",
-            "gnomAD_mean",
-            "gnomAD_median",
-            "gnomAD_over_15",
-            "gnomAD_over_50",
-            "gnomAD_filter",
-            "gnomAD_AFR_AF",
-            "gnomAD_AMI_AF",
-            "gnomAD_AMR_AF",
-            "gnomAD_ASJ_AF",
-            "gnomAD_EAS_AF",
-            "gnomAD_FIN_AF",
-            "gnomAD_NFE_AF",
-            "gnomAD_OTH_AF",
-            "gnomAD_SAS_AF",
-            "1KG_AFR_AF",
-            "1KG_AMR_AF",
-            "1KG_EAS_AF",
-            "1KG_EUR_AF",
-            "1KG_SAS_AF",
-        )
+        onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
+        gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
+
+        return {
+            "AncestralAllele": "",
+            "Func_n_most_significant": "Number of consequences ranked as most"
+            "significant in terms of impact",
+            "Func_most_significant": "The most significant functional consequence",
+            "Func_least_significant": "The last significant functional consequence for "
+            "the same gene as the most significant consequence",
+            "Func_gene_id": "Gene with the most significant consequence",
+            "Func_transcript_id": "Transcript with the most significant consequence",
+            "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
+            "Func_gene_symbol_source": "Source of gene symbol",
+            "Func_all_gene_symbols": "Gene symbols for all genes affected by variant",
+            "Func_cdna_position": "Relative position of base pair in cDNA sequence",
+            "Func_cds_position": "Relative position of base pair in coding sequence",
+            "Func_protein_position": "Relative position of amino acid in protein",
+            "Func_amino_acids": "Reference and variant amino acids",
+            "Func_codons": "Reference and variant codon sequence",
+            "Func_impact": "Subjective impact classification of consequence type",
+            "Func_strand": "Strand of the feature (1/-1)",
+            "Func_polyphen": "PolyPhen prediction",
+            "Func_polyphen_score": "PolyPhen score",
+            "Func_conservation_score": "The conservation score for this site",
+            "Func_lof": "Loss-of-function annotation (HC/LC = High/Low Confidence)",
+            "Func_lof_filter": "Reason for LoF not being HC",
+            "Func_lof_flags": "Possible warning flags for LoF",
+            "Func_lof_info": "Info used for LoF annotation",
+            "DBSNP_ids": "DBSNP ids for alleles alleles matching this pos:ref/alt",
+            "DBSNP_alts": "DBSNP allele strings records matching pos:ref/*",
+            "DBSNP_functions": "GO terms recorded in DBSNP",
+            "ClinVar_ID": "The ClinVar Allele ID",
+            "ClinVar_Disease": "ClinVar's preferred disease name",
+            "ClinVar_Significance": "Clinical significance for this single variant",
+            "gnomAD_mean": "gnomAD genomes mean coverage for this site",
+            "gnomAD_median": "gnomAD genomes median coverage for this site",
+            "gnomAD_over_15": "gnomAD genomes fraction with coverage over 15x",
+            "gnomAD_over_50": "gnomAD genomes fraction with coverage over 50x",
+            "gnomAD_filter": "gnomAD genomes FILTER",
+            "gnomAD_AFR_AF": gnomad_af.format("African/American"),
+            "gnomAD_AMI_AF": gnomad_af.format("Amish"),
+            "gnomAD_AMR_AF": gnomad_af.format("American"),
+            "gnomAD_ASJ_AF": gnomad_af.format("Ashkenazi Jewish"),
+            "gnomAD_EAS_AF": gnomad_af.format("East Asian"),
+            "gnomAD_FIN_AF": gnomad_af.format("Finnish"),
+            "gnomAD_NFE_AF": gnomad_af.format("Non-Finnish European"),
+            "gnomAD_OTH_AF": gnomad_af.format("other combined"),
+            "gnomAD_SAS_AF": gnomad_af.format("South Asian"),
+            "1KG_AFR_AF": onek_af.format("African"),
+            "1KG_AMR_AF": onek_af.format("American"),
+            "1KG_EAS_AF": onek_af.format("East Asian"),
+            "1KG_EUR_AF": onek_af.format("European"),
+            "1KG_SAS_AF": onek_af.format("South Asian"),
+        }
 
     def _read_record(self, vcf, row, _regex=re.compile(r":(-)?NaN\b", flags=re.I)):
         # There is a single VEP associated with each VCF record (provided that the
@@ -597,6 +608,14 @@ class JSONOutput(Output):
 
 class TSVOutput(Output):
     def print_header(self, out):
+        for name, description in self.keys.items():
+            label = f"# {name}: "
+            lines = textwrap.wrap(description, width=88 - len(label))
+
+            for line in lines or [""]:
+                print(f"{label}{line}")
+                label = "# {}  ".format(" " * len(name))
+
         print("\t".join(map(str, self.keys)), file=out)
 
     def print_row(self, out, data):
@@ -682,9 +701,9 @@ def main(argv):
             AnnotateVEP(args.vep_output),
         ]
 
-        header = []
+        header = {}
         for annotator in annotations:
-            header.extend(annotator.keys())
+            header.update(annotator.keys())
 
         out_handle = sys.stdout
         if args.out_file:
