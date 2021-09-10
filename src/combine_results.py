@@ -569,38 +569,6 @@ class AnnotateVEP(Annotator):
         )
 
     def _add_clinvar_annotation(self, src, dst):
-        # Available annotation (need to be added in pipeline script):
-        #   AF_ESP        float  allele frequencies from GO-ESP
-        #   AF_EXAC       float  allele frequencies from ExAC
-        #   AF_TGP        float  allele frequencies from TGP
-        #   ALLELEID      int    the ClinVar Allele ID
-        #   CLNDN         str    ClinVar's preferred disease name for the concept
-        #                        specified by disease identifiers in CLNDISDB
-        #   CLNDNINCL     str    For included Variant : ClinVar's preferred disease name
-        #                        for the concept specified by disease identifiers in
-        #                        CLNDISDB
-        #   CLNDISDB      str    Tag-value pairs of disease database name and
-        #                        identifier, e.g. OMIM:NNNNNN
-        #   CLNDISDBINCL  str    For included Variant: Tag-value pairs of disease
-        #                        database name and identifier, e.g. OMIM:NNNNNN
-        #   CLNHGVS       str    Top-level (primary assembly, alt, or patch) HGVS
-        #                        expression.
-        #   CLNREVSTAT    str    ClinVar review status for the Variation ID
-        #   CLNSIG        str    Clinical significance for this single variant
-        #   CLNSIGCONF    str    Conflicting clinical significance for this single
-        #                        variant
-        #   CLNSIGINCL    str    Clinical significance for a haplotype or genotype that
-        #                        includes this variant. Reported as pairs of
-        #                        VariationID:clinical significance.
-        #   CLNVC         str    Variant type
-        #   CLNVCSO       str    Sequence Ontology id for variant type
-        #   CLNVI         str    the variant's clinical sources reported as tag-value
-        #                        pairs of database and variant identifier
-        #   DBVARID       str    nsv accessions from dbVar for the variant
-        #   GENEINFO      str    Gene(s) for the variant reported as gene symbol:gene
-        #                        id. The gene symbol and id are delimited by a colon (:)
-        #                        and each pair is delimited by a vertical bar (|)
-
         self._add_custom_annotation(
             src=src,
             dst=dst,
