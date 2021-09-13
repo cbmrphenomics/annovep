@@ -1,4 +1,4 @@
-FROM ensemblorg/ensembl-vep:release_104.3
+FROM docker.io/ensemblorg/ensembl-vep:release_104.3
 
 # Root needed to install packages; the entrypoint switches to a regular user
 USER root
