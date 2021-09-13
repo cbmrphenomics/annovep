@@ -615,14 +615,14 @@ class JSONOutput(Output):
 class TSVOutput(Output):
     def print_header(self, out):
         for name, description in self.keys.items():
-            label = f"# {name}: "
+            label = f"## {name}: "
             lines = textwrap.wrap(description, width=88 - len(label))
 
             for line in lines or [""]:
                 print(f"{label}{line}", file=out)
-                label = "# {}  ".format(" " * len(name))
+                label = "## {}  ".format(" " * len(name))
 
-        print("\t".join(map(str, self.keys)), file=out)
+        print("#", "\t".join(map(str, self.keys)), sep="", file=out)
 
     def print_row(self, out, data):
         print("\t".join(map(str, (data[key] for key in self.keys))), file=out)
