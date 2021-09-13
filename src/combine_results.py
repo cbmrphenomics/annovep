@@ -84,6 +84,7 @@ class AnnotateBasicsInfo(Annotator):
     def annotate(self, vcf, row):
         row["Chr"] = vcf.contig
         row["Pos"] = vcf.pos
+        row["Alts"] = ",".join(vcf.alts or ".")
         row["ID"] = vcf.id or "."
         row["Ref"] = self._validate_sequence(vcf.ref, "ACGTN*")
         row["Filters"] = ";".join(vcf.filter or ".")
@@ -141,7 +142,8 @@ class AnnotateBasicsInfo(Annotator):
             "Pos": "Position recorded in input VCF",
             "ID": "ID recorded in input VCF",
             "Ref": "Reference allele recorded in input VCF",
-            "Alt": "Single alt. allele recorded in input VCF",
+            "Alt": "The single ALT allele described by this row",
+            "Alts": "The full ALT string from the input VCF",
             "Filters": "Filters recorded in input VCF",
             "DP": "Sum of read depth for this position",
             "Freq": "Frequency of alternative allele in samples",
