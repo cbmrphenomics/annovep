@@ -617,7 +617,7 @@ class TSVOutput(Output):
             lines = textwrap.wrap(description, width=88 - len(label))
 
             for line in lines or [""]:
-                print(f"{label}{line}")
+                print(f"{label}{line}", file=out)
                 label = "# {}  ".format(" " * len(name))
 
         print("\t".join(map(str, self.keys)), file=out)
