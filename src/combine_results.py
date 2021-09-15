@@ -205,12 +205,14 @@ class AnnotateBasicsInfo(Annotator):
         alts = list(vcf.alts)
         if any(len(vcf.ref) != len(allele) for allele in alts):
             # find out if all the alts start with the same base, ignoring "*"
+            any_non_star = False
             first_bases = {ref[0]}
             for alt in alts:
                 if not alt.startswith("*"):
+                    any_non_star = True
                     first_bases.add(alt[0])
 
-            if len(first_bases) == 1:
+            if any_non_star and len(first_bases) == 1:
                 start += 1
                 ref = ref[1:] or "-"
                 for idx, alt in enumerate(alts):
