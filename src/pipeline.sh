@@ -130,6 +130,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --allow_non_variant \
             --dir_cache "${ANNOVEP_CACHE}/cache" \
             --dir_plugins "${VEP_PLUGINS}" \
+            --assembly "GRCh38" \
             --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
             --plugin "Conservation,${VEP_CONSERVATION}" \
             --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
