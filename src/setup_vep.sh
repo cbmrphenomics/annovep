@@ -130,7 +130,24 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
         log_command tabix -fp vcf "${dbsnp_custom}"
     fi
 
-    # Ensemble gene annotation
+    # Neighbouring genes from Ensemble gene annotation
+    readonly ensembl_raw="${custom_cache}/Homo_sapiens.GRCh38.104.gff3.gz"
+    readonly neighbours="${custom_cache}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
+    if [ "${ensembl_raw}" -nt "${neighbours}" ]; then
+        download "${ensembl_raw}" "http://ftp.ensembl.org/pub/release-104/gff3/homo_sapiens/Homo_sapiens.GRCh38.104.gff3.gz"
+
+        readonly neighbours_tmp="${neighbours}.${RANDOM}"
+        log_command python3 "${ANNOVEP_ROOT}/convert_to_custom.py" neighbours "${ensembl_raw}" | bgzip >"${neighbours_tmp}"
+        log_command mv -v "${neighbours_tmp}" "${neighbours}"
+    else
+        info "Already created database of neighbouring genes"
+    fi
+
+    if [ "${neighbours}" -nt "${neighbours}.tbi" ]; then
+        log_command tabix -fp bed "${neighbours}"
+    fi
+
+    readonly ensemble_raw=
 
     # [2/2] Prevent Bash from reading past this point once script is done
     exit $?

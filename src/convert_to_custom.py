@@ -10,7 +10,7 @@ import logging
 import sys
 from os import fspath
 from pathlib import Path
-from typing import IO, Union, cast
+from typing import IO, Optional, Union, cast, NamedTuple
 
 import coloredlogs
 import pysam
@@ -339,6 +339,162 @@ def gnomad_coverage_to_vcf(log, counter, args):
     return 0
 
 
+########################################################################################
+
+END, START = range(2)
+
+
+class GeneRecord(NamedTuple):
+    seqid: str
+    start: int
+    end: int
+    name: Optional[str]
+    id: Optional[str]
+
+    @property
+    def preferred_name(self):
+        return self.name or self.id
+
+    def __repr__(self):
+        return f"{self.seqid}:{self.start}-{self.end}:{self.preferred_name}"
+
+
+def neighbouring_genes_to_bed(log, counter, args):
+    def _groupby(record):
+        return record.seqid
+
+    forward_and_reverse = (
+        ("fwd", iter_nearest_genes_forward),
+        ("rev", iter_nearest_genes_reverse),
+    )
+
+    genes = read_genes_from_gff(log, args.gff)
+    for seqid, genes in itertools.groupby(genes, _groupby):
+        genes = list(genes)
+
+        records = []
+        for key, func in forward_and_reverse:
+            for start, end, nearest in merge_regions(func(genes, nnearest=3)):
+                records.append((start, end, key, nearest))
+
+        for start, end, key, nearest in sorted(records):
+            # GFF uses 1-based coordiantes for both start and end, while BED uses 0
+            # for the start coordianates and 1 for the end coordinates
+            nearest = ";".join(
+                f"{it.start - 1}-{it.end}:{it.preferred_name}" for it in nearest
+            )
+
+            print(f"{seqid}\t{start - 1}\t{end}\t{key};{nearest}")
+
+        counter(seqid, len(genes))
+
+    return 0
+
+
+def iter_nearest_genes_forward(genes, nnearest=3):
+    events = []
+    for gene in genes:
+        events.append((gene.start, START, gene))
+        events.append((gene.end, END, gene))
+
+    events.sort(reverse=True)
+
+    yield from collect_nearest(events, nnearest)
+
+
+def iter_nearest_genes_reverse(genes, nnearest=3):
+    events = []
+    for gene in genes:
+        events.append((gene.start, END, gene))
+        events.append((gene.end, START, gene))
+
+    events.sort()
+
+    # First region must cover everything upstream of the final gene. But since we don't
+    # know how far that goes, simply use the largest value supported by tabix.
+    initial = 2 ** 29 - 1
+    for last_position, position, nearest in collect_nearest(events, nnearest, initial):
+        yield position, last_position, nearest
+
+
+def collect_nearest(events, nnearest=3, initial_pos=1):
+    overlapping = []
+    last_position = initial_pos
+    while events:
+        position, kind, gene = events.pop()
+
+        if kind == START:
+            overlapping.append(gene)
+
+        nearest = list(overlapping)
+        for _, kind_, gene_ in reversed(events):
+            if len(nearest) >= nnearest:
+                break
+            elif kind_ == START:
+                nearest.append(gene_)
+
+        yield last_position, position, nearest
+
+        if kind == END:
+            overlapping.remove(gene)
+
+        last_position = position
+
+
+def merge_regions(regions):
+    regions = iter(regions)
+
+    try:
+        last_start, last_end, last_nearest = next(regions)
+    except StopIteration:
+        return
+
+    for start, end, nearest in regions:
+        if last_nearest != nearest:
+            yield last_start, last_end, last_nearest
+
+            last_start = start
+            last_end = end
+            last_nearest = nearest
+        else:
+            last_start = min(start, last_start)
+            last_end = max(end, last_end)
+
+    yield last_start, last_end, last_nearest
+
+
+def read_genes_from_gff(log, filename):
+    with open_ro(filename) as handle:
+        for line in handle:
+            if line.startswith("#"):
+                continue
+
+            seqid, _, kind, start, end, _, _, _, attributes = line.split("\t")
+
+            if kind == "gene":
+                attrs = {}
+                for attribute in attributes.split(";"):
+                    key, value = attribute.split("=")
+                    attrs[key.strip()] = value.strip()
+
+                gene_id = attrs.get("gene_id")
+                gene_name = attrs.get("Name")
+
+                if gene_name or gene_id:
+                    yield GeneRecord(
+                        seqid=seqid,
+                        start=int(start),
+                        end=int(end),
+                        name=gene_name,
+                        id=gene_id,
+                    )
+                else:
+                    log.warning("skipping %r", line)
+
+
+########################################################################################
+
+
 def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=False):
     def _repr_values(values):
         strings = []
@@ -439,6 +595,10 @@ def parse_args(argv):
     sub.set_defaults(command=thousand_genomes_to_vcf)
     sub.add_argument("vcfs", nargs="+", metavar="FILE")
 
+    sub = subparsers.add_parser("neighbours")
+    sub.set_defaults(command=neighbouring_genes_to_bed)
+    sub.add_argument("gff", metavar="FILE")
+
     return parser
 
 
@@ -458,7 +618,10 @@ def main(argv):
 
     log = logging.getLogger("__main__")
     with Counter(log) as counter:
-        return args.command(log, counter, args)
+        try:
+            return args.command(log, counter, args)
+        except BrokenPipeError:
+            return 0
 
 
 if __name__ == "__main__":

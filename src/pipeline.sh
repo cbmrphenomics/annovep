@@ -98,6 +98,10 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly VEP_DBSNP_FIELDS="ids,alts,functions"
     require_files "dbSNP summaries (custom)" "${VEP_DBSNP}" "${VEP_DBSNP}.tbi"
 
+    # Custom made dbSNP VCF containing aggregated information
+    readonly VEP_NEIGHBOURS="${CUSTOM_CACHE}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
+    require_files "database of neighbouring genes" "${VEP_NEIGHBOURS}" "${VEP_NEIGHBOURS}.tbi"
+
     # if require_files failed one or more times
     if [ ${MISSING_FILES} -ne 0 ]; then
         exit 1
@@ -136,6 +140,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --custom "${VEP_DBSNP},dbSNP,vcf,exact,0,${VEP_DBSNP_FIELDS}" \
             --custom "${VEP_GNOMAD_COVERAGE},gnomAD_coverage,vcf,overlap,0,${VEP_GNOMAD_COVERAGE_FIELDS}" \
             --custom "${VEP_GNOMAD_SITES},gnomAD_sites,vcf,exact,0,${VEP_GNOMAD_SITES_FIELDS}" \
+            --custom "${VEP_NEIGHBOURS},neighbours,bed,overlap,0" \
             --polyphen b \
             --input_file "${input_vcf}" \
             --output_file "${output_vep_json}" \
