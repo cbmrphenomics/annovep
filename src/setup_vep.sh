@@ -11,7 +11,9 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 # [1/2] Most versions of Bash read scripts line by line, causing misbehavior if
 # the file changes during runtime. The {} forces Bash to read the entire thing
 {
-    . "$(dirname "$(readlink -f "$0")")/utilities.sh"
+    readonly ANNOVEP_ROOT="$(dirname "$(readlink -f "$0")")"
+
+    . "${ANNOVEP_ROOT}/utilities.sh"
 
     function download() {
         local -r dst_file="${1}"
@@ -107,14 +109,28 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     ## Custom annotations
     readonly custom_cache="${ANNOVEP_CACHE}/custom"
 
-    # Assembly information needed to convert refseq names to those used by our FASTA
-    download "${custom_cache}/GCF_000001405.39_GRCh38.p13_assembly_report.txt" "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt"
-
     # ClinVAR VCF used for --custom annotation
     download_vcf "${custom_cache}/clinvar_20210821.vcf.gz" "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/weekly/clinvar_20210821.vcf.gz"
 
-    # DBSNP VCF used for --custom annotation (requires processing)
-    download_vcf "${custom_cache}/dbsnp_155_20210513.vcf.gz" "https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz"
+    # Custom dbSNP annotation
+    readonly dbsnp_raw="${custom_cache}/dbsnp_155_20210513.vcf.gz"
+    readonly dbsnp_custom="${custom_cache}/dbsnp_155_20210513_custom.vcf.gz"
+    if [ "${dbsnp_raw}" -nt "${dbsnp_custom}" ]; then
+        # DBSNP VCF used for --custom annotation (requires processing)
+        download_vcf "${custom_cache}/dbsnp_155_20210513.vcf.gz" "https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz"
+
+        readonly dbsnp_tmp="${dbsnp_custom}.${RANDOM}"
+        log_command python3 "${ANNOVEP_ROOT}/convert_to_custom.py" dbsnp "${dbsnp_raw}" | bgzip >"${dbsnp_tmp}"
+        log_command mv -v "${dbsnp_tmp}" "${dbsnp_custom}"
+    else
+        info "Already created custom dbSNP database"
+    fi
+
+    if [ "${dbsnp_custom}" -nt "${dbsnp_custom}.tbi" ]; then
+        log_command tabix -fp vcf "${dbsnp_custom}"
+    fi
+
+    # Ensemble gene annotation
 
     # [2/2] Prevent Bash from reading past this point once script is done
     exit $?
