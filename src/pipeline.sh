@@ -84,7 +84,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
     readonly VEP_GNOMAD_COVERAGE="${CUSTOM_CACHE}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
     readonly VEP_GNOMAD_COVERAGE_FIELDS="gnomAD_mean,gnomAD_median,gnomAD_over_15,gnomAD_over_50"
-    require_files "gnomAD coverage" "${VEP_GNOMAD_COVERAGE}" "${VEP_GNOMAD_COVERAGE}.tbi"
+    require_files "gnomAD coverage (custom)" "${VEP_GNOMAD_COVERAGE}" "${VEP_GNOMAD_COVERAGE}.tbi"
 
     # Custom made gnomAD VCF containing allele frequencies
     #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
@@ -94,9 +94,6 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     require_files "gnomAD sites (custom)" "${VEP_GNOMAD_SITES}" "${VEP_GNOMAD_SITES}.tbi"
 
     # Custom made dbSNP VCF containing aggregated information
-    #   $ wget https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz -O dbsnp_155_20210513.vcf.gz
-    #   $ wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_assembly_report.txt
-    #   $ python3 convert_to_custom dbsnp dbsnp_155_20210513.vcf.gz GCF_000001405.39_GRCh38.p13_assembly_report.txt | bgzip > dbsnp_155_20210513_custom.vcf.gz
     readonly VEP_DBSNP="${CUSTOM_CACHE}/dbsnp_155_20210513_custom.vcf.gz"
     readonly VEP_DBSNP_FIELDS="ids,alts,functions"
     require_files "dbSNP summaries (custom)" "${VEP_DBSNP}" "${VEP_DBSNP}.tbi"
