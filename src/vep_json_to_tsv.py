@@ -315,6 +315,7 @@ class AnnotateVEP(Annotator):
         self._add_dbsnp_annotation(vep, row)
         self._add_gnomad_annotation(vep, row)
         self._add_clinvar_annotation(vep, row)
+        self._add_neighbouring_genes(vep, row)
 
         return [row]
 
@@ -325,6 +326,9 @@ class AnnotateVEP(Annotator):
         return {
             "VEPAllele": "The pos:ref:alt corresponding to VEP output",
             "AncestralAllele": "",
+            "Genes_overlapping": "Genes overlapping allele",
+            "Genes_upstream": "Neighbouring genes upstream of allele",
+            "Genes_downstream": "Neighbouring genes downstream of allele",
             "Func_n_most_significant": "Number of consequences ranked as most"
             "significant in terms of impact",
             "Func_most_significant": "The most significant functional consequence",
@@ -598,6 +602,47 @@ class AnnotateVEP(Annotator):
                 "CLNSIG": "ClinVar_Significance",
             },
         )
+
+    def _add_neighbouring_genes(self, src, dst, nnearest=3):
+        # Start coordinate of VEP allele
+        astart = src["start"]
+        # End coordinate of longest allele
+        # FIXME: Calculate end coordinate of this specific allele
+        aend = src["end"]
+
+        # Alleles may cover multiple bases, so we may have multiple instances of each
+        # category, some of which may also be overlapping with the allele
+        neighbours = {"downstream": set(), "upstream": set(), "overlap": set()}
+
+        # annotation = {"fields": ..., "name": "chr:start-end"}
+        annotations = src.get("custom_annotations", {}).get("neighbours", [])
+        for annotation in annotations:
+            values = annotation["name"].split(";")
+
+            # The first value (the category) is skipped
+            for gene in values[1:]:
+                nstart_end, name = gene.split(":")
+                nstart, nend = nstart_end.split("-")
+                nstart = int(nstart)
+                nend = int(nend)
+
+                if aend < nstart:
+                    neighbours["downstream"].add((nstart - aend, name))
+                elif astart > nend:
+                    neighbours["upstream"].add((astart - nend, name))
+                else:
+                    neighbours["overlap"].add(name)
+
+        def _to_list(values):
+            values = sorted(values)[:nnearest]
+            if not values:
+                return "."
+
+            return ";".join(f"{distance}:{name}" for distance, name in values)
+
+        dst["Genes_overlapping"] = ";".join(sorted(neighbours["overlap"])) or "."
+        dst["Genes_upstream"] = _to_list(neighbours["upstream"])
+        dst["Genes_downstream"] = _to_list(neighbours["downstream"])
 
 
 class Output:
