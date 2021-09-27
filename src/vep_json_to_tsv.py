@@ -596,8 +596,7 @@ class AnnotateVEP(Annotator):
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
         # Start coordinate of VEP allele
         astart = src["start"]
-        # End coordinate of longest allele
-        # FIXME: Calculate end coordinate of this specific allele
+        # End coordinate of the allele. This is shared between all ALTs
         aend = src["end"]
 
         # Alleles may cover multiple bases, so we may have multiple instances of each
