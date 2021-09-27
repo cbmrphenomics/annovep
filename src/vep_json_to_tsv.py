@@ -338,7 +338,6 @@ class AnnotateVEP(Annotator):
             "Func_transcript_id": "Transcript with the most significant consequence",
             "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
             "Func_gene_symbol_source": "Source of gene symbol",
-            "Func_all_gene_symbols": "Gene symbols for all genes affected by variant",
             "Func_cdna_position": "Relative position of base pair in cDNA sequence",
             "Func_cds_position": "Relative position of base pair in coding sequence",
             "Func_protein_position": "Relative position of amino acid in protein",
@@ -417,7 +416,6 @@ class AnnotateVEP(Annotator):
         assert not (transcript_consequences and intergenic_consequences), vep
 
         consequences = []
-        gene_symbols = set()
         for consequence in transcript_consequences or intergenic_consequences:
             if consequence["variant_allele"] == allele:
                 for term in consequence["consequence_terms"]:
@@ -426,10 +424,6 @@ class AnnotateVEP(Annotator):
                     gene = consequence.get("gene_id", ".")
 
                     consequences.append((rank, term, gene, consequence))
-
-                    gene_symbol = consequence.get("gene_symbol")
-                    if gene_symbol is not None:
-                        gene_symbols.add(gene_symbol)
 
         if not consequences:
             if allele == vep["allele_string"] or allele.startswith("*"):
@@ -441,8 +435,6 @@ class AnnotateVEP(Annotator):
         consequences.sort(key=lambda it: it[0])
         # One of the most significant consequences is picked "randomly"
         _, most_significant, gene_id, consequence = consequences[0]
-
-        consequence["all_gene_symbols"] = ";".join(gene_symbols) or "."
 
         consequence["most_significant"] = most_significant
         consequence["n_most_significant"] = 0
@@ -469,7 +461,6 @@ class AnnotateVEP(Annotator):
             "transcript_id",
             "gene_symbol",
             "gene_symbol_source",
-            "all_gene_symbols",
             "impact",
             "strand",
             "least_significant",
@@ -519,7 +510,7 @@ class AnnotateVEP(Annotator):
 
         alt = dst[":vep:"]["alt"]
         # annotation = {"fields": ..., "name": "chr:start-end"}
-        annotations = src.get("custom_annotations", {}).get(name, {})
+        annotations = src.get("custom_annotations", {}).get(name, [])
         for annotation in annotations:
             if annotation.get("allele", alt) == alt:
                 # data = {"FILTER": ".", field1: value1, ...}
@@ -530,7 +521,6 @@ class AnnotateVEP(Annotator):
             fields = dict(zip(fields, fields))
 
         for src_key, dst_key in fields.items():
-
             dst[dst_key] = data.get(src_key, default)
 
     def _add_1k_genomes_annotation(self, src, dst):
