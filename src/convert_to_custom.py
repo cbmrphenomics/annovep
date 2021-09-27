@@ -341,8 +341,6 @@ def gnomad_coverage_to_vcf(log, counter, args):
 
 ########################################################################################
 
-END, START = range(2)
-
 
 class GeneRecord(NamedTuple):
     seqid: str
@@ -364,8 +362,9 @@ def neighbouring_genes_to_bed(log, counter, args):
         return record.seqid
 
     forward_and_reverse = (
-        ("fwd", iter_nearest_genes_forward),
-        ("rev", iter_nearest_genes_reverse),
+        ("over", iter_nearest_genes_overlapping),
+        ("up", iter_nearest_genes_upstream),
+        ("down", iter_nearest_genes_downstream),
     )
 
     genes = read_genes_from_gff(log, args.gff)
@@ -374,16 +373,16 @@ def neighbouring_genes_to_bed(log, counter, args):
 
         records = []
         for key, func in forward_and_reverse:
-            for start, end, nearest in merge_regions(func(genes, nnearest=3)):
+            for start, end, nearest in func(genes, nnearest=3):
                 records.append((start, end, key, nearest))
 
         for start, end, key, nearest in sorted(records):
-            # GFF uses 1-based coordiantes for both start and end, while BED uses 0
-            # for the start coordianates and 1 for the end coordinates
             nearest = ";".join(
-                f"{it.start - 1}-{it.end}:{it.preferred_name}" for it in nearest
+                f"{it.start}-{it.end}:{it.preferred_name}" for it in nearest
             )
 
+            # GFF uses 1-based coordiantes for both start and end, while BED uses 0
+            # for the start coordinates and 1 for the end coordinates
             print(f"{seqid}\t{start - 1}\t{end}\t{key};{nearest}")
 
         counter(seqid, len(genes))
@@ -391,76 +390,37 @@ def neighbouring_genes_to_bed(log, counter, args):
     return 0
 
 
-def iter_nearest_genes_forward(genes, nnearest=3):
-    events = []
+def iter_nearest_genes_overlapping(genes, nnearest=3):
     for gene in genes:
-        events.append((gene.start, START, gene))
-        events.append((gene.end, END, gene))
-
-    events.sort(reverse=True)
-
-    yield from collect_nearest(events, nnearest)
+        yield gene.start, gene.end, (gene,)
 
 
-def iter_nearest_genes_reverse(genes, nnearest=3):
-    events = []
-    for gene in genes:
-        events.append((gene.start, END, gene))
-        events.append((gene.end, START, gene))
+def iter_nearest_genes_downstream(genes, nnearest=3):
+    genes.sort(key=lambda it: it.start)
 
-    events.sort()
+    last_position = 1
+    for idx, gene in enumerate(genes):
+        nearest = genes[idx : idx + nnearest]
 
-    # First region must cover everything upstream of the final gene. But since we don't
-    # know how far that goes, simply use the largest value supported by tabix.
-    initial = 2 ** 29 - 1
-    for last_position, position, nearest in collect_nearest(events, nnearest, initial):
-        yield position, last_position, nearest
+        yield last_position, gene.start - 1, nearest
+
+        last_position = gene.start
 
 
-def collect_nearest(events, nnearest=3, initial_pos=1):
-    overlapping = []
-    last_position = initial_pos
-    while events:
-        position, kind, gene = events.pop()
+def iter_nearest_genes_upstream(genes, nnearest=3):
+    genes.sort(key=lambda it: it.end)
 
-        if kind == START:
-            overlapping.append(gene)
+    last_position = genes[0].end + 1
+    for idx, gene in enumerate(genes[1:]):
+        nearest = genes[max(0, idx - nnearest + 1) : idx + 1]
 
-        nearest = list(overlapping)
-        for _, kind_, gene_ in reversed(events):
-            if len(nearest) >= nnearest:
-                break
-            elif kind_ == START:
-                nearest.append(gene_)
+        yield last_position, gene.end, nearest
 
-        yield last_position, position, nearest
+        last_position = gene.end + 1
 
-        if kind == END:
-            overlapping.remove(gene)
-
-        last_position = position
-
-
-def merge_regions(regions):
-    regions = iter(regions)
-
-    try:
-        last_start, last_end, last_nearest = next(regions)
-    except StopIteration:
-        return
-
-    for start, end, nearest in regions:
-        if last_nearest != nearest:
-            yield last_start, last_end, last_nearest
-
-            last_start = start
-            last_end = end
-            last_nearest = nearest
-        else:
-            last_start = min(start, last_start)
-            last_end = max(end, last_end)
-
-    yield last_start, last_end, last_nearest
+    # The last region must cover everything downstream of the final gene. But since we
+    # don't know how big the contig is, simply use the largest value supported by tabix.
+    yield last_position, 2 ** 29 - 1, genes[-3:]
 
 
 def read_genes_from_gff(log, filename):
