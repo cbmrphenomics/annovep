@@ -115,7 +115,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     # Custom dbSNP annotation
     readonly dbsnp_raw="${custom_cache}/dbsnp_155_20210513.vcf.gz"
     readonly dbsnp_custom="${custom_cache}/dbsnp_155_20210513_custom.vcf.gz"
-    if [ "${dbsnp_raw}" -nt "${dbsnp_custom}" ]; then
+    if [ ! -e "${dbsnp_custom}" -o "${dbsnp_raw}" -nt "${dbsnp_custom}" ]; then
         # DBSNP VCF used for --custom annotation (requires processing)
         download_vcf "${custom_cache}/dbsnp_155_20210513.vcf.gz" "https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz"
 
@@ -133,7 +133,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     # Neighbouring genes from Ensemble gene annotation
     readonly ensembl_raw="${custom_cache}/Homo_sapiens.GRCh38.104.gff3.gz"
     readonly neighbours="${custom_cache}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
-    if [ "${ensembl_raw}" -nt "${neighbours}" ]; then
+    if [ ! -e "${neighbours}" -o "${ensembl_raw}" -nt "${neighbours}" ]; then
         download "${ensembl_raw}" "http://ftp.ensembl.org/pub/release-104/gff3/homo_sapiens/Homo_sapiens.GRCh38.104.gff3.gz"
 
         readonly neighbours_tmp="${neighbours}.${RANDOM}"
