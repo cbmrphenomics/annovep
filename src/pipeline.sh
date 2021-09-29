@@ -65,6 +65,9 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly VEP_LOFTEE_SQL="${PLUGINS_CACHE}/phylocsf_gerp.sql"
     require_files "loftee conservation database" "${VEP_LOFTEE_SQL}"
 
+    readonly VEP_EXACPLI="${PLUGINS_CACHE}/ExACpLI_values.txt"
+    require_files "ExACpLI values" "${VEP_EXACPLI}"
+
     ####################################################################################
     ## Paths and fields for VEP custom annotations
 
@@ -134,6 +137,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --assembly "GRCh38" \
             --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
             --plugin "Conservation,${VEP_CONSERVATION}" \
+            --plugin "ExACpLI,${VEP_EXACPLI}" \
             --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
             --custom "${VEP_1K_GENOMES},1KGenomes,vcf,exact,0,${VEP_1K_GENOMES_FIELDS}" \
             --custom "${VEP_CLINVAR},ClinVar,vcf,exact,0,${VEP_CLINVAR_FIELDS}" \

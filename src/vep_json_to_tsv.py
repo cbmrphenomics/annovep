@@ -309,6 +309,7 @@ class AnnotateVEP(Annotator):
         row["Func_conservation_score"] = consequence.get("conservation", ".")
         row["Func_polyphen"] = consequence.get("polyphen_prediction", ".")
         row["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
+        row["Func_ExACpLI"] = consequence.get("exacpli", ".")
 
         # add custom annotation
         self._add_1k_genomes_annotation(vep, row)
@@ -352,6 +353,7 @@ class AnnotateVEP(Annotator):
             "Func_lof_filter": "Reason for LoF not being HC",
             "Func_lof_flags": "Possible warning flags for LoF",
             "Func_lof_info": "Info used for LoF annotation",
+            "Func_ExACpLI": "Probabililty of a gene being loss-of-function intolerant",
             "dbSNP_ids": "dbSNP ids for alleles alleles matching this pos:ref/alt",
             "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
             "dbSNP_functions": "GO terms recorded in dbSNP",

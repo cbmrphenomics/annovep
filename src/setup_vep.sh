@@ -105,6 +105,8 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
         log_command gunzip -k "${plugins_cache}/phylocsf_gerp.sql.gz"
     fi
 
+    download "${plugins_cache}/ExACpLI_values.txt" "https://raw.githubusercontent.com/Ensembl/VEP_plugins/release/104/ExACpLI_values.txt"
+
     ####################################################################################
     ## Custom annotations
     readonly custom_cache="${ANNOVEP_CACHE}/custom"
