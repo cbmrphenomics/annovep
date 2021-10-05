@@ -121,7 +121,7 @@ class AnnotateBasicsInfo(Annotator):
             copy["GT_01"] = gt_01 + gt_10
             copy["GT_11"] = gt_11
             copy["GT_NA"] = gt_na
-            copy["GT_Other"] = (
+            copy["GT_other"] = (
                 sum(genotype_counts.values(), 0)
                 - gt_00
                 - gt_01
@@ -151,7 +151,7 @@ class AnnotateBasicsInfo(Annotator):
             "GT_01": "Number of samples with ref/alt genotype",
             "GT_11": "Number of samples with alt/alt genotype",
             "GT_NA": "Number of samples with missing genotypes",
-            "GT_Other": "Number of samples with other genotypes",
+            "GT_other": "Number of samples with other genotypes",
             "Info": "INFO string from input VCF",
         }
 
@@ -299,7 +299,7 @@ class AnnotateVEP(Annotator):
         vep = self._read_record(vcf, row)
 
         # The position and sequences that VEP reports for this allele
-        row["VEPAllele"] = "{start}:{ref}:{alt}".format(**row[":vep:"])
+        row["VEP_allele"] = "{start}:{ref}:{alt}".format(**row[":vep:"])
 
         # Add functional annotation
         consequence = self._get_allele_consequence(vep, row[":vep:"]["alt"])
@@ -325,8 +325,8 @@ class AnnotateVEP(Annotator):
         gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
 
         return {
-            "VEPAllele": "The pos:ref:alt corresponding to VEP output",
-            "AncestralAllele": "",
+            "VEP_allele": "The pos:ref:alt corresponding to VEP output",
+            "Ancestral_allele": "",
             "Genes_overlapping": "Genes overlapping allele",
             "Genes_upstream": "Neighbouring genes upstream of allele",
             "Genes_downstream": "Neighbouring genes downstream of allele",
@@ -358,8 +358,8 @@ class AnnotateVEP(Annotator):
             "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
             "dbSNP_functions": "GO terms recorded in dbSNP",
             "ClinVar_ID": "The ClinVar Allele ID",
-            "ClinVar_Disease": "ClinVar's preferred disease name",
-            "ClinVar_Significance": "Clinical significance for this single variant",
+            "ClinVar_disease": "ClinVar's preferred disease name",
+            "ClinVar_significance": "Clinical significance for this single variant",
             "gnomAD_mean": "gnomAD genomes mean coverage for this site",
             "gnomAD_median": "gnomAD genomes median coverage for this site",
             "gnomAD_over_15": "gnomAD genomes fraction with coverage over 15x",
@@ -505,7 +505,7 @@ class AnnotateVEP(Annotator):
         if not allele:
             allele = "." * len(dst["Ref"])
 
-        dst["AncestralAllele"] = allele
+        dst["Ancestral_allele"] = allele
 
     def _add_custom_annotation(self, src, dst, name, fields, default="."):
         data = {}
@@ -590,8 +590,8 @@ class AnnotateVEP(Annotator):
             name="ClinVar",
             fields={
                 "ALLELEID": "ClinVar_ID",
-                "CLNDN": "ClinVar_Disease",
-                "CLNSIG": "ClinVar_Significance",
+                "CLNDN": "ClinVar_disease",
+                "CLNSIG": "ClinVar_significance",
             },
         )
 
