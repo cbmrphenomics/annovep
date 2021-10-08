@@ -420,7 +420,12 @@ class AnnotateVEP(Annotator):
         consequences = []
         for consequence in transcript_consequences or intergenic_consequences:
             if consequence["variant_allele"] == allele:
-                for term in consequence["consequence_terms"]:
+                consequence_terms = consequence["consequence_terms"]
+                if "NMD_transcript_variant" in consequence_terms:
+                    # terms in Nonsence Mediated Decay variants are of no significance
+                    consequence_terms = ["NMD_transcript_variant"]
+
+                for term in consequence_terms:
                     rank = VEP_CONSEQUENCE_RANKS[term]
                     # Gene ID will be missing for intergenetic consequences
                     gene = consequence.get("gene_id", ".")
