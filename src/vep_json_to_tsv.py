@@ -645,30 +645,59 @@ class Output:
     def __init__(self, keys):
         self.keys = keys
 
+    def initialize(self, out_prefix):
+        raise NotImplementedError()
+
+    def finalize(self):
+        raise NotImplementedError()
+
+    def process_row(self, data):
+        raise NotImplementedError()
+
 
 class JSONOutput(Output):
-    def print_header(self, out):
-        pass
+    def initialize(self, out_prefix):
+        if out_prefix is None:
+            self._handle = sys.stdout
+        else:
+            self._handle = open(f"{out_prefix}.json", "wt")
 
-    def print_row(self, out, data):
-        json.dump({key: data[key] for key in self.keys}, out)
-        out.write("\n")
+    def finalize(self):
+        self._handle.close()
+
+    def process_row(self, data):
+        json.dump({key: data[key] for key in self.keys}, self._handle)
+        self._handle.write("\n")
 
 
 class TSVOutput(Output):
-    def print_header(self, out):
+    def initialize(self, out_prefix):
+        if out_prefix is None:
+            self._handle = sys.stdout
+        else:
+            self._handle = open(f"{out_prefix}.tsv", "wt")
+
         for name, description in self.keys.items():
             label = f"## {name}: "
             lines = textwrap.wrap(description, width=88 - len(label))
 
             for line in lines or [""]:
-                print(f"{label}{line}", file=out)
+                print(f"{label}{line}", file=self._handle)
                 label = "## {}  ".format(" " * len(name))
 
-        print("#", "\t".join(map(str, self.keys)), sep="", file=out)
+        print("#", "\t".join(map(str, self.keys)), sep="", file=self._handle)
 
-    def print_row(self, out, data):
-        print("\t".join(map(str, (data[key] for key in self.keys))), file=out)
+    def finalize(self):
+        self._handle.close()
+
+    def process_row(self, data):
+        print("\t".join(map(str, (data[key] for key in self.keys))), file=self._handle)
+
+
+OUTPUT_FORMATS = {
+    "json": JSONOutput,
+    "tsv": TSVOutput,
+}
 
 
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -686,17 +715,18 @@ def parse_args(argv):
     )
 
     parser.add_argument(
-        "out_file",
+        "out_prefix",
         nargs="?",
         type=Path,
     )
 
     parser.add_argument(
         "--output-format",
+        action="append",
         type=str.lower,
-        default="tsv",
-        choices=("json", "tsv"),
-        help="Output format for aggregated annotations",
+        choices=OUTPUT_FORMATS.keys(),
+        help="Output format for aggregated annotations. Maybe be specified zero or "
+        "more times. Defaults to TSV if not specified",
     )
 
     parser.add_argument(
@@ -754,33 +784,36 @@ def main(argv):
         for annotator in annotations:
             header.update(annotator.keys())
 
-        out_handle = sys.stdout
-        if args.out_file:
-            out_handle = open(args.out_file, "wt")
-
-        if args.output_format == "json":
-            writer = JSONOutput(header)
+        if args.output_format:
+            output_formats = set(args.output_format)
         else:
-            writer = TSVOutput(header)
+            output_formats = ["tsv"]
 
-        try:
-            writer.print_header(out_handle)
-            for read in handle.fetch():
-                rows = [{}]
-                for annotator in annotations:
-                    annotated_rows = []
-                    for row in rows:
-                        annotated_rows.extend(annotator.annotate(read, row))
+        if args.out_prefix is None and len(output_formats) > 1:
+            log.error("[out_prefix] must be set when writing more than one format")
+            return 1
 
-                    rows = annotated_rows
+        writers: Dict[str, Output] = {}
+        for key in output_formats:
+            cls = OUTPUT_FORMATS[key]
+            writers[key] = cls(header)
+            writers[key].initialize(args.out_prefix)
 
+        for read in handle.fetch():
+            rows = [{}]
+            for annotator in annotations:
+                annotated_rows = []
                 for row in rows:
-                    writer.print_row(out_handle, row)
-        except BrokenPipeError:
-            # Gracefully handle use of head, tail, less, etc.
-            return 0
-        finally:
-            out_handle.close()
+                    annotated_rows.extend(annotator.annotate(read, row))
+
+                rows = annotated_rows
+
+            for row in rows:
+                for writer in writers.values():
+                    writer.process_row(row)
+
+        for writer in writers.values():
+            writer.finalize()
 
     return 0
 
