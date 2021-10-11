@@ -677,13 +677,11 @@ class TSVOutput(Output):
         else:
             self._handle = open(f"{out_prefix}.tsv", "wt")
 
-        for name, description in self.keys.items():
-            label = f"## {name}: "
-            lines = textwrap.wrap(description, width=88 - len(label))
+            with open(f"{out_prefix}.tsv.columns", "wt") as handle:
+                print("Name\tDescription", file=handle)
 
-            for line in lines or [""]:
-                print(f"{label}{line}", file=self._handle)
-                label = "## {}  ".format(" " * len(name))
+                for name, description in self.keys.items():
+                    print(name, description, sep="\t", file=handle)
 
         print("#", "\t".join(map(str, self.keys)), sep="", file=self._handle)
 
