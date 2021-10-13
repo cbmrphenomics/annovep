@@ -15,7 +15,6 @@ import coloredlogs
 import liftover
 import pysam
 
-
 # https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
 VEP_CONSEQUENCES = [
     "transcript_ablation",
@@ -654,6 +653,13 @@ class Output:
     def process_row(self, data):
         raise NotImplementedError()
 
+    @classmethod
+    def _open_handle(cls, out_prefix, extension):
+        if out_prefix is None:
+            return sys.stdout
+
+        return open(f"{out_prefix}{extension}", "wt")
+
 
 class JSONOutput(Output):
     def initialize(self, out_prefix):
@@ -689,12 +695,63 @@ class TSVOutput(Output):
         self._handle.close()
 
     def process_row(self, data):
-        print("\t".join(map(str, (data[key] for key in self.keys))), file=self._handle)
+        row = []
+        for key in self.keys:
+            value = data[key]
+            if isinstance(value, (tuple, list)):
+                value = ",".join(map(str, value))
+            elif value is None:
+                value = "."
+            else:
+                value = str(value)
+
+            row.append(value)
+
+        print("\t".join(row), file=self._handle)
+
+
+class SQLOutput(Output):
+    def initialize(self, out_prefix):
+        self._row = 0
+        self._handle = self._open_handle(out_prefix, ".sql")
+
+        for table in ("Annotations",):
+            self._write("DROP TABLE IF EXISTS [{}];", table)
+
+        self._write("CREATE TABLE [Annotations] (")
+        self._write("    pid INTEGER PRIMARY KEY ASC", end="")
+        for key in self.keys:
+            self._write(",\n    [{}]", key, end="")
+        self._write("\n);")
+
+    def finalize(self):
+        self._handle.close()
+
+    def process_row(self, data):
+        self._row += 1
+        values = [str(self._row)]
+        for key in self.keys:
+            value = data[key]
+            if isinstance(value, (int, float)):
+                value = repr(value)
+            else:
+                value = "'{}'".format(str(value).replace("'", "''"))
+
+            values.append(value)
+
+        self._write("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
+
+    def _write(self, line, *args, end="\n", **kwargs):
+        if args or kwargs:
+            line = line.format(*args, **kwargs)
+
+        print(line, file=self._handle, end=end)
 
 
 OUTPUT_FORMATS = {
     "json": JSONOutput,
     "tsv": TSVOutput,
+    "sql": SQLOutput,
 }
 
 
