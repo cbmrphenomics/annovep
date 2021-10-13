@@ -2,18 +2,17 @@
 # -*- coding: utf8 -*-
 import argparse
 import collections
+import functools
 import gzip
 import json
 import logging
 import re
 import sys
-import textwrap
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict
 
 import coloredlogs
 import liftover
-import pysam
 
 # https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
 VEP_CONSEQUENCES = [
@@ -60,12 +59,52 @@ VEP_CONSEQUENCE_RANKS = {
 }
 
 
+########################################################################################
+
+
 def abort(line, *args, **kwargs):
     if args or kwargs:
         line = line.format(*args, **kwargs)
 
     print(line, file=sys.stderr)
     sys.exit(1)
+
+
+def parse_vcf(line):
+    fields = line.rstrip("\r\n").split("\t")
+    chr, pos, id, ref, alt, qual, filters, info, *fmt_and_samples = fields
+
+    samples = []
+    if fmt_and_samples:
+        fmt_keys = fmt_and_samples[0].split(":")
+        for sample in fmt_and_samples[1:]:
+            samples.append(dict(zip(fmt_keys, sample.split(":"))))
+
+    return {
+        "Chr": chr,
+        "Pos": int(pos),
+        "ID": None if id == "." else id,
+        "Ref": ref,
+        # . is treated as a actual value, rather than an empty list. This is done so
+        # that (limited) information can be retrieved for non-specific variants.
+        "Alts": alt.split(","),
+        "Qual": float(qual) if qual != "." else None,
+        "Filters": [] if filters == "." else filters.split(";"),
+        "Info": info,
+        "Samples": samples,
+    }
+
+
+@functools.lru_cache()
+def parse_vcf_genotypes(genotypes, _re=re.compile(r"[|/]")):
+    if genotypes in (None, "./.", ".|."):
+        return (None, None)
+
+    result = tuple(int(value) for value in _re.split(genotypes))
+    if len(result) != 2:
+        raise ValueError(genotypes)
+
+    return result
 
 
 class Annotator:
@@ -80,40 +119,30 @@ class AnnotateBasicsInfo(Annotator):
     def __init__(self, keepindelref=False) -> None:
         self._keepindelref = keepindelref
 
-    def annotate(self, vcf, row):
-        row["Chr"] = vcf.contig
-        row["Pos"] = vcf.pos
-        row["Alts"] = ",".join(vcf.alts or ".")
-        row["ID"] = vcf.id or "."
-        row["Ref"] = self._validate_sequence(vcf.ref, "ACGTN*")
-        row["Filters"] = ";".join(vcf.filter or ".")
-        row["DP"] = self._calculate_depth(vcf)
+    def annotate(self, vep, _row):
+        row = parse_vcf(vep["input"])
+        samples = row.pop("Samples")
 
-        # There is no easy way to get just the INFO field a str
-        vcf_as_text = str(vcf).split("\t", 8)
-        # For VCF files with no genotypes, the INFO field may contain trailing newlines
-        row["Info"] = vcf_as_text[7].rstrip()
+        row["Ref"] = self._validate_sequence(row["Ref"], "ACGTN*")
+        row["DP"] = self._calculate_depth(samples)
 
-        genotype_counts = self._calculate_genotype_counts(vcf)
+        genotype_counts = self._count_genotypes(samples)
         frequencies = self._calculate_allele_freqs(genotype_counts)
 
-        # Workaround for non-variants; additional logic is found in the VEP annotator
-        alts = ["."] if vcf.alts is None else vcf.alts
-
         # Construct the cleaned up alleles / positions used by VEP
-        vep_alleles = self._construct_vep_alleles(vcf)
+        vep_alleles = self._construct_vep_alleles(row)
 
-        for allele in alts:
+        for allele_idx, allele in enumerate(row["Alts"], start=1):
             allele = self._validate_sequence(allele, "ACGTN*.")
 
             copy = dict(row)
             copy["Alt"] = allele
-            copy["Freq"] = frequencies.get(allele, ".")
+            copy["Freq"] = frequencies.get(allele_idx, ".")
 
-            gt_00 = genotype_counts.get((vcf.ref, vcf.ref), 0)
-            gt_01 = genotype_counts.get((vcf.ref, allele), 0)
-            gt_10 = genotype_counts.get((allele, vcf.ref), 0)
-            gt_11 = genotype_counts.get((allele, allele), 0)
+            gt_00 = genotype_counts.get((0, 0), 0)
+            gt_01 = genotype_counts.get((0, allele_idx), 0)
+            gt_10 = genotype_counts.get((allele_idx, 0), 0)
+            gt_11 = genotype_counts.get((allele_idx, allele_idx), 0)
             gt_na = genotype_counts.get((None, None), 0)
 
             copy["GT_00"] = gt_00
@@ -164,19 +193,19 @@ class AnnotateBasicsInfo(Annotator):
 
         return sequence
 
-    def _calculate_depth(self, vcf):
+    def _calculate_depth(self, samples):
         depths = []
-        for sample in vcf.samples.values():
-            depth = sample["DP"]
-            if depth is not None:
-                depths.append(depth)
+        for sample in samples:
+            depth = sample.get("DP", ".")
+            if depth != ".":
+                depths.append(int(depth))
 
         return sum(depths) if depths else "."
 
-    def _calculate_genotype_counts(self, vcf):
+    def _count_genotypes(self, samples):
         counts = collections.defaultdict(int)
-        for sample in vcf.samples.values():
-            counts[sample.alleles] += 1
+        for sample in samples:
+            counts[parse_vcf_genotypes(sample.get("GT"))] += 1
 
         return dict(counts)
 
@@ -194,15 +223,15 @@ class AnnotateBasicsInfo(Annotator):
 
         return frequencies
 
-    def _construct_vep_alleles(self, vcf):
-        start = vcf.pos
-        ref = vcf.ref
-        if vcf.alts is None:
+    def _construct_vep_alleles(self, row):
+        start = row["Pos"]
+        ref = row["Ref"]
+        alts = row["Alts"]
+        if alts == ["."]:
             # VEP has limited support for including records for non-variants
             return {".": {"start": start, "ref": ref, "alt": ref, "alleles": ref}}
 
-        alts = list(vcf.alts)
-        if any(len(vcf.ref) != len(allele) for allele in alts):
+        if any(len(ref) != len(allele) for allele in alts):
             # find out if all the alts start with the same base, ignoring "*"
             any_non_star = False
             first_bases = {ref[0]}
@@ -214,6 +243,7 @@ class AnnotateBasicsInfo(Annotator):
             if any_non_star and len(first_bases) == 1:
                 start += 1
                 ref = ref[1:] or "-"
+                alts = list(alts)
                 for idx, alt in enumerate(alts):
                     if alt.startswith("*"):
                         alts[idx] = alt
@@ -230,7 +260,7 @@ class AnnotateBasicsInfo(Annotator):
                 "alt": vep_alt,
                 "alleles": allele_string,
             }
-            for vcf_alt, vep_alt in zip(vcf.alts, alts)
+            for vcf_alt, vep_alt in zip(row["Alts"], alts)
         }
 
 
@@ -282,21 +312,7 @@ class AnnotateLiftOver(Annotator):
 
 
 class AnnotateVEP(Annotator):
-    CACHE_SIZE = 1000
-
-    def __init__(self, filepath: Path) -> None:
-        self._log = logging.getLogger("vep")
-        self._log.info("reading VEP annotations from '%s'", filepath)
-
-        self._handle = gzip.open(filepath, "rt")
-
-        self._cached_for = None
-        self._cached_record = {}
-
-    def annotate(self, vcf, row):
-        # https://m.ensembl.org/info/docs/tools/vep/vep_formats.html#json
-        vep = self._read_record(vcf, row)
-
+    def annotate(self, vep, row):
         # The position and sequences that VEP reports for this allele
         row["VEP_allele"] = "{start}:{ref}:{alt}".format(**row[":vep:"])
 
@@ -379,36 +395,6 @@ class AnnotateVEP(Annotator):
             "1KG_EUR_AF": onek_af.format("European"),
             "1KG_SAS_AF": onek_af.format("South Asian"),
         }
-
-    def _read_record(self, vcf, row, _regex=re.compile(r":(-)?NaN\b", flags=re.I)):
-        # There is a single VEP associated with each VCF record (provided that the
-        # --allow_non_variant option used. Thus we only need to read a new record when
-        # a new VCF record is passed.
-        if self._cached_for is not vcf:
-            line = self._handle.readline()
-            if not line:
-                raise RuntimeError("vep annotations are truncated")
-
-            # Workaround for non-standard JSON output observed in some records, where
-            # an expected string value was -nan. Python accepts "NaN", but null seems
-            # more reasonable
-            line = _regex.sub(":null", line)
-
-            self._cached_record = json.loads(line)
-            self._cached_for = vcf
-
-            expected_pos = (row["Chr"], row[":vep:"]["start"], row[":vep:"]["alleles"])
-            observed_pos = (
-                self._cached_record["seq_region_name"],
-                self._cached_record["start"],
-                self._cached_record["allele_string"],
-            )
-
-            # VEP output is expected to be in the same order as the input
-            if expected_pos != observed_pos:
-                raise ValueError(f"VEP: {observed_pos} != {expected_pos}")
-
-        return self._cached_record
 
     def _get_allele_consequence(self, vep, allele):
         # The JSON record contains transcript, integenic, or no consequences
@@ -747,7 +733,7 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 def parse_args(argv):
     parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
     parser.add_argument(
-        "in_vcf",
+        "in_json",
         type=Path,
     )
 
@@ -770,12 +756,6 @@ def parse_args(argv):
         "--database",
         default="hg38",
         choices=("hg19", "hg38"),
-    )
-
-    parser.add_argument(
-        "--vep-output",
-        required=True,
-        type=Path,
     )
 
     parser.add_argument(
@@ -804,9 +784,9 @@ def main(argv):
     )
 
     log = logging.getLogger("main")
-    log.info("reading variants from '%s'", args.in_vcf)
+    log.info("reading variants from '%s'", args.in_json)
 
-    with pysam.VariantFile(str(args.in_vcf)) as handle:
+    with gzip.open(args.in_json, "rb") as handle:
         # order of operations
         annotations = [
             AnnotateBasicsInfo(),
@@ -814,18 +794,14 @@ def main(argv):
                 source=args.database,
                 cache=args.liftover_cache,
             ),
-            AnnotateVEP(args.vep_output),
+            AnnotateVEP(),
         ]
 
         header = {}
         for annotator in annotations:
             header.update(annotator.keys())
 
-        if args.output_format:
-            output_formats = set(args.output_format)
-        else:
-            output_formats = ["tsv"]
-
+        output_formats = set(args.output_format) if args.output_format else ["tsv"]
         if args.out_prefix is None and len(output_formats) > 1:
             log.error("[out_prefix] must be set when writing more than one format")
             return 1
@@ -835,12 +811,21 @@ def main(argv):
             cls = OUTPUT_FORMATS[key]
             writers[key] = cls(keys=header, out_prefix=args.out_prefix)
 
-        for read in handle.fetch():
+        nan_re = re.compile(rb":(-)?NaN\b", flags=re.I)
+
+        for line in handle:
+            # Workaround for non-standard JSON output observed in some records, where
+            # an expected string value was -nan. Python accepts "NaN", but null seems
+            # more reasonable for downstream compatibility
+            line = nan_re.sub(b":null", line)
+
+            record = json.loads(line)
+
             rows = [{}]
             for annotator in annotations:
                 annotated_rows = []
                 for row in rows:
-                    annotated_rows.extend(annotator.annotate(read, row))
+                    annotated_rows.extend(annotator.annotate(record, row))
 
                 rows = annotated_rows
 

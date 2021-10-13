@@ -155,8 +155,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     info "Aggregating results ..."
     log_command python3 "${ANNOVEP_ROOT}/vep_json_to_tsv.py" \
         --liftover-cache "${ANNOVEP_CACHE}/liftover" \
-        --vep-output "${output_vep_json}" \
-        "${input_vcf}" \
+        "${output_vep_json}" \
         "${output_tsv}"
 
     # [2/2] Prevent Bash from reading past this point once script is done
