@@ -641,35 +641,28 @@ class AnnotateVEP(Annotator):
 
 
 class Output:
-    def __init__(self, keys):
+    def __init__(self, keys, out_prefix, extension):
         self.keys = keys
-
-    def initialize(self, out_prefix):
-        raise NotImplementedError()
+        self._handle = sys.stdout
+        if out_prefix is not None:
+            self._handle = open(f"{out_prefix}{extension}", "wt")
 
     def finalize(self):
-        raise NotImplementedError()
+        self._handle.close()
 
     def process_row(self, data):
         raise NotImplementedError()
 
-    @classmethod
-    def _open_handle(cls, out_prefix, extension):
-        if out_prefix is None:
-            return sys.stdout
+    def _print(self, line, *args, **kwargs):
+        if args or kwargs:
+            line = line.format(*args)
 
-        return open(f"{out_prefix}{extension}", "wt")
+        print(line, file=self._handle, **kwargs)
 
 
 class JSONOutput(Output):
-    def initialize(self, out_prefix):
-        if out_prefix is None:
-            self._handle = sys.stdout
-        else:
-            self._handle = open(f"{out_prefix}.json", "wt")
-
-    def finalize(self):
-        self._handle.close()
+    def __init__(self, keys, out_prefix):
+        super().__init__(keys, out_prefix, ".json")
 
     def process_row(self, data):
         json.dump({key: data[key] for key in self.keys}, self._handle)
@@ -677,22 +670,17 @@ class JSONOutput(Output):
 
 
 class TSVOutput(Output):
-    def initialize(self, out_prefix):
-        if out_prefix is None:
-            self._handle = sys.stdout
-        else:
-            self._handle = open(f"{out_prefix}.tsv", "wt")
+    def __init__(self, keys, out_prefix):
+        super().__init__(keys, out_prefix, ".tsv")
 
+        self._print("#{}", "\t".join(self.keys))
+
+        if out_prefix is not None:
             with open(f"{out_prefix}.tsv.columns", "wt") as handle:
                 print("Name\tDescription", file=handle)
 
                 for name, description in self.keys.items():
                     print(name, description, sep="\t", file=handle)
-
-        print("#", "\t".join(map(str, self.keys)), sep="", file=self._handle)
-
-    def finalize(self):
-        self._handle.close()
 
     def process_row(self, data):
         row = []
@@ -707,22 +695,22 @@ class TSVOutput(Output):
 
             row.append(value)
 
-        print("\t".join(row), file=self._handle)
+        self._print("\t".join(row))
 
 
 class SQLOutput(Output):
-    def initialize(self, out_prefix):
+    def __init__(self, keys, out_prefix):
+        super().__init__(keys, out_prefix, ".sql")
+
         self._row = 0
-        self._handle = self._open_handle(out_prefix, ".sql")
-
         for table in ("Annotations",):
-            self._write("DROP TABLE IF EXISTS [{}];", table)
+            self._print("DROP TABLE IF EXISTS [{}];", table)
 
-        self._write("CREATE TABLE [Annotations] (")
-        self._write("    pid INTEGER PRIMARY KEY ASC", end="")
+        self._print("CREATE TABLE [Annotations] (")
+        self._print("    pid INTEGER PRIMARY KEY ASC", end="")
         for key in self.keys:
-            self._write(",\n    [{}]", key, end="")
-        self._write("\n);")
+            self._print(",\n    [{}]", key, end="")
+        self._print("\n);")
 
     def finalize(self):
         self._handle.close()
@@ -739,13 +727,7 @@ class SQLOutput(Output):
 
             values.append(value)
 
-        self._write("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
-
-    def _write(self, line, *args, end="\n", **kwargs):
-        if args or kwargs:
-            line = line.format(*args, **kwargs)
-
-        print(line, file=self._handle, end=end)
+        self._print("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
 
 
 OUTPUT_FORMATS = {
@@ -851,8 +833,7 @@ def main(argv):
         writers: Dict[str, Output] = {}
         for key in output_formats:
             cls = OUTPUT_FORMATS[key]
-            writers[key] = cls(header)
-            writers[key].initialize(args.out_prefix)
+            writers[key] = cls(keys=header, out_prefix=args.out_prefix)
 
         for read in handle.fetch():
             rows = [{}]
