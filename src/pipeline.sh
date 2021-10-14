@@ -40,7 +40,6 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     readonly output_prefix="${2}"
     readonly output_vep_json="${2}.vep.json.gz"
     readonly output_vep_html="${2}.vep.html"
-    readonly output_tsv="${2}.tsv"
     shift 2
 
     require_files "Input VCF file" "${input_vcf}"
@@ -157,7 +156,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     log_command python3 "${ANNOVEP_ROOT}/vep_json_to_tsv.py" \
         --liftover-cache "${ANNOVEP_CACHE}/liftover" \
         "${output_vep_json}" \
-        "${output_tsv}"
+        "${output_prefix}"
 
     # [2/2] Prevent Bash from reading past this point once script is done
     exit $?
