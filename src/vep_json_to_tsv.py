@@ -39,7 +39,8 @@ VEP_CONSEQUENCES = [
     "3_prime_UTR_variant",
     "non_coding_transcript_exon_variant",
     "intron_variant",
-    "NMD_transcript_variant",
+    # See below for special handling of variants in NMD transcripts
+    # "NMD_transcript_variant",
     "non_coding_transcript_variant",
     "upstream_gene_variant",
     "downstream_gene_variant",
@@ -51,8 +52,15 @@ VEP_CONSEQUENCES = [
     "feature_elongation",
     "regulatory_region_variant",
     "feature_truncation",
-    "intergenic_variant",
+    # See below; is ranked below custom NMD terms
+    # "intergenic_variant",
 ]
+
+# Consequences in NMD transcripts are given the lowest priority
+VEP_CONSEQUENCES.extend(f"NMD_{_name}" for _name in tuple(VEP_CONSEQUENCES))
+VEP_CONSEQUENCES.append("NMD_transcript_variant")
+# Intergenic is the absolutely most insignificant term
+VEP_CONSEQUENCES.append("intergenic_variant")
 
 VEP_CONSEQUENCE_RANKS = {
     consequence: rank for rank, consequence in enumerate(VEP_CONSEQUENCES)
@@ -350,6 +358,8 @@ class AnnotateVEP(Annotator):
             "Func_most_significant": "The most significant functional consequence",
             "Func_least_significant": "The last significant functional consequence for "
             "the same gene as the most significant consequence",
+            "Func_most_significant_canonical": "The most significant functional "
+            "consequence for canonical transcripts only",
             "Func_gene_id": "Gene with the most significant consequence",
             "Func_transcript_id": "Transcript with the most significant consequence",
             "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
@@ -403,19 +413,27 @@ class AnnotateVEP(Annotator):
         assert not (transcript_consequences and intergenic_consequences), vep
 
         consequences = []
+        canonical_consequences = []
         for consequence in transcript_consequences or intergenic_consequences:
             if consequence["variant_allele"] == allele:
                 consequence_terms = consequence["consequence_terms"]
                 if "NMD_transcript_variant" in consequence_terms:
                     # terms in Nonsence Mediated Decay variants are of no significance
-                    consequence_terms = ["NMD_transcript_variant"]
+                    consequence_terms = [
+                        term if term == "NMD_transcript_variant" else f"NMD_{term}"
+                        for term in consequence_terms
+                    ]
+
+                # Gene ID will be missing for intergenetic consequences
+                gene = consequence.get("gene_id", ".")
+                is_canonical = consequence.get("canonical")
 
                 for term in consequence_terms:
-                    rank = VEP_CONSEQUENCE_RANKS[term]
-                    # Gene ID will be missing for intergenetic consequences
-                    gene = consequence.get("gene_id", ".")
+                    entry = (VEP_CONSEQUENCE_RANKS[term], term, gene, consequence)
 
-                    consequences.append((rank, term, gene, consequence))
+                    consequences.append(entry)
+                    if is_canonical:
+                        canonical_consequences.append(entry)
 
         if not consequences:
             if allele == vep["allele_string"] or allele.startswith("*"):
@@ -425,9 +443,13 @@ class AnnotateVEP(Annotator):
             raise ValueError((allele, vep))
 
         consequences.sort(key=lambda it: it[0])
+        canonical_consequences.sort(key=lambda it: it[0])
+
         # One of the most significant consequences is picked "randomly"
         _, most_significant, gene_id, consequence = consequences[0]
+        _, most_significant_canonical, _, _ = consequences[0]
 
+        consequence["most_significant_canonical"] = most_significant_canonical
         consequence["most_significant"] = most_significant
         consequence["n_most_significant"] = 0
         for _, term, _, _ in consequences:
@@ -458,6 +480,7 @@ class AnnotateVEP(Annotator):
             "least_significant",
             "most_significant",
             "n_most_significant",
+            "most_significant_canonical",
             "lof",
             "lof_filter",
             "lof_flags",

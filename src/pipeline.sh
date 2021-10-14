@@ -126,6 +126,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
             --offline \
             --cache \
             --symbol \
+            --canonical \
             --format "vcf" \
             --json \
             --force_overwrite \
