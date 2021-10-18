@@ -702,6 +702,23 @@ class SQLOutput(Output):
     def __init__(self, keys, out_prefix):
         super().__init__(keys, out_prefix, ".sql")
 
+        self._print("DROP TABLE IF EXISTS [AnnotationDescriptions];")
+        self._print("CREATE TABLE [AnnotationDescriptions] (")
+        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Name] TEXT,")
+        self._print("    [Description] TEXT")
+        self._print(");")
+
+        self._print()
+        for pid, (key, description) in enumerate(self.keys.items()):
+            self._print(
+                "INSERT INTO [AnnotationDescriptions] VALUES ({}, {}, {});",
+                pid,
+                self._to_string(key),
+                self._to_string(description),
+            )
+        self._print()
+
         self._row = 0
         for table in ("Annotations",):
             self._print("DROP TABLE IF EXISTS [{}];", table)
