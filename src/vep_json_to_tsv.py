@@ -668,7 +668,10 @@ class TSVOutput(Output):
         for key in self.keys:
             value = data[key]
             if isinstance(value, (tuple, list)):
-                value = ",".join(map(str, value))
+                if value:
+                    value = ",".join(map(str, value))
+                else:
+                    value = "."
             elif value is None:
                 value = "."
             else:
