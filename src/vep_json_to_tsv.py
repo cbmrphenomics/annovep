@@ -411,6 +411,10 @@ class Annotator:
                 consequence["least_significant"] = term
                 break
 
+        # Effects on NMD transcritps are considered to be the lowest possible
+        if most_significant.startswith("NMD_"):
+            consequence["impact"] = "MODIFIER"
+
         return consequence
 
     def _add_gene_info(self, consequence, dst):
