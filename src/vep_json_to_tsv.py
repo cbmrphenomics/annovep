@@ -285,13 +285,16 @@ class Annotator:
         return sequence
 
     def _calculate_depth(self, samples):
-        depths = []
+        any_depth = False
+        total_depth = 0
         for sample in samples:
+            # Both missing key/value pairs and '.' values are possible
             depth = sample.get("DP", ".")
             if depth != ".":
-                depths.append(int(depth))
+                any_depth = True
+                total_depth += int(depth)
 
-        return sum(depths) if depths else "."
+        return total_depth if any_depth else "."
 
     def _count_genotypes(self, samples):
         counts = collections.defaultdict(int)
@@ -664,22 +667,18 @@ class TSVOutput(Output):
                     print(name, description, sep="\t", file=handle)
 
     def process_row(self, data):
-        row = []
-        for key in self.keys:
-            value = data[key]
-            if isinstance(value, (tuple, list)):
-                if value:
-                    value = ",".join(map(str, value))
-                else:
-                    value = "."
-            elif value is None:
-                value = "."
-            else:
-                value = str(value)
-
-            row.append(value)
+        row = [self._to_string(data[key]) for key in self.keys]
 
         self._print("\t".join(row))
+
+    @staticmethod
+    def _to_string(value):
+            if isinstance(value, (tuple, list)):
+            return ",".join(map(str, value or "."))
+            elif value is None:
+            return "."
+
+        return str(value)
 
 
 class SQLOutput(Output):
