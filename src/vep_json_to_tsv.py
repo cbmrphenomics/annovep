@@ -637,8 +637,7 @@ class Output:
     def process_row(self, data):
         raise NotImplementedError()
 
-    def _print(self, line, *args, **kwargs):
-        if args or kwargs:
+        if args:
             line = line.format(*args)
 
         print(line, file=self._handle, **kwargs)
