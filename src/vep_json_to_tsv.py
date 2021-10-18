@@ -14,57 +14,143 @@ from typing import Dict
 import coloredlogs
 import liftover
 
-# https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
-VEP_CONSEQUENCES = [
-    "transcript_ablation",
-    "splice_acceptor_variant",
-    "splice_donor_variant",
-    "stop_gained",
-    "frameshift_variant",
-    "stop_lost",
-    "start_lost",
-    "transcript_amplification",
-    "inframe_insertion",
-    "inframe_deletion",
-    "missense_variant",
-    "protein_altering_variant",
-    "splice_region_variant",
-    "incomplete_terminal_codon_variant",
-    "start_retained_variant",
-    "stop_retained_variant",
-    "synonymous_variant",
-    "coding_sequence_variant",
-    "mature_miRNA_variant",
-    "5_prime_UTR_variant",
-    "3_prime_UTR_variant",
-    "non_coding_transcript_exon_variant",
-    "intron_variant",
-    # See below for special handling of variants in NMD transcripts
-    # "NMD_transcript_variant",
-    "non_coding_transcript_variant",
-    "upstream_gene_variant",
-    "downstream_gene_variant",
-    "TFBS_ablation",
-    "TFBS_amplification",
-    "TF_binding_site_variant",
-    "regulatory_region_ablation",
-    "regulatory_region_amplification",
-    "feature_elongation",
-    "regulatory_region_variant",
-    "feature_truncation",
-    # See below; is ranked below custom NMD terms
-    # "intergenic_variant",
-]
 
-# Consequences in NMD transcripts are given the lowest priority
-VEP_CONSEQUENCES.extend(f"NMD_{_name}" for _name in tuple(VEP_CONSEQUENCES))
-VEP_CONSEQUENCES.append("NMD_transcript_variant")
-# Intergenic is the absolutely most insignificant term
-VEP_CONSEQUENCES.append("intergenic_variant")
+########################################################################################
 
-VEP_CONSEQUENCE_RANKS = {
-    consequence: rank for rank, consequence in enumerate(VEP_CONSEQUENCES)
-}
+
+def _build_consequence_ranks():
+    # https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
+    consequences = [
+        "transcript_ablation",
+        "splice_acceptor_variant",
+        "splice_donor_variant",
+        "stop_gained",
+        "frameshift_variant",
+        "stop_lost",
+        "start_lost",
+        "transcript_amplification",
+        "inframe_insertion",
+        "inframe_deletion",
+        "missense_variant",
+        "protein_altering_variant",
+        "splice_region_variant",
+        "incomplete_terminal_codon_variant",
+        "start_retained_variant",
+        "stop_retained_variant",
+        "synonymous_variant",
+        "coding_sequence_variant",
+        "mature_miRNA_variant",
+        "5_prime_UTR_variant",
+        "3_prime_UTR_variant",
+        "non_coding_transcript_exon_variant",
+        "intron_variant",
+        # See below for special handling of variants in NMD transcripts
+        # "NMD_transcript_variant",
+        "non_coding_transcript_variant",
+        "upstream_gene_variant",
+        "downstream_gene_variant",
+        "TFBS_ablation",
+        "TFBS_amplification",
+        "TF_binding_site_variant",
+        "regulatory_region_ablation",
+        "regulatory_region_amplification",
+        "feature_elongation",
+        "regulatory_region_variant",
+        "feature_truncation",
+        # See below; is ranked below custom NMD terms
+        # "intergenic_variant",
+    ]
+
+    # Consequences in NMD transcripts are given the lowest priority
+    consequences.extend(f"NMD_{_name}" for _name in tuple(consequences))
+    consequences.append("NMD_transcript_variant")
+    # Intergenic is the absolutely most insignificant term
+    consequences.append("intergenic_variant")
+
+    return {consequence: rank for rank, consequence in enumerate(consequences)}
+
+
+def _build_columns():
+    onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
+    gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
+
+    return {
+        "Chr": "Chromosome/Contig recorded in input VCF",
+        "Pos": "Position recorded in input VCF",
+        "ID": "ID recorded in input VCF",
+        "Ref": "Reference allele recorded in input VCF",
+        "Alt": "The single ALT allele described by this row",
+        "Alts": "The full ALT string from the input VCF",
+        "Filters": "Filters recorded in input VCF",
+        "DP": "Sum of read depth for this position",
+        "Freq": "Frequency of alternative allele in samples",
+        "GT_00": "Number of samples with ref/ref genotype",
+        "GT_01": "Number of samples with ref/alt genotype",
+        "GT_11": "Number of samples with alt/alt genotype",
+        "GT_NA": "Number of samples with missing genotypes",
+        "GT_other": "Number of samples with other genotypes",
+        "Info": "INFO string from input VCF",
+        "Liftover_hg19": "Corresponding coordinates in hg19 genome. May be . if "
+        "position is invalid or missing from the genome.",
+        "Liftover_hg38": "Corresponding coordinates in hg38 genome. May be . if "
+        "position is invalid or missing from the genome.",
+        "VEP_allele": "The pos:ref:alt corresponding to VEP output",
+        "Ancestral_allele": "",
+        "Genes_overlapping": "Genes overlapping allele",
+        "Genes_upstream": "Neighbouring genes upstream of allele",
+        "Genes_downstream": "Neighbouring genes downstream of allele",
+        "Func_n_most_significant": "Number of consequences ranked as most"
+        "significant in terms of impact",
+        "Func_most_significant": "The most significant functional consequence",
+        "Func_least_significant": "The last significant functional consequence for "
+        "the same gene as the most significant consequence",
+        "Func_most_significant_canonical": "The most significant functional "
+        "consequence for canonical transcripts only",
+        "Func_gene_id": "Gene with the most significant consequence",
+        "Func_transcript_id": "Transcript with the most significant consequence",
+        "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
+        "Func_gene_symbol_source": "Source of gene symbol",
+        "Func_cdna_position": "Relative position of base pair in cDNA sequence",
+        "Func_cds_position": "Relative position of base pair in coding sequence",
+        "Func_protein_position": "Relative position of amino acid in protein",
+        "Func_amino_acids": "Reference and variant amino acids",
+        "Func_codons": "Reference and variant codon sequence",
+        "Func_impact": "Subjective impact classification of consequence type",
+        "Func_strand": "Strand of the feature (1/-1)",
+        "Func_polyphen": "PolyPhen prediction",
+        "Func_polyphen_score": "PolyPhen score",
+        "Func_conservation_score": "The conservation score for this site",
+        "Func_lof": "Loss-of-function annotation (HC/LC = High/Low Confidence)",
+        "Func_lof_filter": "Reason for LoF not being HC",
+        "Func_lof_flags": "Possible warning flags for LoF",
+        "Func_lof_info": "Info used for LoF annotation",
+        "Func_ExACpLI": "Probabililty of a gene being loss-of-function intolerant",
+        "dbSNP_ids": "dbSNP ids for alleles alleles matching this pos:ref/alt",
+        "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
+        "dbSNP_functions": "GO terms recorded in dbSNP",
+        "ClinVar_ID": "The ClinVar Allele ID",
+        "ClinVar_disease": "ClinVar's preferred disease name",
+        "ClinVar_significance": "Clinical significance for this single variant",
+        "gnomAD_mean": "gnomAD genomes mean coverage for this site",
+        "gnomAD_median": "gnomAD genomes median coverage for this site",
+        "gnomAD_over_15": "gnomAD genomes fraction with coverage over 15x",
+        "gnomAD_over_50": "gnomAD genomes fraction with coverage over 50x",
+        "gnomAD_filter": "gnomAD genomes FILTER",
+        "gnomAD_AFR_AF": gnomad_af.format("African/American"),
+        "gnomAD_AMI_AF": gnomad_af.format("Amish"),
+        "gnomAD_AMR_AF": gnomad_af.format("American"),
+        "gnomAD_ASJ_AF": gnomad_af.format("Ashkenazi Jewish"),
+        "gnomAD_EAS_AF": gnomad_af.format("East Asian"),
+        "gnomAD_FIN_AF": gnomad_af.format("Finnish"),
+        "gnomAD_NFE_AF": gnomad_af.format("Non-Finnish European"),
+        "gnomAD_OTH_AF": gnomad_af.format("other combined"),
+        "gnomAD_SAS_AF": gnomad_af.format("South Asian"),
+        "1KG_AFR_AF": onek_af.format("African"),
+        "1KG_AMR_AF": onek_af.format("American"),
+        "1KG_EAS_AF": onek_af.format("East Asian"),
+        "1KG_EUR_AF": onek_af.format("European"),
+        "1KG_SAS_AF": onek_af.format("South Asian"),
+    }
 
 
 ########################################################################################
@@ -115,19 +201,16 @@ def parse_vcf_genotypes(genotypes, _re=re.compile(r"[|/]")):
     return result
 
 
+########################################################################################
+## Annotations
+
+
 class Annotator:
-    def annotate(self, vcf, row):
-        raise NotImplementedError()
+    def __init__(self, liftover_cache=None) -> None:
+        self._consequence_ranks = _build_consequence_ranks()
+        self._lifter = liftover.get_lifter("hg38", "hg19", liftover_cache)
 
-    def keys(self):
-        raise NotImplementedError()
-
-
-class AnnotateBasicsInfo(Annotator):
-    def __init__(self, keepindelref=False) -> None:
-        self._keepindelref = keepindelref
-
-    def annotate(self, vep, _row):
+    def annotate(self, vep):
         row = parse_vcf(vep["input"])
         samples = row.pop("Samples")
 
@@ -168,28 +251,28 @@ class AnnotateBasicsInfo(Annotator):
             )
 
             # Cleaned up coordinates/sequences used by VEP
-            copy[":vep:"] = vep_alleles[allele]
+            vep_allele = vep_alleles[allele]
+            copy[":vep:"] = vep_allele
+
+            # The position and sequences that VEP reports for this allele
+            copy["VEP_allele"] = "{start}:{ref}:{alt}".format(**vep_allele)
+
+            # Add functional annotation
+            consequence = self._get_allele_consequence(vep, vep_allele["alt"])
+            self._add_gene_info(consequence, copy)
+            self._add_ancestral_allele(consequence, copy)
+
+            copy["Func_conservation_score"] = consequence.get("conservation", ".")
+            copy["Func_polyphen"] = consequence.get("polyphen_prediction", ".")
+            copy["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
+            copy["Func_ExACpLI"] = consequence.get("exacpli", ".")
+
+            # add custom annotation
+            self._add_custom_annotation(vep, copy)
+            self._add_neighbouring_genes(vep, copy)
+            self._add_liftover_annotations(vep, copy)
 
             yield copy
-
-    def keys(self):
-        return {
-            "Chr": "Chromosome/Contig recorded in input VCF",
-            "Pos": "Position recorded in input VCF",
-            "ID": "ID recorded in input VCF",
-            "Ref": "Reference allele recorded in input VCF",
-            "Alt": "The single ALT allele described by this row",
-            "Alts": "The full ALT string from the input VCF",
-            "Filters": "Filters recorded in input VCF",
-            "DP": "Sum of read depth for this position",
-            "Freq": "Frequency of alternative allele in samples",
-            "GT_00": "Number of samples with ref/ref genotype",
-            "GT_01": "Number of samples with ref/alt genotype",
-            "GT_11": "Number of samples with alt/alt genotype",
-            "GT_NA": "Number of samples with missing genotypes",
-            "GT_other": "Number of samples with other genotypes",
-            "Info": "INFO string from input VCF",
-        }
 
     def _validate_sequence(self, sequence, whitelist):
         sequence = sequence.upper()
@@ -271,141 +354,6 @@ class AnnotateBasicsInfo(Annotator):
             for vcf_alt, vep_alt in zip(row["Alts"], alts)
         }
 
-
-class AnnotateLiftOver(Annotator):
-    def __init__(self, source: str, cache: Path) -> None:
-        if source == "hg19":
-            destination = "hg38"
-        elif source == "hg38":
-            destination = "hg19"
-        else:
-            raise ValueError(source)
-
-        self._src_db = source.lower()
-        self._dst_db = destination.lower()
-        self._lifter = liftover.get_lifter(source, destination, cache)
-
-    def annotate(self, vcf, row):
-        src_chrom = row["Chr"]
-        src_pos = row["Pos"]
-        src_liftover = "{}:{}+".format(src_chrom, src_pos)
-
-        # Returns list of overlapping liftover coordinates, an empty list if the
-        # position does not exist in the target genome, or KeyError if unknown.
-        try:
-            coordinates = self._lifter.query(src_chrom, int(src_pos))
-        except KeyError:
-            coordinates = []
-            # Src coordinates were not usable, so we also write them as missing
-            src_liftover = "."
-
-        positions = []
-        for (chrom, pos, strand) in coordinates:
-            positions.append("{}:{}{}".format(chrom, pos, strand))
-
-        dst_liftover = ";".join(positions) or "."
-
-        row[f"Liftover_{self._src_db}"] = src_liftover
-        row[f"Liftover_{self._dst_db}"] = dst_liftover
-
-        return [row]
-
-    def keys(self):
-        return {
-            "Liftover_hg19": "Corresponding coordinates in hg19 genome. May be . if "
-            "position is invalid or missing from the genome.",
-            "Liftover_hg38": "Corresponding coordinates in hg38 genome. May be . if "
-            "position is invalid or missing from the genome.",
-        }
-
-
-class AnnotateVEP(Annotator):
-    def annotate(self, vep, row):
-        # The position and sequences that VEP reports for this allele
-        row["VEP_allele"] = "{start}:{ref}:{alt}".format(**row[":vep:"])
-
-        # Add functional annotation
-        consequence = self._get_allele_consequence(vep, row[":vep:"]["alt"])
-        self._add_gene_info(consequence, row)
-        self._add_ancestral_allele(consequence, row)
-
-        row["Func_conservation_score"] = consequence.get("conservation", ".")
-        row["Func_polyphen"] = consequence.get("polyphen_prediction", ".")
-        row["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
-        row["Func_ExACpLI"] = consequence.get("exacpli", ".")
-
-        # add custom annotation
-        self._add_1k_genomes_annotation(vep, row)
-        self._add_dbsnp_annotation(vep, row)
-        self._add_gnomad_annotation(vep, row)
-        self._add_clinvar_annotation(vep, row)
-        self._add_neighbouring_genes(vep, row)
-
-        return [row]
-
-    def keys(self):
-        onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
-        gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
-
-        return {
-            "VEP_allele": "The pos:ref:alt corresponding to VEP output",
-            "Ancestral_allele": "",
-            "Genes_overlapping": "Genes overlapping allele",
-            "Genes_upstream": "Neighbouring genes upstream of allele",
-            "Genes_downstream": "Neighbouring genes downstream of allele",
-            "Func_n_most_significant": "Number of consequences ranked as most"
-            "significant in terms of impact",
-            "Func_most_significant": "The most significant functional consequence",
-            "Func_least_significant": "The last significant functional consequence for "
-            "the same gene as the most significant consequence",
-            "Func_most_significant_canonical": "The most significant functional "
-            "consequence for canonical transcripts only",
-            "Func_gene_id": "Gene with the most significant consequence",
-            "Func_transcript_id": "Transcript with the most significant consequence",
-            "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
-            "Func_gene_symbol_source": "Source of gene symbol",
-            "Func_cdna_position": "Relative position of base pair in cDNA sequence",
-            "Func_cds_position": "Relative position of base pair in coding sequence",
-            "Func_protein_position": "Relative position of amino acid in protein",
-            "Func_amino_acids": "Reference and variant amino acids",
-            "Func_codons": "Reference and variant codon sequence",
-            "Func_impact": "Subjective impact classification of consequence type",
-            "Func_strand": "Strand of the feature (1/-1)",
-            "Func_polyphen": "PolyPhen prediction",
-            "Func_polyphen_score": "PolyPhen score",
-            "Func_conservation_score": "The conservation score for this site",
-            "Func_lof": "Loss-of-function annotation (HC/LC = High/Low Confidence)",
-            "Func_lof_filter": "Reason for LoF not being HC",
-            "Func_lof_flags": "Possible warning flags for LoF",
-            "Func_lof_info": "Info used for LoF annotation",
-            "Func_ExACpLI": "Probabililty of a gene being loss-of-function intolerant",
-            "dbSNP_ids": "dbSNP ids for alleles alleles matching this pos:ref/alt",
-            "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
-            "dbSNP_functions": "GO terms recorded in dbSNP",
-            "ClinVar_ID": "The ClinVar Allele ID",
-            "ClinVar_disease": "ClinVar's preferred disease name",
-            "ClinVar_significance": "Clinical significance for this single variant",
-            "gnomAD_mean": "gnomAD genomes mean coverage for this site",
-            "gnomAD_median": "gnomAD genomes median coverage for this site",
-            "gnomAD_over_15": "gnomAD genomes fraction with coverage over 15x",
-            "gnomAD_over_50": "gnomAD genomes fraction with coverage over 50x",
-            "gnomAD_filter": "gnomAD genomes FILTER",
-            "gnomAD_AFR_AF": gnomad_af.format("African/American"),
-            "gnomAD_AMI_AF": gnomad_af.format("Amish"),
-            "gnomAD_AMR_AF": gnomad_af.format("American"),
-            "gnomAD_ASJ_AF": gnomad_af.format("Ashkenazi Jewish"),
-            "gnomAD_EAS_AF": gnomad_af.format("East Asian"),
-            "gnomAD_FIN_AF": gnomad_af.format("Finnish"),
-            "gnomAD_NFE_AF": gnomad_af.format("Non-Finnish European"),
-            "gnomAD_OTH_AF": gnomad_af.format("other combined"),
-            "gnomAD_SAS_AF": gnomad_af.format("South Asian"),
-            "1KG_AFR_AF": onek_af.format("African"),
-            "1KG_AMR_AF": onek_af.format("American"),
-            "1KG_EAS_AF": onek_af.format("East Asian"),
-            "1KG_EUR_AF": onek_af.format("European"),
-            "1KG_SAS_AF": onek_af.format("South Asian"),
-        }
-
     def _get_allele_consequence(self, vep, allele):
         # The JSON record contains transcript, integenic, or no consequences
         transcript_consequences = vep.get("transcript_consequences", ())
@@ -429,7 +377,7 @@ class AnnotateVEP(Annotator):
                 is_canonical = consequence.get("canonical")
 
                 for term in consequence_terms:
-                    entry = (VEP_CONSEQUENCE_RANKS[term], term, gene, consequence)
+                    entry = (self._consequence_ranks[term], term, gene, consequence)
 
                     consequences.append(entry)
                     if is_canonical:
@@ -520,7 +468,7 @@ class AnnotateVEP(Annotator):
 
         dst["Ancestral_allele"] = allele
 
-    def _add_custom_annotation(self, src, dst, name, fields, default="."):
+    def _do_add_custom_annotation(self, src, dst, name, fields, default="."):
         data = {}
 
         alt = dst[":vep:"]["alt"]
@@ -538,8 +486,8 @@ class AnnotateVEP(Annotator):
         for src_key, dst_key in fields.items():
             dst[dst_key] = data.get(src_key, default)
 
-    def _add_1k_genomes_annotation(self, src, dst):
-        self._add_custom_annotation(
+    def _add_custom_annotation(self, src, dst):
+        self._do_add_custom_annotation(
             src=src,
             dst=dst,
             name="1KGenomes",
@@ -552,8 +500,7 @@ class AnnotateVEP(Annotator):
             },
         )
 
-    def _add_dbsnp_annotation(self, src, dst):
-        self._add_custom_annotation(
+        self._do_add_custom_annotation(
             src=src,
             dst=dst,
             name="dbSNP",
@@ -564,8 +511,7 @@ class AnnotateVEP(Annotator):
             },
         )
 
-    def _add_gnomad_annotation(self, src, dst):
-        self._add_custom_annotation(
+        self._do_add_custom_annotation(
             src=src,
             dst=dst,
             name="gnomAD_coverage",
@@ -577,7 +523,7 @@ class AnnotateVEP(Annotator):
             ),
         )
 
-        self._add_custom_annotation(
+        self._do_add_custom_annotation(
             src=src,
             dst=dst,
             name="gnomAD_sites",
@@ -596,8 +542,7 @@ class AnnotateVEP(Annotator):
             },
         )
 
-    def _add_clinvar_annotation(self, src, dst):
-        self._add_custom_annotation(
+        self._do_add_custom_annotation(
             src=src,
             dst=dst,
             name="ClinVar",
@@ -647,6 +592,29 @@ class AnnotateVEP(Annotator):
         dst["Genes_overlapping"] = ";".join(sorted(neighbours["overlap"])) or "."
         dst["Genes_upstream"] = _to_list(neighbours["upstream"])
         dst["Genes_downstream"] = _to_list(neighbours["downstream"])
+
+    def _add_liftover_annotations(self, vep, row):
+        src_chrom = row["Chr"]
+        src_pos = row["Pos"]
+        src_liftover = "{}:{}+".format(src_chrom, src_pos)
+
+        # Returns list of overlapping liftover coordinates, an empty list if the
+        # position does not exist in the target genome, or KeyError if unknown.
+        try:
+            coordinates = self._lifter.query(src_chrom, int(src_pos))
+        except KeyError:
+            coordinates = []
+            # Src coordinates were not usable, so we also write them as missing
+            src_liftover = "."
+
+        positions = []
+        for (chrom, pos, strand) in coordinates:
+            positions.append("{}:{}{}".format(chrom, pos, strand))
+
+        dst_liftover = ";".join(positions) or "."
+
+        row[f"Liftover_hg19"] = dst_liftover
+        row[f"Liftover_hg38"] = src_liftover
 
 
 class Output:
@@ -776,12 +744,6 @@ def parse_args(argv):
     )
 
     parser.add_argument(
-        "--database",
-        default="hg38",
-        choices=("hg19", "hg38"),
-    )
-
-    parser.add_argument(
         "--liftover-cache",
         type=Path,
     )
@@ -810,19 +772,8 @@ def main(argv):
     log.info("reading variants from '%s'", args.in_json)
 
     with gzip.open(args.in_json, "rb") as handle:
-        # order of operations
-        annotations = [
-            AnnotateBasicsInfo(),
-            AnnotateLiftOver(
-                source=args.database,
-                cache=args.liftover_cache,
-            ),
-            AnnotateVEP(),
-        ]
-
-        header = {}
-        for annotator in annotations:
-            header.update(annotator.keys())
+        header = _build_columns()
+        annotator = Annotator(liftover_cache=args.liftover_cache)
 
         output_formats = set(args.output_format) if args.output_format else ["tsv"]
         if args.out_prefix is None and len(output_formats) > 1:
@@ -844,15 +795,7 @@ def main(argv):
 
             record = json.loads(line)
 
-            rows = [{}]
-            for annotator in annotations:
-                annotated_rows = []
-                for row in rows:
-                    annotated_rows.extend(annotator.annotate(record, row))
-
-                rows = annotated_rows
-
-            for row in rows:
+            for row in annotator.annotate(record):
                 for writer in writers.values():
                     writer.process_row(row)
 
