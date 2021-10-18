@@ -70,25 +70,33 @@ def _build_consequence_ranks():
     return {consequence: rank for rank, consequence in enumerate(consequences)}
 
 
+class IntegerCol(str):
+    """Indicates that a column contains integer values."""
+
+
+class FloatCol(str):
+    """Indicates that a column contains floating point values."""
+
+
 def _build_columns():
     onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
     gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
 
     return {
         "Chr": "Chromosome/Contig recorded in input VCF",
-        "Pos": "Position recorded in input VCF",
+        "Pos": IntegerCol("Position recorded in input VCF"),
         "ID": "ID recorded in input VCF",
         "Ref": "Reference allele recorded in input VCF",
         "Alt": "The single ALT allele described by this row",
         "Alts": "The full ALT string from the input VCF",
         "Filters": "Filters recorded in input VCF",
-        "DP": "Sum of read depth for this position",
-        "Freq": "Frequency of alternative allele in samples",
-        "GT_00": "Number of samples with ref/ref genotype",
-        "GT_01": "Number of samples with ref/alt genotype",
-        "GT_11": "Number of samples with alt/alt genotype",
-        "GT_NA": "Number of samples with missing genotypes",
-        "GT_other": "Number of samples with other genotypes",
+        "DP": IntegerCol("Sum of read depth for this position"),
+        "Freq": FloatCol("Frequency of alternative allele in samples"),
+        "GT_00": IntegerCol("Number of samples with ref/ref genotype"),
+        "GT_01": IntegerCol("Number of samples with ref/alt genotype"),
+        "GT_11": IntegerCol("Number of samples with alt/alt genotype"),
+        "GT_NA": IntegerCol("Number of samples with missing genotypes"),
+        "GT_other": IntegerCol("Number of samples with other genotypes"),
         "Info": "INFO string from input VCF",
         "Liftover_hg19": "Corresponding coordinates in hg19 genome. May be . if "
         "position is invalid or missing from the genome.",
@@ -99,8 +107,9 @@ def _build_columns():
         "Genes_overlapping": "Genes overlapping allele",
         "Genes_upstream": "Neighbouring genes upstream of allele",
         "Genes_downstream": "Neighbouring genes downstream of allele",
-        "Func_n_most_significant": "Number of consequences ranked as most"
-        "significant in terms of impact",
+        "Func_n_most_significant": IntegerCol(
+            "Number of consequences ranked as most significant in terms of impact"
+        ),
         "Func_most_significant": "The most significant functional consequence",
         "Func_least_significant": "The last significant functional consequence for "
         "the same gene as the most significant consequence",
@@ -110,46 +119,54 @@ def _build_columns():
         "Func_transcript_id": "Transcript with the most significant consequence",
         "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
         "Func_gene_symbol_source": "Source of gene symbol",
-        "Func_cdna_position": "Relative position of base pair in cDNA sequence",
-        "Func_cds_position": "Relative position of base pair in coding sequence",
-        "Func_protein_position": "Relative position of amino acid in protein",
+        "Func_cdna_position": IntegerCol(
+            "Relative position of base pair in cDNA sequence"
+        ),
+        "Func_cds_position": IntegerCol(
+            "Relative position of base pair in coding sequence"
+        ),
+        "Func_protein_position": IntegerCol(
+            "Relative position of amino acid in protein"
+        ),
         "Func_amino_acids": "Reference and variant amino acids",
         "Func_codons": "Reference and variant codon sequence",
         "Func_impact": "Subjective impact classification of consequence type",
-        "Func_strand": "Strand of the feature (1/-1)",
+        "Func_strand": IntegerCol("Strand of the feature (1/-1)"),
         "Func_polyphen": "PolyPhen prediction",
-        "Func_polyphen_score": "PolyPhen score",
-        "Func_conservation_score": "The conservation score for this site",
+        "Func_polyphen_score": FloatCol("PolyPhen score"),
+        "Func_conservation_score": FloatCol("The conservation score for this site"),
         "Func_lof": "Loss-of-function annotation (HC/LC = High/Low Confidence)",
         "Func_lof_filter": "Reason for LoF not being HC",
         "Func_lof_flags": "Possible warning flags for LoF",
         "Func_lof_info": "Info used for LoF annotation",
-        "Func_ExACpLI": "Probabililty of a gene being loss-of-function intolerant",
+        "Func_ExACpLI": FloatCol(
+            "Probabililty of a gene being loss-of-function intolerant"
+        ),
         "dbSNP_ids": "dbSNP ids for alleles alleles matching this pos:ref/alt",
         "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
         "dbSNP_functions": "GO terms recorded in dbSNP",
-        "ClinVar_ID": "The ClinVar Allele ID",
+        "ClinVar_ID": IntegerCol("The ClinVar Allele ID"),
         "ClinVar_disease": "ClinVar's preferred disease name",
         "ClinVar_significance": "Clinical significance for this single variant",
-        "gnomAD_mean": "gnomAD genomes mean coverage for this site",
-        "gnomAD_median": "gnomAD genomes median coverage for this site",
-        "gnomAD_over_15": "gnomAD genomes fraction with coverage over 15x",
-        "gnomAD_over_50": "gnomAD genomes fraction with coverage over 50x",
+        "gnomAD_mean": FloatCol("gnomAD genomes mean coverage for this site"),
+        "gnomAD_median": IntegerCol("gnomAD genomes median coverage for this site"),
+        "gnomAD_over_15": FloatCol("gnomAD genomes fraction with coverage over 15x"),
+        "gnomAD_over_50": FloatCol("gnomAD genomes fraction with coverage over 50x"),
         "gnomAD_filter": "gnomAD genomes FILTER",
-        "gnomAD_AFR_AF": gnomad_af.format("African/American"),
-        "gnomAD_AMI_AF": gnomad_af.format("Amish"),
-        "gnomAD_AMR_AF": gnomad_af.format("American"),
-        "gnomAD_ASJ_AF": gnomad_af.format("Ashkenazi Jewish"),
-        "gnomAD_EAS_AF": gnomad_af.format("East Asian"),
-        "gnomAD_FIN_AF": gnomad_af.format("Finnish"),
-        "gnomAD_NFE_AF": gnomad_af.format("Non-Finnish European"),
-        "gnomAD_OTH_AF": gnomad_af.format("other combined"),
-        "gnomAD_SAS_AF": gnomad_af.format("South Asian"),
-        "1KG_AFR_AF": onek_af.format("African"),
-        "1KG_AMR_AF": onek_af.format("American"),
-        "1KG_EAS_AF": onek_af.format("East Asian"),
-        "1KG_EUR_AF": onek_af.format("European"),
-        "1KG_SAS_AF": onek_af.format("South Asian"),
+        "gnomAD_AFR_AF": FloatCol(gnomad_af.format("African/American")),
+        "gnomAD_AMI_AF": FloatCol(gnomad_af.format("Amish")),
+        "gnomAD_AMR_AF": FloatCol(gnomad_af.format("American")),
+        "gnomAD_ASJ_AF": FloatCol(gnomad_af.format("Ashkenazi Jewish")),
+        "gnomAD_EAS_AF": FloatCol(gnomad_af.format("East Asian")),
+        "gnomAD_FIN_AF": FloatCol(gnomad_af.format("Finnish")),
+        "gnomAD_NFE_AF": FloatCol(gnomad_af.format("Non-Finnish European")),
+        "gnomAD_OTH_AF": FloatCol(gnomad_af.format("other combined")),
+        "gnomAD_SAS_AF": FloatCol(gnomad_af.format("South Asian")),
+        "1KG_AFR_AF": FloatCol(onek_af.format("African")),
+        "1KG_AMR_AF": FloatCol(onek_af.format("American")),
+        "1KG_EAS_AF": FloatCol(onek_af.format("East Asian")),
+        "1KG_EUR_AF": FloatCol(onek_af.format("European")),
+        "1KG_SAS_AF": FloatCol(onek_af.format("South Asian")),
     }
 
 
@@ -637,6 +654,7 @@ class Output:
     def process_row(self, data):
         raise NotImplementedError()
 
+    def _print(self, line="", *args, **kwargs):
         if args:
             line = line.format(*args)
 
@@ -672,9 +690,9 @@ class TSVOutput(Output):
 
     @staticmethod
     def _to_string(value):
-            if isinstance(value, (tuple, list)):
+        if isinstance(value, (tuple, list)):
             return ",".join(map(str, value or "."))
-            elif value is None:
+        elif value is None:
             return "."
 
         return str(value)
@@ -687,12 +705,20 @@ class SQLOutput(Output):
         self._row = 0
         for table in ("Annotations",):
             self._print("DROP TABLE IF EXISTS [{}];", table)
+        self._print()
 
         self._print("CREATE TABLE [Annotations] (")
-        self._print("    pid INTEGER PRIMARY KEY ASC", end="")
-        for key in self.keys:
-            self._print(",\n    [{}]", key, end="")
+        self._print("    [pid] INTEGER PRIMARY KEY ASC", end="")
+        for key, description in self.keys.items():
+            datatype = "TEXT"
+            if isinstance(description, IntegerCol):
+                datatype = "INTEGER"
+            elif isinstance(description, FloatCol):
+                datatype = "REAL"
+
+            self._print(",\n    [{}] {}", key, datatype, end="")
         self._print("\n);")
+        self._print()
 
     def finalize(self):
         self._handle.close()
@@ -701,15 +727,22 @@ class SQLOutput(Output):
         self._row += 1
         values = [str(self._row)]
         for key in self.keys:
-            value = data[key]
-            if isinstance(value, (int, float)):
-                value = repr(value)
-            else:
-                value = "'{}'".format(str(value).replace("'", "''"))
-
-            values.append(value)
+            values.append(self._to_string(data[key]))
 
         self._print("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
+
+    @staticmethod
+    def _to_string(value):
+        if isinstance(value, (int, float)):
+            return repr(value)
+        elif isinstance(value, (tuple, list)):
+            value = ",".join(map(str, value or "."))
+        elif value is None:
+            value = "."
+        else:
+            value = str(value)
+
+        return "'{}'".format(value.replace("'", "''"))
 
 
 OUTPUT_FORMATS = {
