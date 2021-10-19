@@ -119,15 +119,9 @@ def _build_columns():
         "Func_transcript_id": "Transcript with the most significant consequence",
         "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
         "Func_gene_symbol_source": "Source of gene symbol",
-        "Func_cdna_position": IntegerCol(
-            "Relative position of base pair in cDNA sequence"
-        ),
-        "Func_cds_position": IntegerCol(
-            "Relative position of base pair in coding sequence"
-        ),
-        "Func_protein_position": IntegerCol(
-            "Relative position of amino acid in protein"
-        ),
+        "Func_cdna_position": "Relative position of base pair in cDNA sequence",
+        "Func_cds_position": "Relative position of base pair in coding sequence",
+        "Func_protein_position": "Relative position of amino acid in protein",
         "Func_amino_acids": "Reference and variant amino acids",
         "Func_codons": "Reference and variant codon sequence",
         "Func_impact": "Subjective impact classification of consequence type",
@@ -168,6 +162,14 @@ def _build_columns():
         "1KG_EUR_AF": FloatCol(onek_af.format("European")),
         "1KG_SAS_AF": FloatCol(onek_af.format("South Asian")),
     }
+
+
+# Columns that contain consequence terms (see `_build_consequence_ranks()`)
+CONSEQUENCE_COLUMNS = (
+    "Func_most_significant",
+    "Func_least_significant",
+    "Func_most_significant_canonical",
+)
 
 
 ########################################################################################
@@ -613,7 +615,7 @@ class Annotator:
 
             return ";".join(f"{distance}:{name}" for distance, name in values)
 
-        dst["Genes_overlapping"] = ";".join(sorted(neighbours["overlap"])) or "."
+        dst["Genes_overlapping"] = sorted(neighbours["overlap"])
         dst["Genes_upstream"] = _to_list(neighbours["upstream"])
         dst["Genes_downstream"] = _to_list(neighbours["downstream"])
 
@@ -702,24 +704,25 @@ class SQLOutput(Output):
     def __init__(self, keys, out_prefix):
         super().__init__(keys, out_prefix, ".sql")
 
-        self._print("DROP TABLE IF EXISTS [AnnotationDescriptions];")
-        self._print("CREATE TABLE [AnnotationDescriptions] (")
-        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Name] TEXT,")
-        self._print("    [Description] TEXT")
-        self._print(");")
+        self._consequence_ranks = _build_consequence_ranks()
+        self._genes = {}
+        self._n_overlap = 0
+        self._n_row = 0
 
+        self._print("PRAGMA TEMP_STORE=MEMORY;")
+        self._print("PRAGMA JOURNAL_MODE=OFF;")
+        self._print("PRAGMA SYNCHRONOUS=OFF;")
+        self._print("PRAGMA LOCKING_MODE=EXCLUSIVE;")
+
+        self._print("BEGIN;")
         self._print()
-        for pid, (key, description) in enumerate(self.keys.items()):
-            self._print(
-                "INSERT INTO [AnnotationDescriptions] VALUES ({}, {}, {});",
-                pid,
-                self._to_string(key),
-                self._to_string(description),
-            )
+        self._print_descriptions()
+        self._print()
+        self._print_consequence_terms()
+        self._print()
+        self._print_gene_tables()
         self._print()
 
-        self._row = 0
         for table in ("Annotations",):
             self._print("DROP TABLE IF EXISTS [{}];", table)
         self._print()
@@ -728,25 +731,106 @@ class SQLOutput(Output):
         self._print("    [pid] INTEGER PRIMARY KEY ASC", end="")
         for key, description in self.keys.items():
             datatype = "TEXT"
+            if key in CONSEQUENCE_COLUMNS:
+                datatype = "INTEGER REFERENCES [Consequenes]([pid])"
             if isinstance(description, IntegerCol):
                 datatype = "INTEGER"
             elif isinstance(description, FloatCol):
                 datatype = "REAL"
 
-            self._print(",\n    [{}] {}", key, datatype, end="")
+            self._print(f",\n    [{key}] {datatype}", end="")
         self._print("\n);")
         self._print()
+        self._print("END;")
+        self._print()
+        self._print("BEGIN;")
 
     def finalize(self):
+        self._print("END;")
+        self._print("BEGIN;")
+
+        for idx, (gene, info) in enumerate(sorted(self._genes.items())):
+            self._print(
+                "INSERT INTO [Genes] VALUES ({}, {}, {}, {}, {});",
+                idx,
+                self._to_string(gene),
+                self._to_string(info["Chr"]),
+                self._to_string(info["MinPos"]),
+                self._to_string(info["MaxPos"]),
+            )
+
+        self._print("END;")
         self._handle.close()
 
     def process_row(self, data):
-        self._row += 1
-        values = [str(self._row)]
+        self._n_row += 1
+
+        values = [str(self._n_row)]
         for key in self.keys:
-            values.append(self._to_string(data[key]))
+            value = data[key]
+            if value != "." and key in CONSEQUENCE_COLUMNS:
+                value = self._consequence_ranks[value]
+
+            values.append(self._to_string(value))
 
         self._print("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
+
+        for gene in data["Genes_overlapping"]:
+            gene_info = self._genes.get(gene)
+            if gene_info is None:
+                self._genes[gene] = {
+                    "Chr": data["Chr"],
+                    "MinPos": data["Pos"],
+                    "MaxPos": data["Pos"],
+                }
+            elif gene_info["Chr"] != data["Chr"]:
+                raise ValueError(f"gene {gene!r} found on multiple contigs")
+            else:
+                gene_info["MinPos"] = min(data["Pos"], gene_info["MinPos"])
+                gene_info["MaxPos"] = max(data["Pos"], gene_info["MaxPos"])
+
+    def _print_descriptions(self):
+        self._print("DROP TABLE IF EXISTS [Columns];")
+        self._print("CREATE TABLE [Columns] (")
+        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Name] TEXT,")
+        self._print("    [Description] TEXT")
+        self._print(");")
+        self._print()
+
+        for pid, (key, description) in enumerate(self.keys.items()):
+            self._print(
+                "INSERT INTO [Columns] VALUES ({}, {}, {});",
+                pid,
+                self._to_string(key),
+                self._to_string(description),
+            )
+
+    def _print_consequence_terms(self):
+        self._print("DROP TABLE IF EXISTS [Consequences];")
+        self._print("CREATE TABLE [Consequences] (")
+        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Name] TEXT")
+        self._print(");")
+        self._print()
+
+        for name, pid in self._consequence_ranks.items():
+            self._print(
+                "INSERT INTO [Consequences] VALUES ({}, {});",
+                pid,
+                self._to_string(name),
+            )
+
+    def _print_gene_tables(self):
+        self._print("DROP TABLE IF EXISTS [Genes];")
+        self._print("CREATE TABLE [Genes] (")
+        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Name] TEXT,")
+        self._print("    [Chr] TEXT,")
+        self._print("    [Start] INTEGER,")
+        self._print("    [End] INTEGER")
+        self._print(");")
+        self._print()
 
     @staticmethod
     def _to_string(value):
@@ -756,6 +840,9 @@ class SQLOutput(Output):
             value = ",".join(map(str, value or "."))
         elif value is None:
             value = "."
+        elif value == ".":
+            # FIXME: Should not be handled here
+            return "NULL"
         else:
             value = str(value)
 
