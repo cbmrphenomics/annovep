@@ -47,8 +47,8 @@ main <- function(args) {
   }
 
   chroms <- dbQueryVec("SELECT DISTINCT [Chr] FROM [Annotations];")
-  columns <- dbQueryVec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
-  consequences <- dbQueryVec("SELECT [Name] FROM [Consequences] ORDER BY [pid];")
+  columns <- dbQueryVec("SELECT [Name] FROM [Columns];")
+  consequences <- dbQueryVec("SELECT [Name] FROM [Consequences];")
   genes <- sort(dbQueryVec("SELECT [Name] FROM [Genes];"))
 
   ui <- pageWithSidebar(
@@ -76,7 +76,7 @@ main <- function(args) {
       hr(),
 
       radioButtons("filter", "VCF filters:", selected = "pass", c("PASS" = "pass", "Any value" = "any"), inline = TRUE),
-      selectInput("consequence", "This consequence or worse", choices = rev(consequences)),
+      selectInput("consequence", "This consequence or worse", choices = c("Any consequence", consequences)),
       uiOutput("uiGene"),
 
       width = 3
@@ -102,12 +102,17 @@ main <- function(args) {
     }
 
     apply_filters <- function(input) {
-      filters <- ""
+      filters <- NULL
       if (input$filter == "pass") {
-        filters <- sprintf("  AND Filters = 'PASS'\n")
+        filters <- "  AND Filters = 'PASS'"
       }
 
-      return(filters)
+      consequence_idx <- match(input$consequence, consequences)
+      if (!is.na(consequence_idx)) {
+        filters <- c(filters, sprintf("  AND Func_most_significant <= %i", consequence_idx))
+      }
+
+      return(paste(c(filters, ""), collapse = "\n"))
     }
 
     apply_max_rows <- function(input) {
@@ -181,9 +186,11 @@ main <- function(args) {
         result <- dbQuery(query, params = list(chr = region$chr, min = region$minPos, max = region$maxPos))
 
         result$pid <- NULL # Not relevant
-        result <- create_sort_order(result, "Func_most_significant")
-        result <- create_sort_order(result, "Func_least_significant")
-        result <- create_sort_order(result, "Func_most_significant_canonical")
+        if (nrow(result) > 0) {
+          result <- create_sort_order(result, "Func_most_significant")
+          result <- create_sort_order(result, "Func_least_significant")
+          result <- create_sort_order(result, "Func_most_significant_canonical")
+        }
 
         result
       }
