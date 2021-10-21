@@ -248,20 +248,16 @@ main <- function(args) {
       updateSelectizeInput(session, "gene", choices = visible_genes, server = TRUE)
     })
 
-
-    min_max_position <- function(input, what) {
+    maxPos <- reactive({
       if (has.values(input$chr)) {
-        query <- sprintf("SELECT %s(Pos) FROM [Annotations] WHERE Chr = :chr", what)
+        query <- sprintf("SELECT MAX(Pos) FROM [Annotations] WHERE Chr = :chr")
         query <- build_query(input, query, params = list(chr = input$chr))
 
         dbQueryVec(query$string, params = query$params)
       } else {
         1
       }
-    }
-
-    minPos <- reactive({ min_max_position(input, "MIN") })
-    maxPos <- reactive({ min_max_position(input, "MAX") })
+    })
 
     output$uiChrom <- renderUI({
       visible_chroms <- if (input$password == password) { chroms } else { "" }
@@ -269,9 +265,10 @@ main <- function(args) {
     })
 
     output$uiOffset <- renderUI({
-      visible_min <- if (input$password == password) { minPos() } else { 1 }
+      visible_min <- isolate(input$minPos)
+      visible_min <- ifelse(is.null(visible_min), 1, visible_min)
       visible_max <- if (input$password == password) { maxPos() } else { 1 }
-      numericInput("minPos", "Start position (bp):", visible_min, min = visible_min, max = visible_max, step = 1)
+      numericInput("minPos", "Start position (bp):", visible_min, min = 1, max = visible_max, step = 1)
     })
 
     output$table <- DT::renderDataTable({
