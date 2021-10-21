@@ -51,7 +51,7 @@ parse_query <- function(value, symbols) {
   }
 
   check <- function(expr, token, message) {
-    validate(need(expr, sprintf("Error in query near '%s':\n  %s", token, message)))
+    validate(need(expr, sprintf("Error in query near '%s': %s", token, message)))
   }
 
   fail <- function(token, message) { check(FALSE, token, message) }
@@ -123,7 +123,7 @@ parse_query <- function(value, symbols) {
     fail(token, "partial query")
   }
 
-  return(list(input = value, string = paste0(query, collapse = ""), params = params))
+  return(list(string = paste0(query, collapse = ""), params = params))
 }
 
 
@@ -165,6 +165,7 @@ main <- function(args) {
     headerPanel("AnnoVEP"),
 
     sidebarPanel(
+      shinyFeedback::useShinyFeedback(),
       passwordInput("password", "Password"),
 
       hr(),
@@ -199,6 +200,27 @@ main <- function(args) {
   )
 
   server <- function(input, output, session) {
+    userQuery <- reactiveValues(
+    # The last valid user query
+      valid_query = list(),
+    )
+
+    observeEvent({ input$query }, {
+      tryCatch({
+        query <- parse_query(input$query, symbols = columns)
+        # Avoid spurious updates for white space changes
+        if (!identical(query, userQuery$valid_query)) {
+          userQuery$valid_query <- query
+        }
+
+        shinyFeedback::feedbackWarning("query", FALSE)
+      },
+      error = function(cond) {
+        shinyFeedback::feedbackWarning("query", TRUE, as.character(cond), color = "#8B0000")
+      })
+    })
+
+
     # Returns the user-selected region of interest
     select_region <- function(input) {
       if (input$select_by == "gene") {
@@ -216,7 +238,7 @@ main <- function(args) {
         query <- c(query, sprintf("  AND Func_most_significant <= %i", consequence_idx))
       }
 
-      user_query <- parse_query(input$query, symbols = columns)
+      user_query <- userQuery$valid_query
       if (!is.null(user_query$string)) {
         query <- c(query, paste("AND", user_query$string, sep = " "))
         params <- c(params, user_query$params)
