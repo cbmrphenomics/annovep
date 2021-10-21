@@ -302,6 +302,7 @@ main <- function(args) {
       }
     },
       selection = "single",
+      server = TRUE,
       options = list(
         scrollX = TRUE,
         scrollY = "80vh",
