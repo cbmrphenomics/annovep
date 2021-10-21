@@ -17,6 +17,116 @@ has.values <- function(...) {
 }
 
 
+parse_query <- function(value, symbols) {
+  # Parsing rules for simplified SQL "WHERE" conditions
+  rules <- c(
+    number = paste("\\b", flexo::re$number, "\\b", sep = ""),
+    logical = "\\b[aA][nN][dD]\\b|\\b[oO][rR]\\b",
+    string = "\"[^\"]*\"|'[^']*'",
+    symbol = "\\b\\w+\\b",
+    operator = "==|=|!=|<>|<|<=|>|>=",
+    lbracket = "\\(",
+    rbracket = "\\)",
+    whitespace = "\\s+"
+  )
+
+  symbols_lc <- tolower(symbols)
+  tokens <- flexo::lex(value, rules)
+  names <- names(tokens)
+  query <- NULL
+  params <- list()
+  open_brackets <- 0
+
+  # Safe starting state
+  state <- c("whitespace", "logical")
+
+  is_state <- function(...) {
+    for (name in list(...)) {
+      if (state[1] == name || (state[1] == "whitespace" && state[2] == name)) {
+        return(TRUE)
+      }
+    }
+
+    return(FALSE)
+  }
+
+  check <- function(expr, token, message) {
+    validate(need(expr, sprintf("Error in query near '%s':\n  %s", token, message)))
+  }
+
+  fail <- function(token, message) { check(FALSE, token, message) }
+
+  for (i in seq_along(tokens)) {
+    token <- tokens[i]
+    name <- names[i]
+
+    if (name == "whitespace") {
+      # always allowed
+    } else if (is_state("logical", "lbracket")) {
+      if (name == "lbracket") {
+        open_brackets <- open_brackets + 1
+        query <- c(query, "(")
+      } else if (name == "string" || name == "symbol") {
+        if (name == "string") {
+          # Remove quotes and promote to symbol
+          token <- substr(token, 2, nchar(token) - 1)
+          name <- "symbol"
+        }
+
+        index <- match(tolower(token), symbols_lc)
+        check(!is.na(index), token, "not a valid column name")
+
+        query <- c(query, symbols[index])
+      } else {
+        fail(token, "expected brackets or a column name")
+      }
+    } else if (is_state("symbol")) {
+      check(name == "operator", token, "expected operator")
+      query <- c(query, " ", token, " ")
+    } else if (is_state("operator")) {
+      if (name == "string" || name == "symbol" || name == "number") {
+        if (name == "string") {
+          token <- substr(token, 2, nchar(token) - 1)
+        } else if (name == "number") {
+          token <- as.numeric(token)
+        }
+
+        # Downgrade everything to "value" to simplify logic
+        name <- "value"
+
+        key <- sprintf("up%i", length(params) + 1)
+        query <- c(query, ":", key)
+        params[key] <- token
+      } else {
+        fail(token, "expected value after operator")
+      }
+    } else if (is_state("value", "rbracket")) {
+      if (name == "logical") {
+        query <- c(query, " ", toupper(token), " ")
+      } else if (name == "rbracket") {
+        check(open_brackets >= 1, token, "unbalanced brackets")
+        open_brackets <- open_brackets - 1
+        query <- c(query, ")")
+      } else {
+        fail(token, "expected AND/OR or bracket")
+      }
+    } else {
+      fail(token, "malformed query")
+    }
+
+    state <- c(name, state[1])
+  }
+
+  if (open_brackets > 0) {
+    fail(tail(tokens, n = 1), "unbalanced brackets")
+  } else if (!is_state("rbracket", "value")) {
+    fail(token, "partial query")
+  }
+
+  return(list(input = value, string = paste0(query, collapse = ""), params = params))
+}
+
+
 main <- function(args) {
   if (length(args) < 1) {
     cat("Usage:\n")
@@ -75,9 +185,8 @@ main <- function(args) {
 
       hr(),
 
-      radioButtons("filter", "VCF filters:", selected = "pass", c("PASS" = "pass", "Any value" = "any"), inline = TRUE),
+      textAreaInput("query", "Filters", value = "Filters = PASS", rows = 3),
       selectInput("consequence", "This consequence or worse", choices = c("Any consequence", consequences)),
-      uiOutput("uiGene"),
 
       width = 3
     ),
@@ -101,26 +210,23 @@ main <- function(args) {
       }
     }
 
-    apply_filters <- function(input) {
-      filters <- NULL
-      if (input$filter == "pass") {
-        filters <- "  AND Filters = 'PASS'"
-      }
-
+    build_query <- function(input, query, params) {
       consequence_idx <- match(input$consequence, consequences)
       if (!is.na(consequence_idx)) {
-        filters <- c(filters, sprintf("  AND Func_most_significant <= %i", consequence_idx))
+        query <- c(query, sprintf("  AND Func_most_significant <= %i", consequence_idx))
       }
 
-      return(paste(c(filters, ""), collapse = "\n"))
-    }
+      user_query <- parse_query(input$query, symbols = columns)
+      if (!is.null(user_query$string)) {
+        query <- c(query, paste("AND", user_query$string, sep = " "))
+        params <- c(params, user_query$params)
+      }
 
-    apply_max_rows <- function(input) {
       if (input$select_by == "region") {
-        return(sprintf("LIMIT %i", max(1, min(10000, input$maxRows))))
-      } else {
-        return("")
+        query <- c(query, sprintf("LIMIT %i", max(1, min(10000, input$maxRows))))
       }
+
+      return(list(string = paste(c(query, ";"), collapse = "\n"), params = params))
     }
 
     create_sort_order <- function(table, column) {
@@ -145,9 +251,10 @@ main <- function(args) {
 
     min_max_position <- function(input, what) {
       if (has.values(input$chr)) {
-        query <- sprintf("SELECT %s(Pos) FROM [Annotations] WHERE Chr = :chr%s", what, apply_filters(input))
+        query <- sprintf("SELECT %s(Pos) FROM [Annotations] WHERE Chr = :chr", what)
+        query <- build_query(input, query, params = list(chr = input$chr))
 
-        dbQueryVec(query, params = list(chr = input$chr))
+        dbQueryVec(query$string, params = query$params)
       } else {
         1
       }
@@ -172,18 +279,17 @@ main <- function(args) {
 
       region <- select_region(input)
       if (has.values(region$chr, region$minPos, region$maxPos)) {
-        query <- sprintf("
-            SELECT *
-            FROM   [Annotations]
-            WHERE  Chr = :chr
-              AND  Pos >= :min
-              AND  Pos <= :max
-            %s
-            %s;",
-            apply_filters(input),
-            apply_max_rows(input))
+        params <- list(chr = region$chr, min = region$minPos, max = region$maxPos)
+        query <- c(
+            "SELECT *",
+            "FROM   [Annotations]",
+            "WHERE  Chr = :chr",
+            "  AND  Pos >= :min",
+            "  AND  Pos <= :max"
+        )
 
-        result <- dbQuery(query, params = list(chr = region$chr, min = region$minPos, max = region$maxPos))
+        query <- build_query(input, query, params)
+        result <- dbQuery(query$string, params = query$params)
 
         result$pid <- NULL # Not relevant
         if (nrow(result) > 0) {
