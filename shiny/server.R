@@ -333,7 +333,7 @@ server <- function(input, output, session) {
   )
 
   output$uiQueryErrors <- renderUI({
-    if (!is.null(userQuery$errors)) {
+    if (hasValues(userQuery$errors)) {
       span(
         HTML("<h5 style='color: #AB0000; text-align: center;'>"),
         userQuery$errors,
