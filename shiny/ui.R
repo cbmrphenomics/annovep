@@ -14,15 +14,15 @@ ui <- pageWithSidebar(
     radioButtons("select_by", "Select by:", c("Gene" = "gene", "Region" = "region"), inline = TRUE),
 
     conditionalPanel(
-    condition = "input.select_by === 'gene'",
-    selectizeInput("gene", NULL, choices = NULL, options = list(maxOptions = 10))
+      condition = "input.select_by === 'gene'",
+      selectizeInput("gene", NULL, choices = NULL, options = list(maxOptions = 10))
     ),
 
     conditionalPanel(
-    condition = "input.select_by === 'region'",
-    uiOutput("uiChrom"),
-    uiOutput("uiOffset"),
-    numericInput("maxRows", "Max rows:", 10000, min = 1, max = 10000, step = 1)
+      condition = "input.select_by === 'region'",
+      uiOutput("uiChrom"),
+      uiOutput("uiOffset"),
+      numericInput("maxRows", "Max rows:", 10000, min = 1, max = 10000, step = 1)
     ),
 
     hr(),
