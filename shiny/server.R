@@ -35,7 +35,7 @@ parse_query <- function(value, symbols) {
     number = paste("\\b", flexo::re$number, "\\b", sep = ""),
     string = "\"[^\"]*\"|'[^']*'",
     symbol = "\\b\\w+\\b",
-    operator = "==|=|!=|<>|<|<=|>|>=",
+    operator = "==|=|!=|<>|<=|<|>=|>",
     lbracket = "\\(",
     rbracket = "\\)",
     whitespace = "\\s+"
