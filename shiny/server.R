@@ -306,7 +306,7 @@ server <- function(input, output, session) {
       span(
         HTML("<h5 style='color: #AB0000; text-align: center;'>"),
         userQuery$errors,
-        HTML("</h5>"),
+        HTML("</h5>")
       )
     }
   })
