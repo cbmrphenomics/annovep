@@ -28,9 +28,11 @@ withDefault <- function(value, default) {
 
 parse_query <- function(value, symbols) {
   # Parsing rules for simplified SQL "WHERE" conditions
+  # In addition, the following terms are used
+  #   logical: symbols AND or OR
+  #   value:   number | string | symbol
   rules <- c(
     number = paste("\\b", flexo::re$number, "\\b", sep = ""),
-    logical = "\\b[aA][nN][dD]\\b|\\b[oO][rR]\\b",
     string = "\"[^\"]*\"|'[^']*'",
     symbol = "\\b\\w+\\b",
     operator = "==|=|!=|<>|<|<=|>|>=",
@@ -38,7 +40,6 @@ parse_query <- function(value, symbols) {
     rbracket = "\\)",
     whitespace = "\\s+"
   )
-
   symbols_lc <- tolower(symbols)
   tokens <- flexo::lex(value, rules)
   names <- names(tokens)
@@ -90,6 +91,11 @@ parse_query <- function(value, symbols) {
         fail(token, "expected brackets or a column name")
       }
     } else if (is_state("symbol")) {
+      if (name == "symbol" && toupper(token) == "LIKE") {
+        name <- "operator"
+        token <- "LIKE"
+      }
+
       check(name == "operator", token, "expected operator")
       query <- c(query, " ", token, " ")
     } else if (is_state("operator")) {
@@ -110,8 +116,14 @@ parse_query <- function(value, symbols) {
         fail(token, "expected value after operator")
       }
     } else if (is_state("value", "rbracket")) {
-      if (name == "logical") {
-        query <- c(query, " ", toupper(token), " ")
+      if (name == "symbol") {
+        symbol <- toupper(token)
+        if (symbol == "AND" || symbol == "OR") {
+          name <- "logical"
+          query <- c(query, " ", symbol, " ")
+        } else {
+          fail(token, "unexpected symbol; expected AND or OR")
+        }
       } else if (name == "rbracket") {
         check(open_brackets >= 1, token, "unbalanced brackets")
         open_brackets <- open_brackets - 1
