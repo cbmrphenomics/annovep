@@ -153,29 +153,38 @@ genes <- sort(dbQueryVec("SELECT [Name] FROM [Genes];"))
 server <- function(input, output, session) {
   userQuery <- reactiveValues(
   # The last valid user query
-    valid_query = list(),
+    valid_query = list(string = "", params = list()),
   # Error messages from parsing query, if any
     errors = NULL
   )
 
-  observeEvent({ input$query }, {
-    tryCatch({
-      query <- parse_query(input$query, symbols = columns)
-      # Avoid spurious updates for white space changes
-      if (!identical(query, userQuery$valid_query)) {
-        userQuery$valid_query <- query
-      }
+  observeEvent({
+    input$query
+    input$password
+  }, {
+    if (input$password == password) {
+      tryCatch({
+        query <- parse_query(input$query, symbols = columns)
+        # Avoid spurious updates for white space changes
+        if (!identical(query, userQuery$valid_query)) {
+          userQuery$valid_query <- query
+        }
 
+        userQuery$errors <- NULL
+      },
+      error = function(cond) {
+        userQuery$errors <- cond
+      })
+    } else {
+      userQuery$valid_query <- list(string = "", params = list())
       userQuery$errors <- NULL
-    },
-    error = function(cond) {
-      userQuery$errors <- cond
-    })
+    }
   })
-
 
   # Returns the user-selected region of interest
   select_region <- function(input) {
+    validate(need(input$password == password, "Password required"))
+
     if (input$select_by == "gene") {
       result <- dbQuery("SELECT * FROM [Genes] WHERE Name = :name ", params = list(name = input$gene))
 
