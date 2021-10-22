@@ -704,7 +704,7 @@ class SQLOutput(Output):
     def __init__(self, keys, out_prefix):
         super().__init__(keys, out_prefix, ".sql")
 
-        self._consequence_ranks = _build_consequence_ranks()
+        self._consequence_ranks = self._build_consequence_ranks()
         self._genes = {}
         self._n_overlap = 0
         self._n_row = 0
@@ -831,6 +831,17 @@ class SQLOutput(Output):
         self._print("    [End] INTEGER")
         self._print(");")
         self._print()
+
+    @staticmethod
+    def _build_consequence_ranks():
+        """Returns consequences with a human friendly ranking: bad > insignificant."""
+        consequences = _build_consequence_ranks()
+
+        human_friendly_ranks = {}
+        for rank, (name, _) in enumerate(reversed(consequences.items())):
+            human_friendly_ranks[name] = rank
+
+        return human_friendly_ranks
 
     @staticmethod
     def _to_string(value):
