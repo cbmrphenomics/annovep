@@ -5,14 +5,24 @@ library(shiny)
 library(DT)
 
 
-has.values <- function(...) {
+hasValues <- function(...) {
   for (value in list(...)) {
     if (is.null(value) || length(value) == 0) {
+      return(FALSE)
+    } else if (is.character(value) && max(nchar(value)) == 0) {
       return(FALSE)
     }
   }
 
   return(TRUE)
+}
+
+withDefault <- function(value, default) {
+  if (hasValues(value)) {
+    return(value)
+  } else {
+    return(default)
+  }
 }
 
 
@@ -229,9 +239,9 @@ server <- function(input, output, session) {
   }, {
     if (input$password == password) {
       visible_genes <- genes
-      selected_gene <- ifelse(has.values(input$gene), input$gene, genes[1])
+      selected_gene <- withDefault(input$gene, genes[1])
       visible_chroms <- chroms
-      selected_chrom <- ifelse(has.values(input$chr), input$chr, chroms)
+      selected_chrom <- withDefault(input$chr, chroms[1])
     } else {
       visible_genes <- NULL
       selected_gene <- NULL
@@ -244,7 +254,7 @@ server <- function(input, output, session) {
   })
 
   maxPos <- reactive({
-    if (has.values(input$chr)) {
+    if (hasValues(input$chr)) {
       query <- sprintf("SELECT MAX(Pos) FROM [Annotations] WHERE Chr = :chr")
       query <- build_query(input, query, params = list(chr = input$chr))
 
@@ -259,7 +269,7 @@ server <- function(input, output, session) {
     maxPos
   }, {
     max_value <- if (input$password == password) { maxPos() } else { 1 }
-    value <- ifelse(has.values(input$minPos), max(1, min(max_value, input$minPos)), 1)
+    value <- ifelse(hasValues(input$minPos), max(1, min(max_value, input$minPos)), 1)
 
     updateNumericInput(session, "minPos", value = value, max = max_value)
   })
@@ -268,7 +278,7 @@ server <- function(input, output, session) {
     validate(need(input$password == password, "Password required"))
 
     region <- select_region(input)
-    if (has.values(region$chr, region$minPos, region$maxPos)) {
+    if (hasValues(region$chr, region$minPos, region$maxPos)) {
       params <- list(chr = region$chr, min = region$minPos, max = region$maxPos)
       query <- c(
           "SELECT *",
