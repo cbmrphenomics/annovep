@@ -131,7 +131,7 @@ parse_query <- function(value, symbols) {
   } else if (open_brackets > 0) {
     fail(tail(tokens, n = 1), "unbalanced brackets")
   } else if (!is_state("rbracket", "value")) {
-    fail(tail(tokens, n = 1), token, "partial query")
+    fail(tail(tokens, n = 1), "partial query")
   }
 
   return(list(string = paste0(query, collapse = ""), params = params))
