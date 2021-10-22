@@ -226,10 +226,21 @@ server <- function(input, output, session) {
 
   observeEvent({
     input$password
-    input$select_by
   }, {
-    visible_genes <- if (input$password == password) { genes } else { NULL }
-    updateSelectizeInput(session, "gene", choices = visible_genes, server = TRUE)
+    if (input$password == password) {
+      visible_genes <- genes
+      selected_gene <- ifelse(has.values(input$gene), input$gene, genes[1])
+      visible_chroms <- chroms
+      selected_chrom <- ifelse(has.values(input$chr), input$chr, chroms)
+    } else {
+      visible_genes <- NULL
+      selected_gene <- NULL
+      visible_chroms <- NULL
+      selected_chrom <- NULL
+    }
+
+    updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
+    updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
   })
 
   maxPos <- reactive({
@@ -243,16 +254,14 @@ server <- function(input, output, session) {
     }
   })
 
-  output$uiChrom <- renderUI({
-    visible_chroms <- if (input$password == password) { chroms } else { "" }
-    selectInput("chr", NULL, choices = visible_chroms, selected = visible_chroms[1])
-  })
+  observeEvent({
+    input$password
+    maxPos
+  }, {
+    max_value <- if (input$password == password) { maxPos() } else { 1 }
+    value <- ifelse(has.values(input$minPos), max(1, min(max_value, input$minPos)), 1)
 
-  output$uiOffset <- renderUI({
-    visible_min <- isolate(input$minPos)
-    visible_min <- ifelse(is.null(visible_min), 1, visible_min)
-    visible_max <- if (input$password == password) { maxPos() } else { 1 }
-    numericInput("minPos", "Start position (bp):", visible_min, min = 1, max = visible_max, step = 1)
+    updateNumericInput(session, "minPos", value = value, max = max_value)
   })
 
   output$table <- DT::renderDataTable({

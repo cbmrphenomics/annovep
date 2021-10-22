@@ -20,8 +20,8 @@ ui <- pageWithSidebar(
 
     conditionalPanel(
       condition = "input.select_by === 'region'",
-      uiOutput("uiChrom"),
-      uiOutput("uiOffset"),
+      selectInput("chr", NULL, choices = NULL),
+      numericInput("minPos", "Start position (bp):", 1, min = 1, max = 1, step = 1),
       numericInput("maxRows", "Max rows:", 10000, min = 1, max = 10000, step = 1)
     ),
 
