@@ -248,7 +248,7 @@ server <- function(input, output, session) {
     column_order <- sprintf("%s_order", column)
     order <- table[, column]
 
-    table[, column_order] <- order
+    table[, column_order] <- -order
     table[, column] <- consequences[order]
     table[is.na(order), column_order] <- length(consequences) + 1
 
@@ -352,7 +352,7 @@ server <- function(input, output, session) {
   })
 
   # Fill in dynamic list of consequence terms
-  updateSelectInput(session, "consequence", choices = c("Any consequence", consequences))
+  updateSelectInput(session, "consequence", choices = c("Any consequence", rev(consequences)))
 
   # Enable automatic reconnections
   session$allowReconnect("force")
