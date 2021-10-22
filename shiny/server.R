@@ -26,7 +26,7 @@ withDefault <- function(value, default) {
 }
 
 
-parse_query <- function(value, symbols) {
+parse_query <- function(value, symbols, special_values = list()) {
   # Parsing rules for simplified SQL "WHERE" conditions
   # In addition, the following terms are used
   #   logical: symbols AND or OR
@@ -109,9 +109,12 @@ parse_query <- function(value, symbols) {
         # Downgrade everything to "value" to simplify logic
         name <- "value"
 
+        # Some values may be strings mapped onto numbers, etc.
+        value <- withDefault(special_values[[tolower(token)]], token)
+
         key <- sprintf("up%i", length(params) + 1)
         query <- c(query, ":", key)
-        params[key] <- token
+        params[key] <- value
       } else {
         fail(token, "expected value after operator")
       }
@@ -171,6 +174,12 @@ columns <- dbQueryVec("SELECT [Name] FROM [Columns];")
 consequences <- dbQueryVec("SELECT [Name] FROM [Consequences];")
 genes <- sort(dbQueryVec("SELECT [Name] FROM [Genes];"))
 
+# Consequences are foreign keys/ranks to allow ordering comparisons
+special_values <- list()
+for (i in seq_along(consequences)) {
+  special_values[tolower(consequences[i])] <- i
+}
+
 
 server <- function(input, output, session) {
   userQuery <- reactiveValues(
@@ -186,7 +195,7 @@ server <- function(input, output, session) {
   }, {
     if (input$password == password) {
       tryCatch({
-        query <- parse_query(input$query, symbols = columns)
+        query <- parse_query(input$query, symbols = columns, special_values = special_values)
         # Avoid spurious updates for white space changes
         if (!identical(query, userQuery$valid_query)) {
           userQuery$valid_query <- query
