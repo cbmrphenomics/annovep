@@ -31,6 +31,10 @@ ui <- pageWithSidebar(
     uiOutput("uiQueryErrors"),
     selectInput("consequence", "This consequence or worse", choices = c("Any consequence")),
 
+    hr(),
+
+    selectizeInput("columns", "Visible columns", choices = c(), multiple = TRUE),
+
     width = 3
   ),
 

@@ -263,15 +263,20 @@ server <- function(input, output, session) {
       selected_gene <- withDefault(input$gene, genes[1])
       visible_chroms <- chroms
       selected_chrom <- withDefault(input$chr, chroms[1])
+      visible_columns <- columns
+      selected_columns <- withDefault(input$columns, columns[columns != "Info"])
     } else {
       visible_genes <- NULL
       selected_gene <- NULL
       visible_chroms <- NULL
       selected_chrom <- NULL
+      visible_columns <- NULL
+      selected_columns <- NULL
     }
 
     updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
     updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
+    updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
   })
 
   maxPos <- reactive({
@@ -295,7 +300,7 @@ server <- function(input, output, session) {
     updateNumericInput(session, "minPos", value = value, max = max_value)
   })
 
-  output$table <- DT::renderDataTable({
+  data <- reactive({
     validate(need(input$password == password, "Password required"))
 
     region <- select_region(input)
@@ -321,25 +326,42 @@ server <- function(input, output, session) {
 
       result
     }
-  },
-    selection = "single",
-    server = TRUE,
-    options = list(
-      scrollX = TRUE,
-      scrollY = "80vh",
-      pageLength = 100,
-      lengthMenu = list(c(50, 100, 200, -1), c(50, 100, 200, "All")),
-      columnDefs = list(
-  # Order consequences by their rank using values from hidden columns
-  # Note that while targets are 0-indexed, this includes an automatic column containing row numbers
-        list(targets = match("Func_most_significant", columns), orderData = length(columns) + 1),
-        list(targets = match("Func_least_significant", columns), orderData = length(columns) + 2),
-        list(targets = match("Func_most_significant_canonical", columns), orderData = length(columns) + 3),
-        list(targets = c(-1, -2, -3), visible = FALSE),
-        list(targets = match("Info", columns), visible = FALSE)
+  })
+
+  observeEvent({
+    data
+    input$columns
+  }, {
+    hidden_columns <- which(!(columns %in% input$columns))
+    coldefs <- list(list(targets = hidden_columns, visible = FALSE))
+
+    consequence_columns <- c(
+      "Func_most_significant",
+      "Func_least_significant",
+      "Func_most_significant_canonical"
+    )
+
+    offset <- length(columns)
+    for (name in consequence_columns) {
+      if (name %in% input$columns) {
+        coldefs <- c(coldefs, list(list(targets = match(name, columns), orderData = offset + 1)))
+        offset <- offset + 1
+      }
+    }
+
+    output$table <- DT::renderDataTable(
+      data(),
+      selection = "single",
+      server = TRUE,
+      options = list(
+        scrollX = TRUE,
+        scrollY = "80vh",
+        pageLength = 100,
+        lengthMenu = list(c(50, 100, 200, -1), c(50, 100, 200, "All")),
+        columnDefs = coldefs
       )
     )
-  )
+  })
 
   output$uiQueryErrors <- renderUI({
     if (hasValues(userQuery$errors)) {
