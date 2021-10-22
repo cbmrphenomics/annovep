@@ -154,6 +154,8 @@ server <- function(input, output, session) {
   userQuery <- reactiveValues(
   # The last valid user query
     valid_query = list(),
+  # Error messages from parsing query, if any
+    errors = NULL
   )
 
   observeEvent({ input$query }, {
@@ -164,10 +166,10 @@ server <- function(input, output, session) {
         userQuery$valid_query <- query
       }
 
-      shinyFeedback::feedbackWarning("query", FALSE)
+      userQuery$errors <- NULL
     },
     error = function(cond) {
-      shinyFeedback::feedbackWarning("query", TRUE, as.character(cond), color = "#8B0000")
+      userQuery$errors <- cond
     })
   })
 
@@ -289,6 +291,16 @@ server <- function(input, output, session) {
       )
     )
   )
+
+  output$uiQueryErrors <- renderUI({
+    if (!is.null(userQuery$errors)) {
+      span(
+        HTML("<h5 style='color: #AB0000; text-align: center;'>"),
+        userQuery$errors,
+        HTML("</h5>"),
+      )
+    }
+  })
 
   # Fill in dynamic list of consequence terms
   updateSelectInput(session, "consequence", choices = c("Any consequence", consequences))

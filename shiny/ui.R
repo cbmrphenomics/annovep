@@ -7,7 +7,6 @@ ui <- pageWithSidebar(
   headerPanel("AnnoVEP"),
 
   sidebarPanel(
-    shinyFeedback::useShinyFeedback(),
     passwordInput("password", "Password"),
 
     hr(),
@@ -29,6 +28,7 @@ ui <- pageWithSidebar(
     hr(),
 
     textAreaInput("query", "Filters", value = "Filters = PASS", rows = 3),
+    uiOutput("uiQueryErrors"),
     selectInput("consequence", "This consequence or worse", choices = c("Any consequence")),
 
     width = 3
