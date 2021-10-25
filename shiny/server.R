@@ -319,10 +319,12 @@ server <- function(input, output, session) {
     validate(need(input$password == password, "Password required"))
 
     region <- select_region(input)
-    if (hasValues(region$chr, region$minPos, region$maxPos)) {
+    # Ensure that only valid column names are used
+    visible_columns <- subset(columns, columns %in% input$columns)
+    if (hasValues(region$chr, region$minPos, region$maxPos, visible_columns)) {
       params <- list(chr = region$chr, min = region$minPos, max = region$maxPos)
       query <- c(
-          "SELECT *",
+          sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse=", ")),
           "FROM   [Annotations]",
           "WHERE  Chr = :chr",
           "  AND  Pos >= :min",
@@ -332,12 +334,9 @@ server <- function(input, output, session) {
       query <- build_query(input, query, params)
       result <- dbQuery(query$string, params = query$params)
 
-      result$pid <- NULL # Not relevant
-      if (nrow(result) > 0) {
-        result <- create_sort_order(result, input$columns, "Func_most_significant")
-        result <- create_sort_order(result, input$columns, "Func_least_significant")
-        result <- create_sort_order(result, input$columns, "Func_most_significant_canonical")
-      }
+      result <- create_sort_order(result, visible_columns, "Func_most_significant")
+      result <- create_sort_order(result, visible_columns, "Func_least_significant")
+      result <- create_sort_order(result, visible_columns, "Func_most_significant_canonical")
 
       result
     }
@@ -353,18 +352,22 @@ server <- function(input, output, session) {
       "Func_most_significant_canonical"
     )
 
+    # Ensure that only valid column names are used
+    visible_columns <- subset(columns, columns %in% input$columns)
+    visible_consequences <- subset(consequence_columns, consequence_columns %in% visible_columns)
+
     coldefs <- list()
-    offset <- length(columns)
-    hidden_columns <- which(!(columns %in% input$columns))
-    for (name in consequence_columns) {
-      if (name %in% input$columns) {
-        coldefs <- c(coldefs, list(list(targets = match(name, columns), orderData = offset + 1)))
+    offset <- length(visible_columns)
+    hidden_columns <- numeric(0)
+    for (name in visible_consequences) {
+      coldefs <- c(coldefs, list(list(targets = match(name, visible_columns), orderData = offset + 1)))
         hidden_columns <- c(hidden_columns, offset + 1)
         offset <- offset + 1
-      }
     }
 
+    if (length(hidden_columns) > 0) {
     coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
+    }
 
     output$table <- DT::renderDataTable(
       data(),
