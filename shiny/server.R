@@ -169,10 +169,10 @@ dbQueryVec <- function(string, ...) {
   return(unlist(dbQuery(string, ...), use.names = FALSE))
 }
 
-chroms <- dbQueryVec("SELECT DISTINCT [Chr] FROM [Annotations];")
-columns <- dbQueryVec("SELECT [Name] FROM [Columns];")
-consequences <- dbQuery("SELECT [pid], [Name] FROM [Consequences];")
-genes <- sort(dbQueryVec("SELECT [Name] FROM [Genes];"))
+chroms <- dbQueryVec("SELECT DISTINCT [Chr] FROM [Annotations] ORDER BY [Chr];")
+columns <- dbQueryVec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
+consequences <- dbQuery("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
+genes <- dbQueryVec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
 
 default_columns <- c(
   "Chr",
