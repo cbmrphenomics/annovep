@@ -228,7 +228,7 @@ server <- function(input, output, session) {
   build_query <- function(input, query, params) {
     consequence_idx <- match(input$consequence, consequences)
     if (!is.na(consequence_idx)) {
-      query <- c(query, sprintf("  AND Func_most_significant <= %i", consequence_idx))
+      query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_idx))
     }
 
     user_query <- userQuery$valid_query
