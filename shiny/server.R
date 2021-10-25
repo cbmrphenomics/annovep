@@ -249,7 +249,7 @@ server <- function(input, output, session) {
     order <- table[, column]
 
     table[, column_order] <- -order
-    table[, column] <- consequences[order]
+    table[, column] <- consequences[order + 1]
     table[is.na(order), column_order] <- length(consequences) + 1
 
     return(table)
