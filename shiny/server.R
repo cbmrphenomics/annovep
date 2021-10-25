@@ -171,7 +171,7 @@ dbQueryVec <- function(string, ...) {
 
 chroms <- dbQueryVec("SELECT DISTINCT [Chr] FROM [Annotations];")
 columns <- dbQueryVec("SELECT [Name] FROM [Columns];")
-consequences <- dbQueryVec("SELECT [Name] FROM [Consequences];")
+consequences <- dbQuery("SELECT [pid], [Name] FROM [Consequences];")
 genes <- sort(dbQueryVec("SELECT [Name] FROM [Genes];"))
 
 default_columns <- c(
@@ -191,9 +191,7 @@ default_columns <- c(
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
-for (i in seq_along(consequences)) {
-  special_values[tolower(consequences[i])] <- i
-}
+special_values[consequences$Name] <- consequences$pid
 
 
 server <- function(input, output, session) {
@@ -241,9 +239,9 @@ server <- function(input, output, session) {
   }
 
   build_query <- function(input, query, params) {
-    consequence_idx <- match(input$consequence, consequences)
-    if (!is.na(consequence_idx)) {
-      query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_idx))
+    consequence_pid <- consequences$pid[consequences$Name == input$consequence]
+    if (hasValues(consequence_pid)) {
+      query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pid))
     }
 
     user_query <- userQuery$valid_query
@@ -265,8 +263,8 @@ server <- function(input, output, session) {
       order <- table[, column]
 
       table[, column_order] <- -order
-      table[, column] <- consequences[order + 1]
-      table[is.na(order), column_order] <- length(consequences) + 1
+      table[, column] <- consequences$Name[match(order, consequences$pid)]
+      table[is.na(order), column_order] <- 1
     }
 
     return(table)
@@ -393,7 +391,7 @@ server <- function(input, output, session) {
   })
 
   # Fill in dynamic list of consequence terms
-  updateSelectInput(session, "consequence", choices = c("Any consequence", rev(consequences)))
+  updateSelectInput(session, "consequence", choices = c("Any consequence", rev(consequences$Name)))
 
   # Enable automatic reconnections
   session$allowReconnect("force")
