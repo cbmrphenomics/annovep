@@ -174,6 +174,21 @@ columns <- dbQueryVec("SELECT [Name] FROM [Columns];")
 consequences <- dbQueryVec("SELECT [Name] FROM [Consequences];")
 genes <- sort(dbQueryVec("SELECT [Name] FROM [Genes];"))
 
+default_columns <- c(
+  "Chr",
+  "Pos",
+  "Ref",
+  "Alt",
+  "Freq",
+  "Ancestral_allele",
+  "Func_most_significant",
+  "Func_most_significant_canonical",
+  "Fund_gene_symbol",
+  "Func_protein_position",
+  "Func_amino_acids",
+  "dbSNP_ids"
+)
+
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
 for (i in seq_along(consequences)) {
@@ -266,7 +281,7 @@ server <- function(input, output, session) {
       visible_chroms <- chroms
       selected_chrom <- withDefault(input$chr, chroms[1])
       visible_columns <- columns
-      selected_columns <- withDefault(input$columns, columns[columns != "Info"])
+      selected_columns <- withDefault(input$columns, default_columns)
     } else {
       visible_genes <- NULL
       selected_gene <- NULL
