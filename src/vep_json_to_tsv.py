@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import sys
+from itertools import groupby
 from pathlib import Path
 from typing import Dict
 
@@ -867,6 +868,19 @@ OUTPUT_FORMATS = {
 }
 
 
+def read_vep_json(filepath):
+    with gzip.open(filepath, "rb") as handle:
+        nan_re = re.compile(rb":(-)?NaN\b", flags=re.I)
+
+        for line in handle:
+            # Workaround for non-standard JSON output observed in some records, where
+            # an expected string value was -nan. Python accepts "NaN", but null seems
+            # more reasonable for downstream compatibility
+            line = nan_re.sub(b":null", line)
+
+            yield json.loads(line)
+
+
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("width", 79)
@@ -938,19 +952,19 @@ def main(argv):
             cls = OUTPUT_FORMATS[key]
             writers[key] = cls(keys=header, out_prefix=args.out_prefix)
 
-        nan_re = re.compile(rb":(-)?NaN\b", flags=re.I)
+        def _contig_key(record):
+            return record["seq_region_name"]
 
-        for line in handle:
-            # Workaround for non-standard JSON output observed in some records, where
-            # an expected string value was -nan. Python accepts "NaN", but null seems
-            # more reasonable for downstream compatibility
-            line = nan_re.sub(b":null", line)
+        for contig, records in groupby(read_vep_json(args.in_json), key=_contig_key):
+            count = 0
+            for record in records:
+                for row in annotator.annotate(record):
+                    for writer in writers.values():
+                        writer.process_row(row)
 
-            record = json.loads(line)
+                count += 1
 
-            for row in annotator.annotate(record):
-                for writer in writers.values():
-                    writer.process_row(row)
+            log.info("Processed %i records on %r", count, contig)
 
         for writer in writers.values():
             writer.finalize()
