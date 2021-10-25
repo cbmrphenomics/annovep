@@ -244,13 +244,15 @@ server <- function(input, output, session) {
     return(list(string = paste(c(query, ";"), collapse = "\n"), params = params))
   }
 
-  create_sort_order <- function(table, column) {
-    column_order <- sprintf("%s_order", column)
-    order <- table[, column]
+  create_sort_order <- function(table, visible_columns, column) {
+    if (column %in% visible_columns) {
+      column_order <- sprintf("%s_order", column)
+      order <- table[, column]
 
-    table[, column_order] <- -order
-    table[, column] <- consequences[order + 1]
-    table[is.na(order), column_order] <- length(consequences) + 1
+      table[, column_order] <- -order
+      table[, column] <- consequences[order + 1]
+      table[is.na(order), column_order] <- length(consequences) + 1
+    }
 
     return(table)
   }
@@ -319,9 +321,9 @@ server <- function(input, output, session) {
 
       result$pid <- NULL # Not relevant
       if (nrow(result) > 0) {
-        result <- create_sort_order(result, "Func_most_significant")
-        result <- create_sort_order(result, "Func_least_significant")
-        result <- create_sort_order(result, "Func_most_significant_canonical")
+        result <- create_sort_order(result, input$columns, "Func_most_significant")
+        result <- create_sort_order(result, input$columns, "Func_least_significant")
+        result <- create_sort_order(result, input$columns, "Func_most_significant_canonical")
       }
 
       result
@@ -332,22 +334,24 @@ server <- function(input, output, session) {
     data
     input$columns
   }, {
-    hidden_columns <- which(!(columns %in% input$columns))
-    coldefs <- list(list(targets = hidden_columns, visible = FALSE))
-
     consequence_columns <- c(
       "Func_most_significant",
       "Func_least_significant",
       "Func_most_significant_canonical"
     )
 
+    coldefs <- list()
     offset <- length(columns)
+    hidden_columns <- which(!(columns %in% input$columns))
     for (name in consequence_columns) {
       if (name %in% input$columns) {
         coldefs <- c(coldefs, list(list(targets = match(name, columns), orderData = offset + 1)))
+        hidden_columns <- c(hidden_columns, offset + 1)
         offset <- offset + 1
       }
     }
+
+    coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
 
     output$table <- DT::renderDataTable(
       data(),
