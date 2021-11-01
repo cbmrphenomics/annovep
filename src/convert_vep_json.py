@@ -99,10 +99,8 @@ def _build_columns():
         "GT_NA": IntegerCol("Number of samples with missing genotypes"),
         "GT_other": IntegerCol("Number of samples with other genotypes"),
         "Info": "INFO string from input VCF",
-        "Liftover_hg19": "Corresponding coordinates in hg19 genome. May be . if "
-        "position is invalid or missing from the genome.",
-        "Liftover_hg38": "Corresponding coordinates in hg38 genome. May be . if "
-        "position is invalid or missing from the genome.",
+        "Hg19_chr": "Corresponding chromosome/contig in hg19, if any.",
+        "Hg19_pos": IntegerCol("Corresponding position in hg19, if any."),
         "VEP_allele": "The pos:ref:alt corresponding to VEP output",
         "Ancestral_allele": "",
         "Genes_overlapping": "Genes overlapping allele",
@@ -621,27 +619,20 @@ class Annotator:
         dst["Genes_downstream"] = _to_list(neighbours["downstream"])
 
     def _add_liftover_annotations(self, vep, row):
-        src_chrom = row["Chr"]
-        src_pos = row["Pos"]
-        src_liftover = "{}:{}+".format(src_chrom, src_pos)
-
         # Returns list of overlapping liftover coordinates, an empty list if the
         # position does not exist in the target genome, or KeyError if unknown.
         try:
-            coordinates = self._lifter.query(src_chrom, int(src_pos))
+            coordinates = self._lifter.query(row["Chr"], row["Pos"])
         except KeyError:
-            coordinates = []
-            # Src coordinates were not usable, so we also write them as missing
-            src_liftover = "."
+            coordinates = None
 
-        positions = []
-        for (chrom, pos, strand) in coordinates:
-            positions.append("{}:{}{}".format(chrom, pos, strand))
+        chrom = pos = None
+        if coordinates:
+            # It's unclear if multiple coordinates can be returned so just use the first
+            chrom, pos, _ = coordinates[0]
 
-        dst_liftover = ";".join(positions) or "."
-
-        row[f"Liftover_hg19"] = dst_liftover
-        row[f"Liftover_hg38"] = src_liftover
+        row["Hg19_chr"] = chrom
+        row["Hg19_pos"] = pos
 
 
 class Output:
