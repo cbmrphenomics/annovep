@@ -120,36 +120,37 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
         #   --dont_skip: Ensure that variants on unknown sequences are still written
         #   --allow_non_variant: Ensure that non-variant sites are still written
 
-        log_command perl "${VEP_ROOT}/vep" \
-            --verbose \
-            --offline \
-            --cache \
-            --symbol \
-            --canonical \
-            --format "vcf" \
-            --json \
-            --force_overwrite \
-            --compress_output "gzip" \
-            --dont_skip \
-            --allow_non_variant \
-            --dir_cache "${ANNOVEP_CACHE}/cache" \
-            --dir_plugins "${VEP_PLUGINS}" \
-            --assembly "GRCh38" \
-            --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
-            --plugin "Conservation,${VEP_CONSERVATION}" \
-            --plugin "ExACpLI,${VEP_EXACPLI}" \
-            --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
-            --custom "${VEP_1K_GENOMES},1KGenomes,vcf,exact,0,${VEP_1K_GENOMES_FIELDS}" \
-            --custom "${VEP_CLINVAR},ClinVar,vcf,exact,0,${VEP_CLINVAR_FIELDS}" \
-            --custom "${VEP_DBSNP},dbSNP,vcf,exact,0,${VEP_DBSNP_FIELDS}" \
-            --custom "${VEP_GNOMAD_COVERAGE},gnomAD_coverage,vcf,overlap,0,${VEP_GNOMAD_COVERAGE_FIELDS}" \
-            --custom "${VEP_GNOMAD_SITES},gnomAD_sites,vcf,exact,0,${VEP_GNOMAD_SITES_FIELDS}" \
-            --custom "${VEP_NEIGHBOURS},neighbours,bed,overlap,0" \
-            --polyphen b \
-            --input_file "${input_vcf}" \
-            --output_file "${output_vep_json}" \
-            --stats_file "${output_vep_html}" \
-            "${@}"
+        log_command python3 "${ANNOVEP_ROOT}/preprocess_vcf.py" \
+            "${input_vcf}" |
+            log_command perl "${VEP_ROOT}/vep" \
+                --verbose \
+                --offline \
+                --cache \
+                --symbol \
+                --canonical \
+                --format "vcf" \
+                --json \
+                --force_overwrite \
+                --compress_output "gzip" \
+                --dont_skip \
+                --allow_non_variant \
+                --dir_cache "${ANNOVEP_CACHE}/cache" \
+                --dir_plugins "${VEP_PLUGINS}" \
+                --assembly "GRCh38" \
+                --plugin "AncestralAllele,${VEP_ANCESTRAL}" \
+                --plugin "Conservation,${VEP_CONSERVATION}" \
+                --plugin "ExACpLI,${VEP_EXACPLI}" \
+                --plugin "LoF,loftee_path:${VEP_PLUGINS},human_ancestor_fa:${VEP_LOFTEE_FA},conservation_file:${VEP_LOFTEE_SQL}" \
+                --custom "${VEP_1K_GENOMES},1KGenomes,vcf,exact,0,${VEP_1K_GENOMES_FIELDS}" \
+                --custom "${VEP_CLINVAR},ClinVar,vcf,exact,0,${VEP_CLINVAR_FIELDS}" \
+                --custom "${VEP_DBSNP},dbSNP,vcf,exact,0,${VEP_DBSNP_FIELDS}" \
+                --custom "${VEP_GNOMAD_COVERAGE},gnomAD_coverage,vcf,overlap,0,${VEP_GNOMAD_COVERAGE_FIELDS}" \
+                --custom "${VEP_GNOMAD_SITES},gnomAD_sites,vcf,exact,0,${VEP_GNOMAD_SITES_FIELDS}" \
+                --custom "${VEP_NEIGHBOURS},neighbours,bed,overlap,0" \
+                --polyphen b \
+                --output_file "${output_vep_json}" \
+                --stats_file "${output_vep_html}" \
+                "${@}"
     fi
 
     info "Aggregating results ..."
