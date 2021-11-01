@@ -932,11 +932,11 @@ def main(argv):
 
     coloredlogs.install(
         level=args.log_level,
-        fmt="%(asctime)s %(levelname)s %(message)s",
+        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
 
-    log = logging.getLogger("main")
-    log.info("reading variants from '%s'", args.in_json)
+    log = logging.getLogger("convert_vep")
+    log.info("reading VEP annotations from '%s'", args.in_json)
 
     with gzip.open(args.in_json, "rb") as handle:
         header = _build_columns()

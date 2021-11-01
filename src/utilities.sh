@@ -2,12 +2,14 @@
 
 if [ -t 1 ]; then
 	# STDOUT is a TTY
+	readonly TTY_BLUE="\\x1b[34m"
 	readonly TTY_GREEN="\\x1b[32m"
 	readonly TTY_GREY="\\x1b[1;30m"
 	readonly TTY_RED="\\x1b[31m"
 	readonly TTY_YELLOW="\\x1b[33m"
 	readonly TTY_END="\x1b[0m"
 else
+	readonly TTY_BLUE=""
 	readonly TTY_GREEN=""
 	readonly TTY_GREY=""
 	readonly TTY_RED=""
@@ -19,7 +21,7 @@ function _color_log() {
 	local -r level="${1}"
 	shift 1
 
-	echo -e "${TTY_GREEN}$(date +"%Y-%m-%d %H:%M:%S")${TTY_END} ${TTY_GREY}${level}${TTY_END} $@"
+	echo -e "${TTY_GREEN}$(date +"%Y-%m-%d %H:%M:%S")${TTY_END} ${TTY_BLUE}${PROGNAME}${TTY_END} ${TTY_GREY}${level}${TTY_END} $@"
 }
 
 function info() {

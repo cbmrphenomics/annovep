@@ -11,6 +11,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 # [1/2] Most versions of Bash read scripts line by line, causing misbehavior if
 # the file changes during runtime. The {} forces Bash to read the entire thing
 {
+    readonly PROGNAME="setup_vep"
     readonly ANNOVEP_ROOT="$(dirname "$(readlink -f "$0")")"
 
     . "${ANNOVEP_ROOT}/utilities.sh"

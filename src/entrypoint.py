@@ -85,8 +85,7 @@ def main(argv):
     coloredlogs.install(
         level="INFO",
         datefmt="%Y-%m-%d %H:%M:%S",
-        fmt="%(asctime)s %(levelname)s %(message)s",
-        format="%(asctime)s %(levelname)s %(message)s",
+        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
 
     log = logging.getLogger("annovep")
