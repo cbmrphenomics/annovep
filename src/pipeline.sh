@@ -155,7 +155,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     fi
 
     info "Aggregating results ..."
-    log_command python3 "${ANNOVEP_ROOT}/vep_json_to_tsv.py" \
+    log_command python3 "${ANNOVEP_ROOT}/convet_vep_json.py" \
         --liftover-cache "${ANNOVEP_CACHE}/liftover" \
         "${output_vep_json}" \
         "${output_prefix}"
