@@ -619,10 +619,12 @@ class Annotator:
         dst["Genes_downstream"] = _to_list(neighbours["downstream"])
 
     def _add_liftover_annotations(self, vep, row):
+        src_chr = row["Chr"]
+
         # Returns list of overlapping liftover coordinates, an empty list if the
         # position does not exist in the target genome, or KeyError if unknown.
         try:
-            coordinates = self._lifter.query(row["Chr"], row["Pos"])
+            coordinates = self._lifter.query(src_chr, row["Pos"])
         except KeyError:
             coordinates = None
 
@@ -630,6 +632,11 @@ class Annotator:
         if coordinates:
             # It's unclear if multiple coordinates can be returned so just use the first
             chrom, pos, _ = coordinates[0]
+
+            if src_chr.startswith("chr") and not chrom.startswith("chr"):
+                chrom = "chr" + chrom
+            elif chrom.startswith("chr") and not src_chr.startswith("chr"):
+                chrom = chrom[3:]
 
         row["Hg19_chr"] = chrom
         row["Hg19_pos"] = pos
