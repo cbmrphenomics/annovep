@@ -21,8 +21,8 @@ def fix_contig_name(line):
     if match is not None:
         before, name, after = match.groups()
         new_name = name.replace(":", "_")
-        if name != new_name:
-            return "".join((before, new_name, after)), name, new_name
+
+        return "".join((before, new_name, after)), name, new_name
 
     return line, None, None
 
@@ -72,6 +72,7 @@ def main(argv):
     n_decoys = 0
     n_bad_contigs = 0
     n_bad_contigs_vcf = 0
+    n_decoy_contigs = 0
     n_records = 0
 
     log = logging.getLogger("preprocess_vcf")
@@ -80,10 +81,14 @@ def main(argv):
         for line in handle:
             if line.startswith("#"):
                 line, old_name, new_name = fix_contig_name(line)
-                if old_name is not None:
+                if new_name is not None:
                     n_bad_contigs += 1
-                    # if n_bad_contigs == 1:
-                    log.warning("Renaming bad names: %r -> %r", old_name, new_name)
+                    if n_bad_contigs == 1:
+                        log.warning("Renaming bad names: %r -> %r", old_name, new_name)
+                elif old_name and old_name.endswith("_decoy"):
+                    n_decoy_contigs += 1
+                    if n_decoy_contigs == 1:
+                        log.warning("Removing decoy contigs: %r", old_name)
 
                 print(line, end="")
                 continue
@@ -112,7 +117,8 @@ def main(argv):
     log.info("Read %s variants", _fmt(n_records))
     log.info("Renamed %s contigs with bad names", _fmt(n_bad_contigs))
     log.info("Updated %s variants on badly named contigs", _fmt(n_bad_contigs_vcf))
-    log.info("Filtered %s variants on decoy contigs", _fmt(n_decoys))
+    log.info("Removed %s decoy contigs", _fmt(n_decoy_contigs))
+    log.info("Removed %s variants on decoy contigs", _fmt(n_decoys))
 
     return 0
 
