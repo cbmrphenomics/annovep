@@ -64,7 +64,9 @@ parse_query <- function(value, symbols, special_values = list()) {
     validate(need(expr, sprintf("Error in query near '%s': %s", token, message)))
   }
 
-  fail <- function(token, message) { check(FALSE, token, message) }
+  fail <- function(token, message) {
+    check(FALSE, token, message)
+  }
 
   for (i in seq_along(tokens)) {
     token <- tokens[i]
@@ -198,34 +200,39 @@ special_values[consequences$Name] <- consequences$pid
 
 server <- function(input, output, session) {
   userQuery <- reactiveValues(
-  # The last valid user query
+    # The last valid user query
     valid_query = list(string = "", params = list()),
-  # Error messages from parsing query, if any
+    # Error messages from parsing query, if any
     errors = NULL
   )
 
-  observeEvent({
-    input$query
-    input$password
-  }, {
-    if (input$password == password) {
-      tryCatch({
-        query <- parse_query(input$query, symbols = columns, special_values = special_values)
-        # Avoid spurious updates for white space changes
-        if (!identical(query, userQuery$valid_query)) {
-          userQuery$valid_query <- query
-        }
+  observeEvent(
+    {
+      input$query
+      input$password
+    },
+    {
+      if (input$password == password) {
+        tryCatch(
+          {
+            query <- parse_query(input$query, symbols = columns, special_values = special_values)
+            # Avoid spurious updates for white space changes
+            if (!identical(query, userQuery$valid_query)) {
+              userQuery$valid_query <- query
+            }
 
+            userQuery$errors <- NULL
+          },
+          error = function(cond) {
+            userQuery$errors <- cond
+          }
+        )
+      } else {
+        userQuery$valid_query <- list(string = "", params = list())
         userQuery$errors <- NULL
-      },
-      error = function(cond) {
-        userQuery$errors <- cond
-      })
-    } else {
-      userQuery$valid_query <- list(string = "", params = list())
-      userQuery$errors <- NULL
+      }
     }
-  })
+  )
 
   # Returns the user-selected region of interest
   select_region <- function(input) {
@@ -275,35 +282,43 @@ server <- function(input, output, session) {
     return(table)
   }
 
-  observeEvent({
-    input$password
-  }, {
-    if (input$password == password) {
-      visible_genes <- genes
-      selected_gene <- withDefault(input$gene, genes[1])
-      visible_chroms <- chroms
-      selected_chrom <- withDefault(input$chr, chroms[1])
-      visible_columns <- columns
-      selected_columns <- withDefault(input$columns, default_columns)
-    } else {
-      visible_genes <- NULL
-      selected_gene <- NULL
-      visible_chroms <- NULL
-      selected_chrom <- NULL
-      visible_columns <- NULL
-      selected_columns <- NULL
-    }
+  observeEvent(
+    {
+      input$password
+    },
+    {
+      if (input$password == password) {
+        visible_genes <- genes
+        selected_gene <- withDefault(input$gene, genes[1])
+        visible_chroms <- chroms
+        selected_chrom <- withDefault(input$chr, chroms[1])
+        visible_columns <- columns
+        selected_columns <- withDefault(input$columns, default_columns)
+      } else {
+        visible_genes <- NULL
+        selected_gene <- NULL
+        visible_chroms <- NULL
+        selected_chrom <- NULL
+        visible_columns <- NULL
+        selected_columns <- NULL
+      }
 
-    updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
-    updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
-    updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
-  })
+      updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
+      updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
+      updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
+    }
+  )
 
   # Reset position when the contig is changed
-  observeEvent({ input$chr }, {
-    updateNumericInput(session, "minPos", value = 1)
-    updateNumericInput(session, "maxPos", value = numeric())
-  })
+  observeEvent(
+    {
+      input$chr
+    },
+    {
+      updateNumericInput(session, "minPos", value = 1)
+      updateNumericInput(session, "maxPos", value = numeric())
+    }
+  )
 
   data <- reactive({
     validate(need(input$password == password, "Password required"))
@@ -314,10 +329,10 @@ server <- function(input, output, session) {
     if (hasValues(region$chr, region$minPos, visible_columns)) {
       params <- list(chr = region$chr, min = region$minPos)
       query <- c(
-          sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse = ", ")),
-          "FROM   [Annotations]",
-          "WHERE  Chr = :chr",
-          "  AND  Pos >= :min"
+        sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse = ", ")),
+        "FROM   [Annotations]",
+        "WHERE  Chr = :chr",
+        "  AND  Pos >= :min"
       )
 
       if (!is.na(region$maxPos)) {
@@ -336,46 +351,49 @@ server <- function(input, output, session) {
     }
   })
 
-  observeEvent({
-    data
-    input$columns
-  }, {
-    consequence_columns <- c(
-      "Func_most_significant",
-      "Func_least_significant",
-      "Func_most_significant_canonical"
-    )
-
-    # Ensure that only valid column names are used
-    visible_columns <- subset(columns, columns %in% input$columns)
-    visible_consequences <- subset(consequence_columns, consequence_columns %in% visible_columns)
-
-    coldefs <- list()
-    offset <- length(visible_columns)
-    hidden_columns <- numeric(0)
-    for (name in visible_consequences) {
-      coldefs <- c(coldefs, list(list(targets = match(name, visible_columns), orderData = offset + 1)))
-      hidden_columns <- c(hidden_columns, offset + 1)
-      offset <- offset + 1
-    }
-
-    if (length(hidden_columns) > 0) {
-      coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
-    }
-
-    output$table <- DT::renderDataTable(
-      data(),
-      selection = "single",
-      server = TRUE,
-      options = list(
-        scrollX = TRUE,
-        scrollY = "80vh",
-        pageLength = 100,
-        lengthMenu = list(c(50, 100, 200, -1), c(50, 100, 200, "All")),
-        columnDefs = coldefs
+  observeEvent(
+    {
+      data
+      input$columns
+    },
+    {
+      consequence_columns <- c(
+        "Func_most_significant",
+        "Func_least_significant",
+        "Func_most_significant_canonical"
       )
-    )
-  })
+
+      # Ensure that only valid column names are used
+      visible_columns <- subset(columns, columns %in% input$columns)
+      visible_consequences <- subset(consequence_columns, consequence_columns %in% visible_columns)
+
+      coldefs <- list()
+      offset <- length(visible_columns)
+      hidden_columns <- numeric(0)
+      for (name in visible_consequences) {
+        coldefs <- c(coldefs, list(list(targets = match(name, visible_columns), orderData = offset + 1)))
+        hidden_columns <- c(hidden_columns, offset + 1)
+        offset <- offset + 1
+      }
+
+      if (length(hidden_columns) > 0) {
+        coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
+      }
+
+      output$table <- DT::renderDataTable(
+        data(),
+        selection = "single",
+        server = TRUE,
+        options = list(
+          scrollX = TRUE,
+          scrollY = "80vh",
+          pageLength = 100,
+          lengthMenu = list(c(50, 100, 200, -1), c(50, 100, 200, "All")),
+          columnDefs = coldefs
+        )
+      )
+    }
+  )
 
   output$uiQueryErrors <- renderUI({
     if (hasValues(userQuery$errors)) {
