@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-library(shiny)
-library(DT)
+requireNamespace("shiny")
+requireNamespace("DT")
 
 ui <- pageWithSidebar(
   headerPanel("AnnoVEP"),
@@ -18,16 +18,16 @@ ui <- pageWithSidebar(
     conditionalPanel(
       condition = "input.select_by === 'region'",
       selectInput("chr", NULL, choices = NULL),
-      numericInput("minPos", "Start position (bp):", 1, min = 1, step = 1),
-      numericInput("maxPos", "End position (bp; max 10k rows shown):", NULL, min = 1, step = 1)
+      numericInput("min_pos", "Start position (bp):", 1, min = 1, step = 1),
+      numericInput("max_pos", "End position (bp; max 10k rows shown):", NULL, min = 1, step = 1)
     ),
     hr(),
     # Filters
     selectInput("consequence", "This consequence or worse", choices = c("Any consequence")),
-    numericInput("minMAF", "Minimum MAF (gnomAD):", 0, min = 0, max = 1, step = 0.00001),
-    numericInput("maxMAF", "Maximum MAF (gnomAD):", 1, min = 0, max = 1, step = 0.00001),
+    numericInput("min_maf", "Minimum MAF (gnomAD):", 0, min = 0, max = 1, step = 0.00001),
+    numericInput("max_maf", "Maximum MAF (gnomAD):", 1, min = 0, max = 1, step = 0.00001),
     textAreaInput("query", "Filters", value = "Filters = PASS", rows = 3),
-    uiOutput("uiQueryErrors"),
+    uiOutput("query_errors"),
     hr(),
     # Visible columns
     selectizeInput("columns", "Visible columns", choices = c(), multiple = TRUE),

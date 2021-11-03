@@ -1,11 +1,13 @@
 #!/usr/bin/env Rscript
 
-library(DBI)
-library(shiny)
-library(DT)
+requireNamespace("DBI")
+requireNamespace("DT")
+requireNamespace("flexo")
+requireNamespace("RSQLite")
+requireNamespace("shiny")
 
 
-hasValues <- function(...) {
+has_values <- function(...) {
   for (value in list(...)) {
     if (is.null(value) || length(value) == 0) {
       return(FALSE)
@@ -17,8 +19,8 @@ hasValues <- function(...) {
   return(TRUE)
 }
 
-withDefault <- function(value, default) {
-  if (hasValues(value)) {
+with_default <- function(value, default) {
+  if (has_values(value)) {
     return(value)
   } else {
     return(default)
@@ -61,7 +63,7 @@ parse_query <- function(value, symbols, special_values = list()) {
   }
 
   check <- function(expr, token, message) {
-    validate(need(expr, sprintf("Error in query near '%s': %s", token, message)))
+    shiny::validate(shiny::need(expr, sprintf("Error in query near '%s': %s", token, message)))
   }
 
   fail <- function(token, message) {
@@ -112,7 +114,7 @@ parse_query <- function(value, symbols, special_values = list()) {
         name <- "value"
 
         # Some values may be strings mapped onto numbers, etc.
-        value <- withDefault(special_values[[tolower(token)]], token)
+        value <- with_default(special_values[[tolower(token)]], token)
 
         key <- sprintf("up%i", length(params) + 1)
         query <- c(query, ":", key)
@@ -157,24 +159,24 @@ parse_query <- function(value, symbols, special_values = list()) {
 
 # Read-only connection to SQLite3 database
 database <- Sys.getenv("ANNOVEP_DATABASE", "sqlite3.db")
-conn <- dbConnect(RSQLite::SQLite(), database, flags = RSQLite::SQLITE_RO)
+conn <- DBI::dbConnect(RSQLite::SQLite(), database, flags = RSQLite::SQLITE_RO)
 
 # FIXME: Better solution needed
 password <- Sys.getenv("ANNOVEP_PASSWORD", ids::uuid())
 cat("Password is", password, end = "\n")
 
-dbQuery <- function(string, ...) {
-  return(dbGetQuery(conn, string, ...))
+db_query <- function(string, ...) {
+  return(DBI::dbGetQuery(conn, string, ...))
 }
 
-dbQueryVec <- function(string, ...) {
-  return(unlist(dbQuery(string, ...), use.names = FALSE))
+db_query_vec <- function(string, ...) {
+  return(unlist(db_query(string, ...), use.names = FALSE))
 }
 
-chroms <- dbQueryVec("SELECT DISTINCT [Chr] FROM [Annotations] ORDER BY [Chr];")
-columns <- dbQueryVec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
-consequences <- dbQuery("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
-genes <- dbQueryVec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
+chroms <- db_query_vec("SELECT DISTINCT [Chr] FROM [Annotations] ORDER BY [Chr];")
+columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
+consequences <- db_query("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
+genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
 
 default_columns <- c(
   "Chr",
@@ -199,9 +201,9 @@ special_values[consequences$Name] <- consequences$pid
 
 
 server <- function(input, output, session) {
-  userQuery <- reactiveValues(
+  user_filter <- reactiveValues(
     # The last valid user query
-    valid_query = list(string = "", params = list()),
+    query = list(string = "", params = list()),
     # Error messages from parsing query, if any
     errors = NULL
   )
@@ -217,46 +219,46 @@ server <- function(input, output, session) {
           {
             query <- parse_query(input$query, symbols = columns, special_values = special_values)
             # Avoid spurious updates for white space changes
-            if (!identical(query, userQuery$valid_query)) {
-              userQuery$valid_query <- query
+            if (!identical(query, user_filter$query)) {
+              user_filter$query <- query
             }
 
-            userQuery$errors <- NULL
+            user_filter$errors <- NULL
           },
           error = function(cond) {
-            userQuery$errors <- cond
+            user_filter$errors <- cond
           }
         )
       } else {
-        userQuery$valid_query <- list(string = "", params = list())
-        userQuery$errors <- NULL
+        user_filter$query <- list(string = "", params = list())
+        user_filter$errors <- NULL
       }
     }
   )
 
   # Returns the user-selected region of interest
   select_region <- function(input) {
-    validate(need(input$password == password, "Password required"))
+    shiny::validate(shiny::need(input$password == password, "Password required"))
 
     if (input$select_by == "gene") {
-      result <- dbQuery("SELECT * FROM [Genes] WHERE Name = :name ", params = list(name = input$gene))
+      result <- db_query("SELECT * FROM [Genes] WHERE Name = :name ", params = list(name = input$gene))
 
-      list(chr = result$Chr, minPos = result$Start, maxPos = result$End)
+      list(chr = result$Chr, min_pos = result$Start, max_pos = result$End)
     } else {
-      list(chr = input$chr, minPos = input$minPos, maxPos = input$maxPos)
+      list(chr = input$chr, min_pos = input$min_pos, max_pos = input$max_pos)
     }
   }
 
   build_query <- function(input, query, params) {
     consequence_pid <- consequences$pid[consequences$Name == input$consequence]
-    if (hasValues(consequence_pid)) {
+    if (has_values(consequence_pid)) {
       query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pid))
     }
 
     query <- c(query, "  AND gnomAD_min >= :gmin AND gnomAD_max <= :gmax")
-    params <- c(params, list(gmin = input$minMAF, gmax = input$maxMAF))
+    params <- c(params, list(gmin = input$min_maf, gmax = input$max_maf))
 
-    user_query <- userQuery$valid_query
+    user_query <- user_filter$query
     if (nchar(user_query$string) > 0) {
       query <- c(query, paste("AND", user_query$string, sep = " "))
       params <- c(params, user_query$params)
@@ -289,11 +291,11 @@ server <- function(input, output, session) {
     {
       if (input$password == password) {
         visible_genes <- genes
-        selected_gene <- withDefault(input$gene, genes[1])
+        selected_gene <- with_default(input$gene, genes[1])
         visible_chroms <- chroms
-        selected_chrom <- withDefault(input$chr, chroms[1])
+        selected_chrom <- with_default(input$chr, chroms[1])
         visible_columns <- columns
-        selected_columns <- withDefault(input$columns, default_columns)
+        selected_columns <- with_default(input$columns, default_columns)
       } else {
         visible_genes <- NULL
         selected_gene <- NULL
@@ -303,9 +305,9 @@ server <- function(input, output, session) {
         selected_columns <- NULL
       }
 
-      updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
-      updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
-      updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
+      shiny::updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
+      shiny::updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
+      shiny::updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
     }
   )
 
@@ -315,19 +317,19 @@ server <- function(input, output, session) {
       input$chr
     },
     {
-      updateNumericInput(session, "minPos", value = 1)
-      updateNumericInput(session, "maxPos", value = numeric())
+      shiny::updateNumericInput(session, "min_pos", value = 1)
+      shiny::updateNumericInput(session, "max_pos", value = numeric())
     }
   )
 
   data <- reactive({
-    validate(need(input$password == password, "Password required"))
+    shiny::validate(shiny::need(input$password == password, "Password required"))
 
     region <- select_region(input)
     # Ensure that only valid column names are used
     visible_columns <- subset(columns, columns %in% input$columns)
-    if (hasValues(region$chr, region$minPos, visible_columns)) {
-      params <- list(chr = region$chr, min = region$minPos)
+    if (has_values(region$chr, region$min_pos, visible_columns)) {
+      params <- list(chr = region$chr, min = region$min_pos)
       query <- c(
         sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse = ", ")),
         "FROM   [Annotations]",
@@ -335,13 +337,13 @@ server <- function(input, output, session) {
         "  AND  Pos >= :min"
       )
 
-      if (!is.na(region$maxPos)) {
+      if (!is.na(region$max_pos)) {
         query <- c(query, "  AND  Pos <= :max")
-        params <- c(params, list(max = region$maxPos))
+        params <- c(params, list(max = region$max_pos))
       }
 
       query <- build_query(input, query, params)
-      result <- dbQuery(query$string, params = query$params)
+      result <- db_query(query$string, params = query$params)
 
       result <- create_sort_order(result, visible_columns, "Func_most_significant")
       result <- create_sort_order(result, visible_columns, "Func_least_significant")
@@ -395,18 +397,18 @@ server <- function(input, output, session) {
     }
   )
 
-  output$uiQueryErrors <- renderUI({
-    if (hasValues(userQuery$errors)) {
+  output$query_errors <- renderUI({
+    if (has_values(user_filter$errors)) {
       span(
         HTML("<h5 style='color: #AB0000; text-align: center;'>"),
-        userQuery$errors,
+        user_filter$errors,
         HTML("</h5>")
       )
     }
   })
 
   # Fill in dynamic list of consequence terms
-  updateSelectInput(session, "consequence", choices = c("Any consequence", rev(consequences$Name)))
+  shiny::updateSelectInput(session, "consequence", choices = c("Any consequence", rev(consequences$Name)))
 
   # Enable automatic reconnections
   session$allowReconnect("force")

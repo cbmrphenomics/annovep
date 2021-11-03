@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+requireNamespace("shiny")
 
 main <- function(args) {
   if (length(args) != 1) {
@@ -7,13 +8,11 @@ main <- function(args) {
     return(1)
   }
 
-  library(shiny)
-
   Sys.setenv(ANNOVEP_DATABASE = args[1])
 
   cat("starting server ...\n")
 
-  return(runApp(shinyAppDir(".", options = list(port = 56789))))
+  return(shiny::runApp(shiny::shinyAppDir(".", options = list(port = 56789))))
 }
 
 
