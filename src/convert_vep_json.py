@@ -109,11 +109,14 @@ def _build_columns():
         "Func_n_most_significant": IntegerCol(
             "Number of consequences ranked as most significant in terms of impact"
         ),
-        "Func_most_significant": "The most significant functional consequence",
-        "Func_least_significant": "The last significant functional consequence for "
-        "the same gene as the most significant consequence",
-        "Func_most_significant_canonical": "The most significant functional "
-        "consequence for canonical transcripts only",
+        "Func_most_significant": IntegerCol("The most significant consequence"),
+        "Func_least_significant": IntegerCol(
+            "The last significant consequence for the same gene as the most "
+            "significant consequence"
+        ),
+        "Func_most_significant_canonical": IntegerCol(
+            "The most significant consequence for canonical transcripts only"
+        ),
         "Func_gene_id": "Gene with the most significant consequence",
         "Func_transcript_id": "Transcript with the most significant consequence",
         "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
@@ -810,7 +813,7 @@ class SQLOutput(Output):
             if value is not None:
                 value = self._consequence_ranks[value]
 
-            data[key] = None
+            data[key] = value
 
         values = [str(self._n_row)]
         values.extend(self._to_string(data[key]) for key in self.keys)
