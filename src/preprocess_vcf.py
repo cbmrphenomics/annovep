@@ -22,7 +22,7 @@ def fix_contig_name(line):
         before, name, after = match.groups()
         new_name = name.replace(":", "_")
 
-        return "".join((before, new_name, after)), name, new_name
+        return "".join((before, new_name, after, "\n")), name, new_name
 
     return line, None, None
 
@@ -81,14 +81,16 @@ def main(argv):
         for line in handle:
             if line.startswith("#"):
                 line, old_name, new_name = fix_contig_name(line)
-                if new_name is not None:
+                if old_name != new_name:
                     n_bad_contigs += 1
                     if n_bad_contigs == 1:
-                        log.warning("Renaming bad names: %r -> %r", old_name, new_name)
-                elif old_name and old_name.endswith("_decoy"):
+                        log.warning("Changing bad names: %r -> %r", old_name, new_name)
+
+                if old_name and old_name.endswith("_decoy"):
                     n_decoy_contigs += 1
                     if n_decoy_contigs == 1:
                         log.warning("Removing decoy contigs: %r", old_name)
+                    continue
 
                 print(line, end="")
                 continue
