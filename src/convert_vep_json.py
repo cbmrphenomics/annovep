@@ -195,14 +195,14 @@ def parse_vcf(line):
     return {
         "Chr": chr,
         "Pos": int(pos),
-        "ID": None if id == "." else id,
+        "ID": None if id == "." else id.split(";"),
         "Ref": ref,
         # . is treated as a actual value, rather than an empty list. This is done so
         # that (limited) information can be retrieved for non-specific variants.
         "Alts": alt.split(","),
         "Qual": float(qual) if qual != "." else None,
         "Filters": [] if filters == "." else filters.split(";"),
-        "Info": info,
+        "Info": info.split(";"),
         "Samples": samples,
     }
 
@@ -245,7 +245,7 @@ class Annotator:
             allele = self._validate_sequence(allele, "ACGTN*.")
 
             copy = dict(row)
-            copy["Alt"] = allele
+            copy["Alt"] = allele.split(",")
             copy["Freq"] = frequencies.get(allele_idx, ".")
 
             gt_00 = genotype_counts.get((0, 0), 0)
@@ -455,11 +455,11 @@ class Annotator:
             "n_most_significant",
             "most_significant_canonical",
             "lof",
-            "lof_filter",
-            "lof_flags",
-            "lof_info",
         ):
             dst[f"Func_{key}"] = consequence.get(key, ".")
+
+        for key in ("lof_filter", "lof_flags", "lof_info"):
+            dst[f"Func_{key}"] = consequence.get(key, ".").split(",")
 
         for key in (
             "cdna",
@@ -493,7 +493,15 @@ class Annotator:
 
         dst["Ancestral_allele"] = allele
 
-    def _do_add_custom_annotation(self, src, dst, name, fields, default="."):
+    def _do_add_custom_annotation(
+        self,
+        src,
+        dst,
+        name,
+        fields,
+        default=".",
+        post=lambda it: it,
+    ):
         data = {}
 
         alt = dst[":vep:"]["alt"]
@@ -509,7 +517,7 @@ class Annotator:
             fields = dict(zip(fields, fields))
 
         for src_key, dst_key in fields.items():
-            dst[dst_key] = data.get(src_key, default)
+            dst[dst_key] = post(data.get(src_key, default))
 
     def _add_custom_annotation(self, src, dst):
         self._do_add_custom_annotation(
@@ -534,6 +542,7 @@ class Annotator:
                 "alts": "dbSNP_alts",
                 "functions": "dbSNP_functions",
             },
+            post=lambda it: it.split(","),
         )
 
         self._do_add_custom_annotation(
@@ -554,6 +563,15 @@ class Annotator:
             name="gnomAD_sites",
             fields={
                 "FILTER": "gnomAD_filter",
+            },
+            post=lambda it: it.split(","),
+        )
+
+        self._do_add_custom_annotation(
+            src=src,
+            dst=dst,
+            name="gnomAD_sites",
+            fields={
                 "AF": "gnomAD_ALL_AF",
                 "AF_afr": "gnomAD_AFR_AF",
                 "AF_ami": "gnomAD_AMI_AF",
@@ -573,9 +591,18 @@ class Annotator:
             name="ClinVar",
             fields={
                 "ALLELEID": "ClinVar_ID",
-                "CLNDN": "ClinVar_disease",
                 "CLNSIG": "ClinVar_significance",
             },
+        )
+
+        self._do_add_custom_annotation(
+            src=src,
+            dst=dst,
+            name="ClinVar",
+            fields={
+                "CLNDN": "ClinVar_disease",
+            },
+            post=lambda it: it.split("|"),
         )
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
@@ -612,7 +639,7 @@ class Annotator:
             if not values:
                 return "."
 
-            return ";".join(f"{distance}:{name}" for distance, name in values)
+            return [f"{distance}:{name}" for distance, name in values]
 
         dst["Genes_overlapping"] = sorted(neighbours["overlap"])
         dst["Genes_upstream"] = _to_list(neighbours["upstream"])
@@ -692,7 +719,7 @@ class TSVOutput(Output):
     @staticmethod
     def _to_string(value):
         if isinstance(value, (tuple, list)):
-            return ",".join(map(str, value or "."))
+            return ";".join(map(str, value or "."))
         elif value is None:
             return "."
 
@@ -851,7 +878,7 @@ class SQLOutput(Output):
         if isinstance(value, (int, float)):
             return repr(value)
         elif isinstance(value, (tuple, list)):
-            value = ",".join(map(str, value or "."))
+            value = ";".join(map(str, value or "."))
         elif value is None:
             value = "."
         elif value == ".":
