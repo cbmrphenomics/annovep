@@ -982,19 +982,25 @@ def main(argv):
         def _contig_key(record):
             return record["seq_region_name"]
 
-        for contig, records in groupby(read_vep_json(args.in_json), key=_contig_key):
-            count = 0
-            for record in records:
-                for row in annotator.annotate(record):
-                    for writer in writers.values():
-                        writer.process_row(row)
+        try:
+            for contig, records in groupby(
+                read_vep_json(args.in_json),
+                key=_contig_key,
+            ):
+                count = 0
+                for record in records:
+                    for row in annotator.annotate(record):
+                        for writer in writers.values():
+                            writer.process_row(row)
 
-                count += 1
+                    count += 1
 
-            log.info("Processed %i records on %r", count, contig)
+                log.info("Processed %i records on %r", count, contig)
 
-        for writer in writers.values():
-            writer.finalize()
+            for writer in writers.values():
+                writer.finalize()
+        except BrokenPipeError:
+            pass
 
     return 0
 
