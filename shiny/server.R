@@ -34,6 +34,7 @@ parse_query <- function(value, symbols, special_values = list()) {
   #   logical: symbols AND or OR
   #   value:   number | string | symbol
   rules <- c(
+    comment = "#.*",
     number = paste("\\b", flexo::re$number, "\\b", sep = ""),
     string = "\"[^\"]*\"|'[^']*'",
     symbol = "\\b\\w+\\b",
@@ -50,11 +51,11 @@ parse_query <- function(value, symbols, special_values = list()) {
   open_brackets <- 0
 
   # Safe starting state
-  state <- c("whitespace", "logical")
+  state <- "logical"
 
   is_state <- function(...) {
     for (name in list(...)) {
-      if (state[1] == name || (state[1] == "whitespace" && state[2] == name)) {
+      if (state == name) {
         return(TRUE)
       }
     }
@@ -74,8 +75,8 @@ parse_query <- function(value, symbols, special_values = list()) {
     token <- tokens[i]
     name <- names[i]
 
-    if (name == "whitespace") {
-      # always allowed
+    if (name == "whitespace" || name == "comment") {
+      name <- state
     } else if (is_state("logical", "lbracket")) {
       if (name == "lbracket") {
         open_brackets <- open_brackets + 1
@@ -142,7 +143,7 @@ parse_query <- function(value, symbols, special_values = list()) {
       fail(token, "malformed query")
     }
 
-    state <- c(name, state[1])
+    state <- name
   }
 
   if (is.null(query)) {
