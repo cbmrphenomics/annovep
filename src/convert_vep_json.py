@@ -200,9 +200,9 @@ def parse_vcf(line):
         # . is treated as a actual value, rather than an empty list. This is done so
         # that (limited) information can be retrieved for non-specific variants.
         "Alts": alt.split(","),
-        "Qual": float(qual) if qual != "." else None,
+        "Qual": None if qual == "." else float(qual),
         "Filters": [] if filters == "." else filters.split(";"),
-        "Info": info.split(";"),
+        "Info": [] if info == "." else info.split(";"),
         "Samples": samples,
     }
 
@@ -312,7 +312,7 @@ class Annotator:
                 any_depth = True
                 total_depth += int(depth)
 
-        return total_depth if any_depth else "."
+        return total_depth if any_depth else None
 
     def _count_genotypes(self, samples):
         counts = collections.defaultdict(int)
@@ -394,7 +394,7 @@ class Annotator:
                     ]
 
                 # Gene ID will be missing for intergenetic consequences
-                gene = consequence.get("gene_id", ".")
+                gene = consequence.get("gene_id")
                 is_canonical = consequence.get("canonical")
 
                 for term in consequence_terms:
@@ -456,10 +456,11 @@ class Annotator:
             "most_significant_canonical",
             "lof",
         ):
-            dst[f"Func_{key}"] = consequence.get(key, ".")
+            dst[f"Func_{key}"] = consequence.get(key)
 
         for key in ("lof_filter", "lof_flags", "lof_info"):
-            dst[f"Func_{key}"] = consequence.get(key, ".").split(",")
+            value = consequence.get(key)
+            dst[f"Func_{key}"] = value if value is None else value.split(",")
 
         for key in (
             "cdna",
@@ -474,7 +475,7 @@ class Annotator:
 
         if start is None:
             if end is None:
-                return "."
+                return None
 
             return f"?-{end}"
         elif end is None:
@@ -488,10 +489,7 @@ class Annotator:
         allele = consequence.get("aa")
         # The explicty check for falsey values is used to catch both missing values and
         # as a workaround for bug where "aa" is -nan (converted to None in _read_record)
-        if not allele:
-            allele = "." * len(dst["Ref"])
-
-        dst["Ancestral_allele"] = allele
+        dst["Ancestral_allele"] = allele if allele else None
 
     def _do_add_custom_annotation(
         self,
@@ -499,7 +497,7 @@ class Annotator:
         dst,
         name,
         fields,
-        default=".",
+        default=None,
         post=lambda it: it,
     ):
         data = {}
@@ -542,7 +540,7 @@ class Annotator:
                 "alts": "dbSNP_alts",
                 "functions": "dbSNP_functions",
             },
-            post=lambda it: it.split(","),
+            post=lambda it: [] if it is None else it.split(","),
         )
 
         self._do_add_custom_annotation(
@@ -564,7 +562,7 @@ class Annotator:
             fields={
                 "FILTER": "gnomAD_filter",
             },
-            post=lambda it: it.split(","),
+            post=lambda it: [] if it is None else it.split(","),
         )
 
         self._do_add_custom_annotation(
@@ -602,7 +600,7 @@ class Annotator:
             fields={
                 "CLNDN": "ClinVar_disease",
             },
-            post=lambda it: it.split("|"),
+            post=lambda it: [] if it is None else it.split("|"),
         )
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
@@ -637,7 +635,7 @@ class Annotator:
         def _to_list(values):
             values = sorted(values)[:nnearest]
             if not values:
-                return "."
+                return []
 
             return [f"{distance}:{name}" for distance, name in values]
 
@@ -795,10 +793,10 @@ class SQLOutput(Output):
         # VEP consequence terms
         for key in CONSEQUENCE_COLUMNS:
             value = data.get(key)
-            if value not in (".", None):
-                data[key] = self._consequence_ranks[value]
-            else:
-                data[key] = None
+            if value is not None:
+                value = self._consequence_ranks[value]
+
+            data[key] = None
 
         values = [str(self._n_row)]
         values.extend(self._to_string(data[key]) for key in self.keys)
@@ -878,12 +876,9 @@ class SQLOutput(Output):
         if isinstance(value, (int, float)):
             return repr(value)
         elif isinstance(value, (tuple, list)):
-            value = ";".join(map(str, value or "."))
+            value = ";".join(map(str, value)) if value else "NULL"
         elif value is None:
-            value = "."
-        elif value == ".":
-            # FIXME: Should not be handled here
-            return "NULL"
+            value = "NULL"
         else:
             value = str(value)
 
