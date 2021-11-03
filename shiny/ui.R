@@ -29,6 +29,7 @@ ui <- pageWithSidebar(
     numericInput("max_maf", "Maximum MAF (gnomAD):", 1, min = 0, max = 1, step = 0.00001),
     textAreaInput("query", "Filters", value = "", rows = 3),
     uiOutput("query_errors"),
+    actionButton("btn_reset", "Reset filters"),
     hr(),
     # Visible columns
     selectizeInput("columns", "Visible columns", choices = c(), multiple = TRUE),

@@ -315,14 +315,29 @@ server <- function(input, output, session) {
     }
   )
 
-  # Reset position when the contig is changed
+  # Reset position when the contig is changed or the reset button is pressed
   observeEvent(
     {
       input$chr
+      input$btn_reset
     },
     {
       shiny::updateNumericInput(session, "min_pos", value = 1)
       shiny::updateNumericInput(session, "max_pos", value = numeric())
+    }
+  )
+
+  # Reset filters on request
+  observeEvent(
+    {
+      input$btn_reset
+    },
+    {
+      shiny::updateCheckboxInput(session, "require_pass", value = TRUE)
+      shiny::updateSelectInput(session, "consequence", selected = "Any consequence")
+      shiny::updateNumericInput(session, "min_maf", value = 0)
+      shiny::updateNumericInput(session, "max_maf", value = 1)
+      shiny::updateTextAreaInput(session, "query", value = "")
     }
   )
 
