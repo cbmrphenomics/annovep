@@ -23,10 +23,11 @@ ui <- pageWithSidebar(
     ),
     hr(),
     # Filters
+    checkboxInput("require_pass", "Variants must PASS quality filtering", value = TRUE),
     selectInput("consequence", "This consequence or worse", choices = c("Any consequence")),
     numericInput("min_maf", "Minimum MAF (gnomAD):", 0, min = 0, max = 1, step = 0.00001),
     numericInput("max_maf", "Maximum MAF (gnomAD):", 1, min = 0, max = 1, step = 0.00001),
-    textAreaInput("query", "Filters", value = "Filters = PASS", rows = 3),
+    textAreaInput("query", "Filters", value = "", rows = 3),
     uiOutput("query_errors"),
     hr(),
     # Visible columns

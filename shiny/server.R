@@ -255,6 +255,10 @@ server <- function(input, output, session) {
       query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pid))
     }
 
+    if (input$require_pass) {
+      query <- c(query, "  AND Filters = 'PASS'")
+    }
+
     query <- c(query, "  AND gnomAD_min >= :gmin AND gnomAD_max <= :gmax")
     params <- c(params, list(gmin = input$min_maf, gmax = input$max_maf))
 
