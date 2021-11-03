@@ -186,7 +186,9 @@ default_columns <- c(
   "Fund_gene_symbol",
   "Func_protein_position",
   "Func_amino_acids",
-  "dbSNP_ids"
+  "dbSNP_ids",
+  "gnomAD_min",
+  "gnomAD_max"
 )
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
@@ -243,6 +245,9 @@ server <- function(input, output, session) {
     if (hasValues(consequence_pid)) {
       query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pid))
     }
+
+    query <- c(query, "  AND gnomAD_min >= :gmin AND gnomAD_max <= :gmax")
+    params <- c(params, list(gmin = input$minMAF, gmax = input$maxMAF))
 
     user_query <- userQuery$valid_query
     if (nchar(user_query$string) > 0) {
@@ -350,12 +355,12 @@ server <- function(input, output, session) {
     hidden_columns <- numeric(0)
     for (name in visible_consequences) {
       coldefs <- c(coldefs, list(list(targets = match(name, visible_columns), orderData = offset + 1)))
-        hidden_columns <- c(hidden_columns, offset + 1)
-        offset <- offset + 1
+      hidden_columns <- c(hidden_columns, offset + 1)
+      offset <- offset + 1
     }
 
     if (length(hidden_columns) > 0) {
-    coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
+      coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
     }
 
     output$table <- DT::renderDataTable(

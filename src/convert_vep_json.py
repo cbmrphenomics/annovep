@@ -146,6 +146,8 @@ def _build_columns():
         "gnomAD_over_15": FloatCol("gnomAD genomes fraction with coverage over 15x"),
         "gnomAD_over_50": FloatCol("gnomAD genomes fraction with coverage over 50x"),
         "gnomAD_filter": "gnomAD genomes FILTER",
+        "gnomAD_min": FloatCol("Minimum allele frequency in gnomAD genomes"),
+        "gnomAD_max": FloatCol("Maximum allele frequency in gnomAD genomes"),
         "gnomAD_AFR_AF": FloatCol(gnomad_af.format("African/American")),
         "gnomAD_AMI_AF": FloatCol(gnomad_af.format("Amish")),
         "gnomAD_AMR_AF": FloatCol(gnomad_af.format("American")),
@@ -287,6 +289,7 @@ class Annotator:
 
             # add custom annotation
             self._add_custom_annotation(vep, copy)
+            self._add_gnomad_annotation(vep, copy)
             self._add_neighbouring_genes(vep, copy)
             self._add_liftover_annotations(vep, copy)
 
@@ -568,24 +571,6 @@ class Annotator:
         self._do_add_custom_annotation(
             src=src,
             dst=dst,
-            name="gnomAD_sites",
-            fields={
-                "AF": "gnomAD_ALL_AF",
-                "AF_afr": "gnomAD_AFR_AF",
-                "AF_ami": "gnomAD_AMI_AF",
-                "AF_amr": "gnomAD_AMR_AF",
-                "AF_asj": "gnomAD_ASJ_AF",
-                "AF_eas": "gnomAD_EAS_AF",
-                "AF_fin": "gnomAD_FIN_AF",
-                "AF_nfe": "gnomAD_NFE_AF",
-                "AF_oth": "gnomAD_OTH_AF",
-                "AF_sas": "gnomAD_SAS_AF",
-            },
-        )
-
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
             name="ClinVar",
             fields={
                 "ALLELEID": "ClinVar_ID",
@@ -602,6 +587,35 @@ class Annotator:
             },
             post=lambda it: [] if it is None else it.split("|"),
         )
+
+    def _add_gnomad_annotation(self, src, dst):
+        gnomAD_populations = {
+            "AF_afr": "gnomAD_AFR_AF",
+            "AF_ami": "gnomAD_AMI_AF",
+            "AF_amr": "gnomAD_AMR_AF",
+            "AF_asj": "gnomAD_ASJ_AF",
+            "AF_eas": "gnomAD_EAS_AF",
+            "AF_fin": "gnomAD_FIN_AF",
+            "AF_nfe": "gnomAD_NFE_AF",
+            "AF_oth": "gnomAD_OTH_AF",
+            "AF_sas": "gnomAD_SAS_AF",
+        }
+
+        self._do_add_custom_annotation(
+            src=src,
+            dst=dst,
+            name="gnomAD_sites",
+            fields=gnomAD_populations,
+        )
+
+        gnomAD_values = []
+        for key in gnomAD_populations.values():
+            value = dst.get(key)
+            if value is not None:
+                gnomAD_values.append(value)
+
+        dst["gnomAD_min"] = min(gnomAD_values, default=0)
+        dst["gnomAD_max"] = max(gnomAD_values, default=0)
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
         # Start coordinate of VEP allele
