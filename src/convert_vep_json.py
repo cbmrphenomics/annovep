@@ -763,14 +763,18 @@ class SQLOutput(Output):
 
     def process_row(self, data):
         self._n_row += 1
+        data = dict(data)
+
+        # VEP consequence terms
+        for key in CONSEQUENCE_COLUMNS:
+            value = data.get(key)
+            if value not in (".", None):
+                data[key] = self._consequence_ranks[value]
+            else:
+                data[key] = None
 
         values = [str(self._n_row)]
-        for key in self.keys:
-            value = data[key]
-            if value != "." and key in CONSEQUENCE_COLUMNS:
-                value = self._consequence_ranks[value]
-
-            values.append(self._to_string(value))
+        values.extend(self._to_string(data[key]) for key in self.keys)
 
         self._print("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
 
