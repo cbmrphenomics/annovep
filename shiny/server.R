@@ -234,7 +234,7 @@ server <- function(input, output, session) {
 
       list(chr = result$Chr, minPos = result$Start, maxPos = result$End)
     } else {
-      list(chr = input$chr, minPos = input$minPos, maxPos = maxPos())
+      list(chr = input$chr, minPos = input$minPos, maxPos = input$maxPos)
     }
   }
 
@@ -294,25 +294,10 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
   })
 
-  maxPos <- reactive({
-    if (hasValues(input$chr)) {
-      query <- sprintf("SELECT MAX(Pos) FROM [Annotations] WHERE Chr = :chr")
-      query <- build_query(input, query, params = list(chr = input$chr))
-
-      dbQueryVec(query$string, params = query$params)
-    } else {
-      1
-    }
-  })
-
-  observeEvent({
-    input$password
-    maxPos
-  }, {
-    max_value <- if (input$password == password) { maxPos() } else { 1 }
-    value <- ifelse(hasValues(input$minPos), max(1, min(max_value, input$minPos)), 1)
-
-    updateNumericInput(session, "minPos", value = value, max = max_value)
+  # Reset position when the contig is changed
+  observeEvent({ input$chr }, {
+    updateNumericInput(session, "minPos", value = 1)
+    updateNumericInput(session, "maxPos", value = numeric())
   })
 
   data <- reactive({
@@ -321,15 +306,19 @@ server <- function(input, output, session) {
     region <- select_region(input)
     # Ensure that only valid column names are used
     visible_columns <- subset(columns, columns %in% input$columns)
-    if (hasValues(region$chr, region$minPos, region$maxPos, visible_columns)) {
-      params <- list(chr = region$chr, min = region$minPos, max = region$maxPos)
+    if (hasValues(region$chr, region$minPos, visible_columns)) {
+      params <- list(chr = region$chr, min = region$minPos)
       query <- c(
-          sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse=", ")),
+          sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse = ", ")),
           "FROM   [Annotations]",
           "WHERE  Chr = :chr",
-          "  AND  Pos >= :min",
-          "  AND  Pos <= :max"
+          "  AND  Pos >= :min"
       )
+
+      if (!is.na(region$maxPos)) {
+        query <- c(query, "  AND  Pos <= :max")
+        params <- c(params, list(max = region$maxPos))
+      }
 
       query <- build_query(input, query, params)
       result <- dbQuery(query$string, params = query$params)
