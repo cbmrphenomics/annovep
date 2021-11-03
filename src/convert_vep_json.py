@@ -876,9 +876,12 @@ class SQLOutput(Output):
         if isinstance(value, (int, float)):
             return repr(value)
         elif isinstance(value, (tuple, list)):
-            value = ";".join(map(str, value)) if value else "NULL"
+            if not value:
+                return "NULL"
+
+            value = ";".join(map(str, value))
         elif value is None:
-            value = "NULL"
+            return "NULL"
         else:
             value = str(value)
 
