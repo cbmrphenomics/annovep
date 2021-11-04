@@ -4,7 +4,7 @@ requireNamespace("shiny")
 requireNamespace("DT")
 
 example_query <- paste(
-  "# SELECT variants with a MODERATE/HIGH impact and less than 10% frequency in non-Finnish Europeans",
+  "# Select variants with a MODERATE/HIGH impact and less than 10% frequency in non-Finnish Europeans:",
   "(Func_impact = 'HIGH' OR Func_impact = 'MODERATE') AND gnomAD_NFE_AF < 0.1",
   sep="\n"
 )
