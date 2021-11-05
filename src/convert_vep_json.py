@@ -746,6 +746,7 @@ class SQLOutput(Output):
         super().__init__(keys, out_prefix, ".sql")
 
         self._consequence_ranks = self._build_consequence_ranks()
+        self._contigs = set()
         self._genes = {}
         self._n_overlap = 0
         self._n_row = 0
@@ -788,6 +789,7 @@ class SQLOutput(Output):
 
     def finalize(self):
         self._print("END;")
+        self._print()
         self._print("BEGIN;")
 
         for idx, (gene, info) in enumerate(sorted(self._genes.items())):
@@ -800,11 +802,15 @@ class SQLOutput(Output):
                 self._to_string(info["MaxPos"]),
             )
 
+        self._print()
+        self._print_contig_names()
+        self._print()
         self._print("END;")
         self._handle.close()
 
     def process_row(self, data):
         self._n_row += 1
+        self._contigs.add(data["Chr"])
         data = dict(data)
 
         # VEP consequence terms
@@ -876,6 +882,21 @@ class SQLOutput(Output):
         self._print("    [End] INTEGER")
         self._print(");")
         self._print()
+
+    def _print_contig_names(self):
+        self._print("DROP TABLE IF EXISTS [Contigs];")
+        self._print("CREATE TABLE [Contigs] (")
+        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Name] TEXT")
+        self._print(");")
+        self._print()
+
+        for name, pid in enumerate(self._contigs):
+            self._print(
+                "INSERT INTO [Contigs] VALUES ({}, {});",
+                pid,
+                self._to_string(name),
+            )
 
     @staticmethod
     def _build_consequence_ranks():
