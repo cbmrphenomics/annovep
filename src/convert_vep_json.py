@@ -891,7 +891,7 @@ class SQLOutput(Output):
         self._print(");")
         self._print()
 
-        for name, pid in enumerate(self._contigs):
+        for pid, name in enumerate(self._contigs):
             self._print(
                 "INSERT INTO [Contigs] VALUES ({}, {});",
                 pid,
