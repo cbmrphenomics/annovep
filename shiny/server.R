@@ -1,5 +1,41 @@
 #!/usr/bin/env Rscript
 
+defaults <- list(
+  password = paste0(sample(c(letters, LETTERS, 0:9), 16), collapse = ""),
+  chrom = NULL,
+  gene = NULL,
+  columns = c(
+    "Chr",
+    "Pos",
+    "Ref",
+    "Alt",
+    "Freq",
+    "Ancestral_allele",
+    "Func_most_significant",
+    "Func_most_significant_canonical",
+    "Fund_gene_symbol",
+    "Func_protein_position",
+    "Func_amino_acids",
+    "dbSNP_ids",
+    "gnomAD_min",
+    "gnomAD_max"
+  )
+)
+########################################################################################
+## Initial setup
+
+# Source optional R-file with user settings and custom library calls
+load_settings <- function(settings) {
+  if (file.exists("settings.r")) {
+    source("settings.r", local = TRUE)
+  }
+
+  return(settings)
+}
+
+
+settings <- load_settings(defaults)
+
 requireNamespace("DBI")
 requireNamespace("DT")
 requireNamespace("flexo")
@@ -163,7 +199,7 @@ database <- Sys.getenv("ANNOVEP_DATABASE", "sqlite3.db")
 conn <- DBI::dbConnect(RSQLite::SQLite(), database, flags = RSQLite::SQLITE_RO)
 
 # FIXME: Better solution needed
-password <- Sys.getenv("ANNOVEP_PASSWORD", ids::uuid())
+password <- Sys.getenv("ANNOVEP_PASSWORD", settings$password)
 cat("Password is", password, end = "\n")
 
 db_query <- function(string, ...) {
@@ -179,27 +215,19 @@ columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
 consequences <- db_query("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
 genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
 
-default_columns <- c(
-  "Chr",
-  "Pos",
-  "Ref",
-  "Alt",
-  "Freq",
-  "Ancestral_allele",
-  "Func_most_significant",
-  "Func_most_significant_canonical",
-  "Fund_gene_symbol",
-  "Func_protein_position",
-  "Func_amino_acids",
-  "dbSNP_ids",
-  "gnomAD_min",
-  "gnomAD_max"
-)
-
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
 special_values[consequences$Name] <- consequences$pid
 
+
+# Fill out default values not set by the user
+if (is.null(settings$gene)) {
+  settings$gene <- genes[1]
+}
+
+if (is.null(settings$chrom)) {
+  settings$chrom <- chroms[1]
+}
 
 server <- function(input, output, session) {
   user_filter <- reactiveValues(
@@ -296,11 +324,11 @@ server <- function(input, output, session) {
     {
       if (input$password == password) {
         visible_genes <- genes
-        selected_gene <- with_default(input$gene, genes[1])
+        selected_gene <- with_default(input$gene, settings$gene)
         visible_chroms <- chroms
-        selected_chrom <- with_default(input$chr, chroms[1])
+        selected_chrom <- with_default(input$chr, settings$chrom)
         visible_columns <- columns
-        selected_columns <- with_default(input$columns, default_columns)
+        selected_columns <- with_default(input$columns, settings$columns)
       } else {
         visible_genes <- NULL
         selected_gene <- NULL
