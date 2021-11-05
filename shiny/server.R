@@ -291,7 +291,7 @@ db_query_vec <- function(string, ...) {
   return(unlist(db_query(string, ...), use.names = FALSE))
 }
 
-chroms <- db_query_vec("SELECT DISTINCT [Chr] FROM [Annotations] ORDER BY [Chr];")
+chroms <- db_query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [Name];")
 columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
 consequences <- db_query("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
 genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
