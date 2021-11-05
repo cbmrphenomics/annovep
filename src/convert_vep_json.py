@@ -805,6 +805,8 @@ class SQLOutput(Output):
         self._print()
         self._print_contig_names()
         self._print()
+        self._print("CREATE INDEX IPositions_hg38 ON Annotations (Chr, Pos);")
+        self._print("CREATE INDEX IPositions_hg19 ON Annotations (Hg19_chr, Hg19_pos);")
         self._print("END;")
         self._handle.close()
 
