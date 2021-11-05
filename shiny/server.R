@@ -58,36 +58,29 @@ error <- function(...) {
 ########################################################################################
 ## Debugging functions
 
-require <- function(check, min_len = 1, max_len = 1) {
-  error_ <- function(...) {
-    # Generate and print error message
-    err <- error(...)
-    #
-    print(rlang::trace_back(bottom = rlang::caller_env()))
-    return(err)
-  }
 
+require_value <- function(check, min_len = 1, max_len = 1) {
   assert <- function(..., optional = FALSE) {
-    expr = deparse(rlang::expr(...))
+    expr = deparse(bquote(...))
 
     if (is.null(...)) {
       if (!optional) {
-        stop(error_(expr, " is NULL"))
+        stop(error(expr, " is NULL"))
       }
     } else if (length(...) < min_len || length(...) > max_len) {
-      stop(error_(expr, " has wrong length (", length(...), ")"))
+      stop(error(expr, " has wrong length (", length(...), ")"))
     } else if (!check(...)) {
-      stop(error_(expr, " has wrong type"))
+      stop(error(expr, " has wrong type"))
     }
   }
 
   return(assert)
 }
 
-require_num <- require(is.numeric)
-require_str <- require(is.character)
-require_strs <- require(is.character, max = Inf)
-require_list <- require(is.list, max = Inf)
+require_num <- require_value(is.numeric)
+require_str <- require_value(is.character)
+require_strs <- require_value(is.character, max = Inf)
+require_list <- require_value(is.list, max = Inf)
 
 
 ########################################################################################
@@ -105,6 +98,7 @@ load_settings <- function(settings) {
   require_list(settings)
   require_str(settings$password)
   require_str(settings$gene, optional = TRUE)
+  require_str(settings$chrom, optional = TRUE)
   require_strs(settings$columns, optional = TRUE)
 
   return(settings)
