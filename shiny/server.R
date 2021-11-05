@@ -60,17 +60,17 @@ error <- function(...) {
 
 
 require_value <- function(check, min_len = 1, max_len = 1) {
-  assert <- function(..., optional = FALSE) {
+  assert <- function(name, ..., optional = FALSE) {
     expr = deparse(bquote(...))
 
     if (is.null(...)) {
       if (!optional) {
-        stop(error(expr, " is NULL"))
+        stop(error("[", name ,"] ", expr, " is NULL"))
       }
-    } else if (length(...) < min_len || length(...) > max_len) {
-      stop(error(expr, " has wrong length (", length(...), ")"))
     } else if (!check(...)) {
-      stop(error(expr, " has wrong type"))
+      stop(error("[", name ,"] ", expr, " has wrong type: ", expr))
+    } else if (length(...) < min_len || length(...) > max_len) {
+      stop(error("[", name ,"] ", expr, " has wrong length (", length(...), ")"))
     }
   }
 
@@ -95,11 +95,11 @@ load_settings <- function(settings) {
     info("No 'settings.r' file found; using default settings")
   }
 
-  require_list(settings)
-  require_str(settings$password)
-  require_str(settings$gene, optional = TRUE)
-  require_str(settings$chrom, optional = TRUE)
-  require_strs(settings$columns, optional = TRUE)
+  require_list("user settings", settings)
+  require_str("user settings", settings$password)
+  require_str("user settings", settings$gene, optional = TRUE)
+  require_str("user settings", settings$chrom, optional = TRUE)
+  require_strs("user settings", settings$columns, optional = TRUE)
 
   return(settings)
 }
@@ -137,8 +137,8 @@ with_default <- function(value, default) {
 
 
 parse_query <- function(value, symbols, special_values = list()) {
-  require_str(value)
-  require_strs(symbols)
+  require_str("parse_query", value)
+  require_strs("parse_query", symbols)
 
   # Parsing rules for simplified SQL "WHERE" conditions
   # In addition, the following terms are used
@@ -290,8 +290,8 @@ columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
 consequences <- db_query("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
 genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
 
-require_strs(chroms)
-require_strs(genes)
+require_strs("database", chroms)
+require_strs("database", genes)
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
