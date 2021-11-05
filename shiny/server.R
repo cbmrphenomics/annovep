@@ -21,14 +21,91 @@ defaults <- list(
     "gnomAD_max"
   )
 )
+
+########################################################################################
+## Logging functions
+
+if (isatty(stdout())) {
+  CLI_GREEN <- "\x1b[32m"
+  CLI_GREY <- "\x1b[1;30m"
+  CLI_RED <- "\x1b[31m"
+  CLI_END <- "\x1b[0m"
+} else {
+  CLI_GREEN <- ""
+  CLI_GREY <- ""
+  CLI_RED <- ""
+  CLI_END <- ""
+}
+
+log <- function(color, level, ...) {
+  time <- strftime(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  msg <- paste0(..., sep = "")
+
+  cat(CLI_GREEN, time, CLI_END, " ", color, level, CLI_END, " ", msg, "\n", sep = "")
+
+  return(invisible(msg))
+}
+
+info <- function(...) {
+  return(log(CLI_GREY, "INFO", ...))
+}
+
+error <- function(...) {
+  return(log(CLI_RED, "ERROR", ...))
+}
+
+
+########################################################################################
+## Debugging functions
+
+require <- function(check, min_len = 1, max_len = 1) {
+  error_ <- function(...) {
+    # Generate and print error message
+    err <- error(...)
+    #
+    print(rlang::trace_back(bottom = rlang::caller_env()))
+    return(err)
+  }
+
+  assert <- function(..., optional = FALSE) {
+    expr = deparse(rlang::expr(...))
+
+    if (is.null(...)) {
+      if (!optional) {
+        stop(error_(expr, " is NULL"))
+      }
+    } else if (length(...) < min_len || length(...) > max_len) {
+      stop(error_(expr, " has wrong length (", length(...), ")"))
+    } else if (!check(...)) {
+      stop(error_(expr, " has wrong type"))
+    }
+  }
+
+  return(assert)
+}
+
+require_num <- require(is.numeric)
+require_str <- require(is.character)
+require_strs <- require(is.character, max = Inf)
+require_list <- require(is.list, max = Inf)
+
+
 ########################################################################################
 ## Initial setup
 
 # Source optional R-file with user settings and custom library calls
 load_settings <- function(settings) {
   if (file.exists("settings.r")) {
+    info("Loading settings from 'settings.r'")
     source("settings.r", local = TRUE)
+  } else {
+    info("No 'settings.r' file found; using default settings")
   }
+
+  require_list(settings)
+  require_str(settings$password)
+  require_str(settings$gene, optional = TRUE)
+  require_strs(settings$columns, optional = TRUE)
 
   return(settings)
 }
@@ -36,6 +113,7 @@ load_settings <- function(settings) {
 
 settings <- load_settings(defaults)
 
+info("Checking for required packages")
 requireNamespace("DBI")
 requireNamespace("DT")
 requireNamespace("flexo")
@@ -65,6 +143,9 @@ with_default <- function(value, default) {
 
 
 parse_query <- function(value, symbols, special_values = list()) {
+  require_str(value)
+  require_strs(symbols)
+
   # Parsing rules for simplified SQL "WHERE" conditions
   # In addition, the following terms are used
   #   logical: symbols AND or OR
@@ -200,7 +281,7 @@ conn <- DBI::dbConnect(RSQLite::SQLite(), database, flags = RSQLite::SQLITE_RO)
 
 # FIXME: Better solution needed
 password <- Sys.getenv("ANNOVEP_PASSWORD", settings$password)
-cat("Password is", password, end = "\n")
+info("Password is ", password)
 
 db_query <- function(string, ...) {
   return(DBI::dbGetQuery(conn, string, ...))
@@ -214,6 +295,9 @@ chroms <- db_query_vec("SELECT DISTINCT [Chr] FROM [Annotations] ORDER BY [Chr];
 columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
 consequences <- db_query("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
 genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
+
+require_strs(chroms)
+require_strs(genes)
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
