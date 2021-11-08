@@ -4,6 +4,7 @@ import argparse
 import collections
 import functools
 import gzip
+import io
 import json
 import logging
 import re
@@ -14,7 +15,6 @@ from typing import Dict
 
 import coloredlogs
 import liftover
-
 
 ########################################################################################
 
@@ -939,17 +939,34 @@ OUTPUT_FORMATS = {
 }
 
 
+def open_ro(filepath):
+    handle = None
+
+    try:
+        handle = open(filepath, "rb")
+        header = handle.read(2)
+        handle.seek(0)
+
+        if header == b"\x1f\x8b":
+            handle = gzip.GzipFile(fileobj=handle)
+
+        return handle
+    except:
+        if handle is not None:
+            handle.close()
+        raise
+
+
 def read_vep_json(filepath):
-    with gzip.open(filepath, "rb") as handle:
-        nan_re = re.compile(rb":(-)?NaN\b", flags=re.I)
+    nan_re = re.compile(rb":(-)?NaN\b", flags=re.I)
 
-        for line in handle:
-            # Workaround for non-standard JSON output observed in some records, where
-            # an expected string value was -nan. Python accepts "NaN", but null seems
-            # more reasonable for downstream compatibility
-            line = nan_re.sub(b":null", line)
+    for line in open_ro(filepath):
+        # Workaround for non-standard JSON output observed in some records, where
+        # an expected string value was -nan. Python accepts "NaN", but null seems
+        # more reasonable for downstream compatibility
+        line = nan_re.sub(b":null", line)
 
-            yield json.loads(line)
+        yield json.loads(line)
 
 
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -961,10 +978,7 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
-    parser.add_argument(
-        "in_json",
-        type=Path,
-    )
+    parser.add_argument("in_json")
 
     parser.add_argument(
         "out_prefix",
@@ -1009,42 +1023,38 @@ def main(argv):
     log = logging.getLogger("convert_vep")
     log.info("reading VEP annotations from '%s'", args.in_json)
 
-    with gzip.open(args.in_json, "rb") as handle:
-        header = _build_columns()
-        annotator = Annotator(liftover_cache=args.liftover_cache)
+    header = _build_columns()
+    annotator = Annotator(liftover_cache=args.liftover_cache)
 
-        output_formats = set(args.output_format) if args.output_format else ["tsv"]
-        if args.out_prefix is None and len(output_formats) > 1:
-            log.error("[out_prefix] must be set when writing more than one format")
-            return 1
+    output_formats = set(args.output_format) if args.output_format else ["tsv"]
+    if args.out_prefix is None and len(output_formats) > 1:
+        log.error("[out_prefix] must be set when writing more than one format")
+        return 1
 
-        writers: Dict[str, Output] = {}
-        for key in output_formats:
-            cls = OUTPUT_FORMATS[key]
-            writers[key] = cls(keys=header, out_prefix=args.out_prefix)
+    writers: Dict[str, Output] = {}
+    for key in output_formats:
+        cls = OUTPUT_FORMATS[key]
+        writers[key] = cls(keys=header, out_prefix=args.out_prefix)
 
-        def _contig_key(record):
-            return record["seq_region_name"]
+    def _contig_key(record):
+        return record["seq_region_name"]
 
-        try:
-            for contig, records in groupby(
-                read_vep_json(args.in_json),
-                key=_contig_key,
-            ):
-                count = 0
-                for record in records:
-                    for row in annotator.annotate(record):
-                        for writer in writers.values():
-                            writer.process_row(row)
+    try:
+        for contig, records in groupby(read_vep_json(args.in_json), key=_contig_key):
+            count = 0
+            for record in records:
+                for row in annotator.annotate(record):
+                    for writer in writers.values():
+                        writer.process_row(row)
 
-                    count += 1
+                count += 1
 
-                log.info("Processed %i records on %r", count, contig)
+            log.info("Processed %i records on %r", count, contig)
 
-            for writer in writers.values():
-                writer.finalize()
-        except BrokenPipeError:
-            pass
+        for writer in writers.values():
+            writer.finalize()
+    except BrokenPipeError:
+        pass
 
     return 0
 
