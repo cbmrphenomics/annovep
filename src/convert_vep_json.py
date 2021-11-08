@@ -422,7 +422,11 @@ class Annotator:
 
         # One of the most significant consequences is picked "randomly"
         _, most_significant, gene_id, consequence = consequences[0]
-        _, most_significant_canonical, _, _ = consequences[0]
+
+        if canonical_consequences:
+            _, most_significant_canonical, _, _ = canonical_consequences[0]
+        else:
+            most_significant_canonical = None
 
         consequence["most_significant_canonical"] = most_significant_canonical
         consequence["most_significant"] = most_significant
