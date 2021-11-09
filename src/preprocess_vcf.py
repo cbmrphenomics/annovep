@@ -110,7 +110,7 @@ def main(argv):
             else:
                 print(chrom, rest, sep="\t", end="")
 
-            if n_records % 1_000_000 == 0:
+            if n_records % 100_000 == 0:
                 log.info("Read %s variants; at %r", "{:,}".format(n_records), chrom)
 
     def _fmt(value):
