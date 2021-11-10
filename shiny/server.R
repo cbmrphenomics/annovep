@@ -2,6 +2,7 @@
 
 defaults <- list(
   password = paste0(sample(c(letters, LETTERS, 0:9), 16), collapse = ""),
+  database = "sqlite3.db",
   chrom = NULL,
   gene = NULL,
   columns = c(
@@ -88,15 +89,16 @@ require_list <- require_value(is.list, max = Inf)
 
 # Source optional R-file with user settings and custom library calls
 load_settings <- function(settings) {
-  if (file.exists("settings.r")) {
-    info("Loading settings from 'settings.r'")
-    source("settings.r", local = TRUE)
+  if (file.exists("settings.R")) {
+    info("Loading settings from 'settings.R'")
+    source("settings.R", local = TRUE)
   } else {
-    info("No 'settings.r' file found; using default settings")
+    info("No 'settings.R' file found; using default settings")
   }
 
   require_list("user settings", settings)
   require_str("user settings", settings$password)
+  require_str("user settings", settings$database)
   require_str("user settings", settings$gene, optional = TRUE)
   require_str("user settings", settings$chrom, optional = TRUE)
   require_strs("user settings", settings$columns, optional = TRUE)
@@ -270,12 +272,7 @@ parse_query <- function(value, symbols, special_values = list()) {
 
 
 # Read-only connection to SQLite3 database
-database <- Sys.getenv("ANNOVEP_DATABASE", "sqlite3.db")
-conn <- DBI::dbConnect(RSQLite::SQLite(), database, flags = RSQLite::SQLITE_RO)
-
-# FIXME: Better solution needed
-password <- Sys.getenv("ANNOVEP_PASSWORD", settings$password)
-info("Password is ", password)
+conn <- DBI::dbConnect(RSQLite::SQLite(), settings$database, flags = RSQLite::SQLITE_RO)
 
 db_query <- function(string, ...) {
   return(DBI::dbGetQuery(conn, string, ...))
@@ -321,7 +318,7 @@ server <- function(input, output, session) {
       input$password
     },
     {
-      if (input$password == password) {
+      if (input$password == settings$password) {
         tryCatch(
           {
             query <- parse_query(input$query, symbols = columns, special_values = special_values)
@@ -345,7 +342,7 @@ server <- function(input, output, session) {
 
   # Returns the user-selected region of interest
   select_region <- function(input) {
-    shiny::validate(shiny::need(input$password == password, "Password required"))
+    shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
     if (input$select_by == "gene") {
       result <- db_query("SELECT * FROM [Genes] WHERE Name = :name ", params = list(name = input$gene))
@@ -399,7 +396,7 @@ server <- function(input, output, session) {
       input$password
     },
     {
-      if (input$password == password) {
+      if (input$password == settings$password) {
         visible_genes <- genes
         selected_gene <- with_default(input$gene, settings$gene)
         visible_chroms <- chroms
@@ -448,7 +445,7 @@ server <- function(input, output, session) {
   )
 
   data <- reactive({
-    shiny::validate(shiny::need(input$password == password, "Password required"))
+    shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
     region <- select_region(input)
     # Ensure that only valid column names are used
