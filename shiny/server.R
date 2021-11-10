@@ -385,11 +385,10 @@ server <- function(input, output, session) {
   create_sort_order <- function(table, visible_columns, column) {
     if (column %in% visible_columns) {
       column_order <- sprintf("%s_order", column)
-      order <- table[, column]
 
-      table[, column_order] <- -order
+      order <- table[, column]
+      table[, column_order] <- ifelse(is.na(order), 1, order * -1)
       table[, column] <- consequences$Name[match(order, consequences$pid)]
-      table[is.na(order), column_order] <- 1
     }
 
     return(table)
