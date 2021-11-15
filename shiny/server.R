@@ -492,7 +492,7 @@ server <- function(input, output, session) {
 
       indices <- seq_along(params_chr)
 
-      if (has_values(region$max_pos)) {
+      if (is.numeric(region$max_pos)) {
         params <- c(params_chr, params_min, params_max)
         where <- sprintf("(Chr = :chr%i AND Pos >= :min%i AND Pos <= :max%i)", indices, indices, indices) 
       } else {
