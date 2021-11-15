@@ -76,7 +76,7 @@ require_value <- function(check, min_len = 1, max_len = 1) {
         stop(error("[", context, "] ", expr, " is NULL"))
       }
     } else if (!check(...)) {
-      stop(error("[", context, "] ", expr, " has wrong type: ", expr))
+      stop(error("[", context, "] ", expr, " has wrong type: ", typeof(...)))
     } else if (length(...) < min_len || length(...) > max_len) {
       stop(error("[", context, "] ", expr, " has wrong length (", length(...), ")"))
     }
