@@ -251,7 +251,7 @@ class Annotator:
 
             copy = dict(row)
             copy["Alt"] = allele.split(",")
-            copy["Freq"] = frequencies.get(allele_idx, ".")
+            copy["Freq"] = frequencies.get(allele_idx)
 
             gt_00 = genotype_counts.get((0, 0), 0)
             gt_01 = genotype_counts.get((0, allele_idx), 0)
@@ -285,10 +285,10 @@ class Annotator:
             self._add_gene_info(consequence, copy)
             self._add_ancestral_allele(consequence, copy)
 
-            copy["Func_conservation_score"] = consequence.get("conservation", ".")
-            copy["Func_polyphen"] = consequence.get("polyphen_prediction", ".")
-            copy["Func_polyphen_score"] = consequence.get("polyphen_score", ".")
-            copy["Func_ExACpLI"] = consequence.get("exacpli", ".")
+            copy["Func_conservation_score"] = consequence.get("conservation")
+            copy["Func_polyphen"] = consequence.get("polyphen_prediction")
+            copy["Func_polyphen_score"] = consequence.get("polyphen_score")
+            copy["Func_ExACpLI"] = consequence.get("exacpli")
 
             # add custom annotation
             self._add_custom_annotation(vep, copy)
