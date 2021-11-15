@@ -4,7 +4,7 @@ defaults <- list(
   password = paste0(sample(c(letters, LETTERS, 0:9), 16), collapse = ""),
   database = "sqlite3.db",
   chrom = NULL,
-  gene = NULL,
+  genes = NULL,
   columns = c(
     "Chr",
     "Pos",
@@ -99,7 +99,7 @@ load_settings <- function(settings) {
   require_list("user settings", settings)
   require_str("user settings", settings$password)
   require_str("user settings", settings$database)
-  require_str("user settings", settings$gene, optional = TRUE)
+  require_str("user settings", settings$genes, optional = TRUE)
   require_str("user settings", settings$chrom, optional = TRUE)
   require_strs("user settings", settings$columns, optional = TRUE)
 
@@ -307,8 +307,8 @@ special_values[consequences$Name] <- consequences$pk
 
 
 # Fill out default values not set by the user
-if (is.null(settings$gene)) {
-  settings$gene <- genes[1]
+if (is.null(settings$genes)) {
+  settings$genes <- genes[1]
 }
 
 if (is.null(settings$chrom)) {
@@ -351,12 +351,12 @@ server <- function(input, output, session) {
     }
   )
 
-  # Returns the user-selected region of interest
-  select_region <- function(input) {
+  # Returns the user-selected regions of interest
+  select_regions <- function(input) {
     shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
-    if (input$select_by == "gene") {
-      result <- db_query("SELECT * FROM [Genes] WHERE Name = :name ", params = list(name = input$gene))
+    if (input$select_by == "genes") {
+      result <- db_query("SELECT * FROM [Genes] WHERE Name IN (:genes)", params = list(genes = input$genes))
 
       list(chr = result$Chr, min_pos = result$Start, max_pos = result$End)
     } else {
@@ -409,7 +409,7 @@ server <- function(input, output, session) {
     {
       if (input$password == settings$password) {
         visible_genes <- genes
-        selected_gene <- with_default(input$gene, settings$gene)
+        selected_gene <- with_default(input$genes, settings$genes)
         visible_chroms <- chroms
         selected_chrom <- with_default(input$chr, settings$chrom)
         visible_columns <- columns
@@ -432,7 +432,7 @@ server <- function(input, output, session) {
       }
 
       shiny::updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
-      shiny::updateSelectizeInput(session, "gene", selected = selected_gene, choices = visible_genes, server = TRUE)
+      shiny::updateSelectizeInput(session, "genes", selected = selected_gene, choices = visible_genes, server = TRUE)
       shiny::updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
     }
   )
@@ -472,22 +472,35 @@ server <- function(input, output, session) {
   data <- reactive({
     shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
-    region <- select_region(input)
+    region <- select_regions(input)
     # Ensure that only valid column names are used
     visible_columns <- subset(columns, columns %in% input$columns)
+
     if (has_values(region$chr, region$min_pos, visible_columns)) {
-      params <- list(chr = region$chr, min = region$min_pos)
       query <- c(
         sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse = ", ")),
-        "FROM   [Annotations]",
-        "WHERE  Chr = :chr",
-        "  AND  Pos >= :min"
+        "FROM [Annotations] WHERE"
       )
 
-      if (!is.na(region$max_pos)) {
-        query <- c(query, "  AND  Pos <= :max")
-        params <- c(params, list(max = region$max_pos))
+      params_chr <- as.list(region$chr)
+      params_min <- as.list(region$min_pos)
+      params_max <- as.list(region$max_pos)
+
+      names(params_chr) <- sprintf("chr%i", seq_along(params_chr))
+      names(params_min) <- sprintf("min%i", seq_along(params_min))
+      names(params_max) <- sprintf("max%i", seq_along(params_max))
+
+      indices <- seq_along(params_chr)
+
+      if (has_values(region$max_pos)) {
+        params <- c(params_chr, params_min, params_max)
+        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i AND Pos <= :max%i)", indices, indices, indices) 
+      } else {
+        params <- c(params_chr, params_min)
+        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i)", indices, indices) 
       }
+
+      query <- c(query, sprintf("(%s)", paste(where, collapse = " OR ")))
 
       query <- build_query(input, query, params)
       result <- db_query(query$string, params = query$params)

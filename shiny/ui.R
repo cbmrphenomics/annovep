@@ -17,11 +17,11 @@ ui <- pageWithSidebar(
     hr(),
     conditionalPanel(
       condition = "output.show_ui",
-      # View by Gene / region
-      radioButtons("select_by", "Select by:", c("Gene" = "gene", "Region" = "region"), inline = TRUE),
+      # View by Genes / region
+      radioButtons("select_by", "Select by:", c("Genes" = "genes", "Region" = "region"), inline = TRUE),
       conditionalPanel(
-        condition = "input.select_by === 'gene'",
-        selectizeInput("gene", NULL, choices = NULL, options = list(maxOptions = 10))
+        condition = "input.select_by === 'genes'",
+        selectizeInput("genes", NULL, choices = NULL, multiple = TRUE, options = list(maxOptions = 10))
       ),
       conditionalPanel(
         condition = "input.select_by === 'region'",

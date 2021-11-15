@@ -13,8 +13,8 @@ settings$password =
 ## Default chromosome to show
 # settings$chrom = NULL
 
-## Default gene
-# settings$gene = NULL
+## Default genes
+# settings$genes = NULL
 
 ## Vector of column names to show by default
 # settings$columns = c(...)
