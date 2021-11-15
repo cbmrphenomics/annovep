@@ -89,6 +89,7 @@ def _build_columns():
         "Ref": "Reference allele recorded in input VCF",
         "Alt": "The single ALT allele described by this row",
         "Alts": "The full ALT string from the input VCF",
+        "Quality": "Quality score recorded in VCF",
         "Filters": "Filters recorded in input VCF",
         "DP": IntegerCol("Sum of read depth for this position"),
         "Freq": FloatCol("Frequency of alternative allele in samples"),
@@ -204,7 +205,7 @@ def parse_vcf(line):
         # . is treated as a actual value, rather than an empty list. This is done so
         # that (limited) information can be retrieved for non-specific variants.
         "Alts": alt.split(","),
-        "Qual": None if qual == "." else float(qual),
+        "Quality": None if qual == "." else float(qual),
         "Filters": [] if filters == "." else filters.split(";"),
         "Info": [] if info == "." else info.split(";"),
         "Samples": samples,
