@@ -383,7 +383,7 @@ server <- function(input, output, session) {
       params <- c(params, user_query$params)
     }
 
-    if (input$select_by == "region") {
+    if (input$select_by == "chromosome") {
       query <- c(query, sprintf("LIMIT %i", max(1, min(10000, input$maxRows))))
     }
 

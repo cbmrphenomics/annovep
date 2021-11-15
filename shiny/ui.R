@@ -17,14 +17,14 @@ ui <- pageWithSidebar(
     hr(),
     conditionalPanel(
       condition = "output.show_ui",
-      # View by Genes / region
-      radioButtons("select_by", "Select by:", c("Genes" = "genes", "Region" = "region"), inline = TRUE),
+      # View by Genes / Chromosome
+      radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Chromosome" = "chromosome"), inline = TRUE),
       conditionalPanel(
         condition = "input.select_by === 'genes'",
         selectizeInput("genes", NULL, choices = NULL, multiple = TRUE, options = list(maxOptions = 10))
       ),
       conditionalPanel(
-        condition = "input.select_by === 'region'",
+        condition = "input.select_by === 'chromosome'",
         selectInput("chr", NULL, choices = NULL),
         numericInput("min_pos", "Start position (bp):", 1, min = 1, step = 1),
         numericInput("max_pos", "End position (bp; max 10k rows shown):", NULL, min = 1, step = 1)
