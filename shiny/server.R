@@ -290,38 +290,71 @@ parse_query <- function(value, symbols, special_values = list()) {
 }
 
 
-# Read-only connection to SQLite3 database
-conn <- DBI::dbConnect(RSQLite::SQLite(), settings$database, flags = RSQLite::SQLITE_RO)
+# Attempt to open the user-provided database
+database <- tryCatch(
+  {
+    # Read-only connection to SQLite3 database
+    conn <- DBI::dbConnect(RSQLite::SQLite(), settings$database, flags = RSQLite::SQLITE_RO)
 
-db_query <- function(string, ...) {
-  return(DBI::dbGetQuery(conn, string, ...))
-}
+    query <- function(string, ...) {
+      return(DBI::dbGetQuery(conn, string, ...))
+    }
 
-db_query_vec <- function(string, ...) {
-  return(unlist(db_query(string, ...), use.names = FALSE))
-}
+    query_vec <- function(string, ...) {
+      return(unlist(query(string, ...), use.names = FALSE))
+    }
 
-chroms <- db_query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [pk];")
-columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];")
-consequences <- db_query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];")
-genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
+    list(
+      conn = conn,
+      errors = NULL,
 
-require_strs("database", chroms)
-require_strs("database", genes)
+      query = query,
+      query_vec = query_vec,
+
+      chroms = query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [pk];"),
+      columns = query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];"),
+      consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
+      genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
+    )
+  },
+  error = function(e) {
+    error("Error opening/querying database: ", e)
+
+    list(
+      conn = NULL,
+      errors = as.character(e),
+
+      query = function(...) (stop(e)),
+      query_vec = function(...) (stop(e)),
+
+      chroms = character(),
+      columns = character(),
+      consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
+      genes = character()
+    )
+  }
+)
+
+require_strs("database", database$errors, optional = TRUE)
+require_strs("database", database$chroms)
+require_strs("database", database$columns)
+require_strs("database", database$genes)
+require_nums("database", database$consequences$pk)
+require_strs("database", database$consequences$Name)
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
-special_values[consequences$Name] <- consequences$pk
-
+special_values[database$consequences$Name] <- database$consequences$pk
 
 # Fill out default values not set by the user
 if (is.null(settings$genes)) {
-  settings$genes <- genes[1]
+  settings$genes <- database$genes[1]
 }
 
 if (is.null(settings$chrom)) {
-  settings$chrom <- chroms[1]
+  settings$chrom <- database$chroms[1]
 }
+
 
 server <- function(input, output, session) {
   user_filter <- reactiveValues(
@@ -340,7 +373,7 @@ server <- function(input, output, session) {
       if (input$password == settings$password) {
         tryCatch(
           {
-            query <- parse_query(input$query, symbols = columns, special_values = special_values)
+            query <- parse_query(input$query, symbols = database$columns, special_values = special_values)
             # Avoid spurious updates for white space changes
             if (!identical(query, user_filter$query)) {
               user_filter$query <- query
@@ -364,7 +397,7 @@ server <- function(input, output, session) {
     shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
     if (input$select_by == "genes") {
-      result <- db_query("SELECT * FROM [Genes] WHERE Name IN (:genes)", params = list(genes = input$genes))
+      result <- database$query("SELECT * FROM [Genes] WHERE Name IN (:genes)", params = list(genes = input$genes))
 
       list(chr = result$Chr, min_pos = result$Start, max_pos = result$End)
     } else {
@@ -373,7 +406,7 @@ server <- function(input, output, session) {
   }
 
   build_query <- function(input, query, params) {
-    consequence_pk <- consequences$pk[consequences$Name == input$consequence]
+    consequence_pk <- database$consequences$pk[database$consequences$Name == input$consequence]
     if (has_values(consequence_pk)) {
       query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pk))
     }
@@ -404,7 +437,7 @@ server <- function(input, output, session) {
 
       order <- table[, column]
       table[, column_order] <- ifelse(is.na(order), 1, order * -1)
-      table[, column] <- consequences$Name[match(order, consequences$pk)]
+      table[, column] <- database$consequences$Name[match(order, database$consequences$pk)]
     }
 
     return(table)
@@ -416,21 +449,21 @@ server <- function(input, output, session) {
     },
     {
       if (input$password == settings$password) {
-        visible_genes <- genes
+        visible_genes <- database$genes
         selected_gene <- with_default(input$genes, settings$genes)
-        visible_chroms <- chroms
+        visible_chroms <- database$chroms
         selected_chrom <- with_default(input$chr, settings$chrom)
-        visible_columns <- columns
+        visible_columns <- database$columns
         selected_columns <- with_default(input$columns, settings$columns)
 
         updateTextInput(session, "password", "✔️ Password accepted!")
       } else {
         visible_genes <- NULL
-        selected_gene <- NULL
+        selected_gene <- character()
         visible_chroms <- NULL
-        selected_chrom <- NULL
+        selected_chrom <- character()
         visible_columns <- NULL
-        selected_columns <- NULL
+        selected_columns <- character()
 
         if (nchar(input$password) > 0) {
           updateTextInput(session, "password", "❌ Wrong password:")
@@ -448,7 +481,7 @@ server <- function(input, output, session) {
   # This field must NOT be used for anthing but client-side decisions; no data must be
   # sent based on whether or not this is true. It is easily circumvented by the user.
   output$show_ui <- reactive({ input$password == settings$password })
-  # Required for reactive updates to take place despite there being no visible widget
+  # Required for the output value to be included despite there being no visible widget
   outputOptions(output, "show_ui", suspendWhenHidden = FALSE)
 
   # Reset position when the contig is changed or the reset button is pressed
@@ -482,7 +515,7 @@ server <- function(input, output, session) {
 
     region <- select_regions(input)
     # Ensure that only valid column names are used
-    visible_columns <- subset(columns, columns %in% input$columns)
+    visible_columns <- subset(database$columns, database$columns %in% input$columns)
 
     if (has_values(region$chr, region$min_pos, visible_columns)) {
       query <- c(
@@ -511,7 +544,7 @@ server <- function(input, output, session) {
       query <- c(query, sprintf("(%s)", paste(where, collapse = " OR ")))
 
       query <- build_query(input, query, params)
-      result <- db_query(query$string, params = query$params)
+      result <- database$query(query$string, params = query$params)
 
       result <- create_sort_order(result, visible_columns, "Func_most_significant")
       result <- create_sort_order(result, visible_columns, "Func_least_significant")
@@ -534,7 +567,7 @@ server <- function(input, output, session) {
       )
 
       # Ensure that only valid column names are used
-      visible_columns <- subset(columns, columns %in% input$columns)
+      visible_columns <- subset(database$columns, database$columns %in% input$columns)
       visible_consequences <- subset(consequence_columns, consequence_columns %in% visible_columns)
 
       coldefs <- list()
@@ -569,14 +602,27 @@ server <- function(input, output, session) {
     if (has_values(user_filter$errors)) {
       span(
         HTML("<h5 style='color: #AB0000; text-align: center;'>"),
-        user_filter$errors,
+        as.character(user_filter$errors),
         HTML("</h5>")
       )
     }
   })
 
+  # Constant since this is only for startup errors
+  output$database_errors <- reactive( { !is.null(database$errors) } )
+  # Required for the output value to be included despite there being no visible widget
+  outputOptions(output, "database_errors", suspendWhenHidden = FALSE)
+
+  output$db_errors <- renderUI({
+    span(
+      HTML("<h5 style='color: #AB0000; text-align: center;'>"),
+      as.character(database$errors),
+      HTML("</h5>")
+    )
+  })
+
   # Fill in dynamic list of consequence terms
-  shiny::updateSelectInput(session, "consequence", choices = c("Any consequence", rev(consequences$Name)))
+  shiny::updateSelectInput(session, "consequence", choices = c("Any consequence", rev(database$consequences$Name)))
 
   # Enable automatic reconnections
   session$allowReconnect("force")

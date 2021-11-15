@@ -6,7 +6,7 @@ requireNamespace("DT")
 example_query <- paste(
   "# Select variants with a MODERATE/HIGH impact and less than 10% frequency in non-Finnish Europeans:",
   "(Func_impact = 'HIGH' OR Func_impact = 'MODERATE') AND gnomAD_NFE_AF < 0.1",
-  sep="\n"
+  sep = "\n"
 )
 
 ui <- pageWithSidebar(
@@ -14,9 +14,10 @@ ui <- pageWithSidebar(
   sidebarPanel(
     # Authentication
     passwordInput("password", "Please enter password:"),
+    uiOutput("db_errors"),
     hr(),
     conditionalPanel(
-      condition = "output.show_ui",
+      condition = "output.show_ui && !output.database_errors",
       # View by Genes / Chromosome
       radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Chromosome" = "chromosome"), inline = TRUE),
       conditionalPanel(
