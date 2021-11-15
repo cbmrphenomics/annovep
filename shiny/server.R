@@ -437,6 +437,12 @@ server <- function(input, output, session) {
     }
   )
 
+  # This field must NOT be used for anthing but client-side decisions; no data must be
+  # sent based on whether or not this is true. It is easily circumvented by the user.
+  output$show_ui <- reactive({ input$password == settings$password })
+  # Required for reactive updates to take place despite there being no visible widget
+  outputOptions(output, "show_ui", suspendWhenHidden = FALSE)
+
   # Reset position when the contig is changed or the reset button is pressed
   observeEvent(
     {
