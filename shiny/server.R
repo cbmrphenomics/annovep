@@ -278,8 +278,6 @@ parse_query <- function(value, symbols, special_values = list()) {
     fail(tail(tokens, n = 1), "partial query")
   }
 
-  cat(paste0(query, collapse = ""), end="\n")
-
   return(list(string = paste0(query, collapse = ""), params = params))
 }
 
