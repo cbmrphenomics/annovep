@@ -62,17 +62,23 @@ error <- function(...) {
 
 
 require_value <- function(check, min_len = 1, max_len = 1) {
-  assert <- function(name, ..., optional = FALSE) {
+  assert <- function(context, ..., optional = FALSE) {
     expr = deparse(bquote(...))
+
+    if (!is.character(context)) {
+        stop(error("[?] context of assert is not a string: ", context))
+    } else if (length(list(...)) == 0) {
+        stop(error("[", context, "] empty expression"))
+    }
 
     if (is.null(...)) {
       if (!optional) {
-        stop(error("[", name ,"] ", expr, " is NULL"))
+        stop(error("[", context, "] ", expr, " is NULL"))
       }
     } else if (!check(...)) {
-      stop(error("[", name ,"] ", expr, " has wrong type: ", expr))
+      stop(error("[", context, "] ", expr, " has wrong type: ", expr))
     } else if (length(...) < min_len || length(...) > max_len) {
-      stop(error("[", name ,"] ", expr, " has wrong length (", length(...), ")"))
+      stop(error("[", context, "] ", expr, " has wrong length (", length(...), ")"))
     }
   }
 
@@ -81,9 +87,9 @@ require_value <- function(check, min_len = 1, max_len = 1) {
 
 require_num <- require_value(is.numeric)
 require_str <- require_value(is.character)
-require_strs <- require_value(is.character, max = Inf)
-require_list <- require_value(is.list, max = Inf)
-
+require_nums <- require_value(is.numeric, min_len = 0, max_len = Inf)
+require_strs <- require_value(is.character, min_len = 0, max_len = Inf)
+require_list <- require_value(is.list, min_len = 0, max_len = Inf)
 
 ########################################################################################
 ## Initial setup
@@ -142,6 +148,7 @@ with_default <- function(value, default) {
 parse_query <- function(value, symbols, special_values = list()) {
   require_str("parse_query", value)
   require_strs("parse_query", symbols)
+  require_list("parse_query", special_values)
 
   # Parsing rules for simplified SQL "WHERE" conditions
   # In addition, the following terms are used
