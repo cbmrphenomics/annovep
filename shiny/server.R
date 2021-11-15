@@ -12,6 +12,7 @@ defaults <- list(
     "Alt",
     "Freq",
     "Ancestral_allele",
+    "Genes_overlapping",
     "Func_most_significant",
     "Func_most_significant_canonical",
     "Fund_gene_symbol",
