@@ -44,7 +44,10 @@ ui <- pageWithSidebar(
       actionButton("btn_reset", "Reset filters"),
       hr(),
       # Visible columns
-      selectizeInput("columns", "Visible columns", choices = c(), multiple = TRUE)
+      selectizeInput("columns", "Visible columns", choices = c(), multiple = TRUE),
+      hr(),
+      # Export buttons
+      downloadButton("btn_download", "Download")
     ),
     width = 3
   ),

@@ -596,6 +596,22 @@ server <- function(input, output, session) {
     }
   )
 
+  output$btn_download <- downloadHandler(
+    filename = function() {
+      strftime(Sys.time(), "annovep_%Y%m%d_%H%M%S.tsv")
+    },
+    content = function(file) {
+      results <- data()
+
+      # Erase sort-order columns
+      results$Func_most_significant_order <- NULL
+      results$Func_least_significant_order <- NULL
+      results$Func_most_significant_canonical_order <- NULL
+
+      write.table(results, file, quote = FALSE, sep = "\t", row.names = FALSE)
+    }
+  )
+
   output$query_errors <- renderUI({
     if (has_values(user_filter$errors)) {
       span(
