@@ -4,7 +4,6 @@ import argparse
 import collections
 import functools
 import gzip
-import io
 import json
 import logging
 import re
@@ -750,7 +749,7 @@ class SQLOutput(Output):
         super().__init__(keys, out_prefix, ".sql")
 
         self._consequence_ranks = self._build_consequence_ranks()
-        self._contigs = set()
+        self._contigs = collections.defaultdict(int)
         self._genes = {}
         self._n_overlap = 0
         self._n_row = 0
@@ -816,7 +815,7 @@ class SQLOutput(Output):
 
     def process_row(self, data):
         self._n_row += 1
-        self._contigs.add(data["Chr"])
+        self._contigs[data["Chr"]] += 1
         data = dict(data)
 
         # VEP consequence terms
@@ -893,15 +892,17 @@ class SQLOutput(Output):
         self._print("DROP TABLE IF EXISTS [Contigs];")
         self._print("CREATE TABLE [Contigs] (")
         self._print("    [pid] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Name] TEXT")
+        self._print("    [Name] TEXT,")
+        self._print("    [Variants] INTEGER")
         self._print(");")
         self._print()
 
-        for pid, name in enumerate(self._contigs):
+        for pid, (name, variants) in enumerate(self._contigs.items()):
             self._print(
-                "INSERT INTO [Contigs] VALUES ({}, {});",
+                "INSERT INTO [Contigs] VALUES ({}, {}, {});",
                 pid,
                 self._to_string(name),
+                self._to_string(variants),
             )
 
     @staticmethod
