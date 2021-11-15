@@ -63,12 +63,12 @@ error <- function(...) {
 
 require_value <- function(check, min_len = 1, max_len = 1) {
   assert <- function(context, ..., optional = FALSE) {
-    expr = deparse(bquote(...))
+    expr <- deparse(bquote(...))
 
     if (!is.character(context)) {
-        stop(error("[?] context of assert is not a string: ", context))
+      stop(error("[?] context of assert is not a string: ", context))
     } else if (length(list(...)) == 0) {
-        stop(error("[", context, "] empty expression"))
+      stop(error("[", context, "] empty expression"))
     }
 
     if (is.null(...)) {
@@ -307,10 +307,8 @@ database <- tryCatch(
     list(
       conn = conn,
       errors = NULL,
-
       query = query,
       query_vec = query_vec,
-
       chroms = query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [pk];"),
       columns = query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];"),
       consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
@@ -323,10 +321,8 @@ database <- tryCatch(
     list(
       conn = NULL,
       errors = as.character(e),
-
       query = function(...) (stop(e)),
       query_vec = function(...) (stop(e)),
-
       chroms = character(),
       columns = character(),
       consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
@@ -480,7 +476,9 @@ server <- function(input, output, session) {
 
   # This field must NOT be used for anthing but client-side decisions; no data must be
   # sent based on whether or not this is true. It is easily circumvented by the user.
-  output$show_ui <- reactive({ input$password == settings$password })
+  output$show_ui <- reactive({
+    input$password == settings$password
+  })
   # Required for the output value to be included despite there being no visible widget
   outputOptions(output, "show_ui", suspendWhenHidden = FALSE)
 
@@ -535,10 +533,10 @@ server <- function(input, output, session) {
 
       if (is.numeric(region$max_pos)) {
         params <- c(params_chr, params_min, params_max)
-        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i AND Pos <= :max%i)", indices, indices, indices) 
+        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i AND Pos <= :max%i)", indices, indices, indices)
       } else {
         params <- c(params_chr, params_min)
-        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i)", indices, indices) 
+        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i)", indices, indices)
       }
 
       query <- c(query, sprintf("(%s)", paste(where, collapse = " OR ")))
@@ -609,7 +607,9 @@ server <- function(input, output, session) {
   })
 
   # Constant since this is only for startup errors
-  output$database_errors <- reactive( { !is.null(database$errors) } )
+  output$database_errors <- reactive({
+    !is.null(database$errors)
+  })
   # Required for the output value to be included despite there being no visible widget
   outputOptions(output, "database_errors", suspendWhenHidden = FALSE)
 
