@@ -5,16 +5,16 @@
 # library(flexo, lib="/path/to/R/")
 
 ## Password required to view page
-settings$password = 
+# settings$password <- "..."
 
 ## Filename of sqlite3 database
-# settings$database = "sqlite3.db"
+# settings$database <- "sqlite3.db"
 
 ## Default chromosome to show
-# settings$chrom = NULL
+# settings$chrom <- NULL
 
 ## Default genes
-# settings$genes = NULL
+# settings$genes <- NULL
 
 ## Vector of column names to show by default
-# settings$columns = c(...)
+# settings$columns <- c(...)
