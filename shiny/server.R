@@ -156,6 +156,7 @@ parse_query <- function(value, symbols, special_values = list()) {
     rbracket = "\\)",
     whitespace = "\\s+"
   )
+  symbols <- c("NULL", symbols)
   symbols_lc <- tolower(symbols)
   tokens <- flexo::lex(value, rules)
   names <- names(tokens)
@@ -194,6 +195,11 @@ parse_query <- function(value, symbols, special_values = list()) {
       if (name == "lbracket") {
         open_brackets <- open_brackets + 1
         query <- c(query, "(")
+      } else if (name == "symbol" && toupper(token) == "NOT" && is_state("logical")) {
+        # NOT is treated as a continuation of the current logical operatorq
+        name <- "logical"
+
+        query <- c(query, " NOT ")
       } else if (name == "string" || name == "symbol") {
         if (name == "string") {
           # Remove quotes and promote to symbol
@@ -209,23 +215,25 @@ parse_query <- function(value, symbols, special_values = list()) {
         fail(token, "expected brackets or a column name")
       }
     } else if (is_state("symbol")) {
-      if (name == "symbol" && toupper(token) == "LIKE") {
+      if (name == "symbol" && toupper(token) %in% c("LIKE", "IS")) {
         name <- "operator"
-        token <- "LIKE"
+        token <- toupper(token)
       }
 
       check(name == "operator", token, "expected operator")
       query <- c(query, " ", token, " ")
     } else if (is_state("operator")) {
-      if (name == "string" || name == "symbol" || name == "number") {
+      if (name == "symbol") {
+        index <- match(tolower(token), symbols_lc)
+        check(!is.na(index), token, "not a valid name")
+
+        query <- c(query, symbols[index])
+      } else if (name == "string" || name == "number") {
         if (name == "string") {
           token <- substr(token, 2, nchar(token) - 1)
         } else if (name == "number") {
           token <- as.numeric(token)
         }
-
-        # Downgrade everything to "value" to simplify logic
-        name <- "value"
 
         # Some values may be strings mapped onto numbers, etc.
         value <- with_default(special_values[[tolower(token)]], token)
@@ -236,6 +244,9 @@ parse_query <- function(value, symbols, special_values = list()) {
       } else {
         fail(token, "expected value after operator")
       }
+
+      # Downgrade everything to "value" to simplify logic
+      name <- "value"
     } else if (is_state("value", "rbracket")) {
       if (name == "symbol") {
         symbol <- toupper(token)
@@ -266,6 +277,8 @@ parse_query <- function(value, symbols, special_values = list()) {
   } else if (!is_state("rbracket", "value")) {
     fail(tail(tokens, n = 1), "partial query")
   }
+
+  cat(paste0(query, collapse = ""), end="\n")
 
   return(list(string = paste0(query, collapse = ""), params = params))
 }
