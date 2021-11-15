@@ -282,9 +282,9 @@ db_query_vec <- function(string, ...) {
   return(unlist(db_query(string, ...), use.names = FALSE))
 }
 
-chroms <- db_query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [pid];")
-columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pid];")
-consequences <- db_query("SELECT [pid], [Name] FROM [Consequences] ORDER BY [pid];")
+chroms <- db_query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [pk];")
+columns <- db_query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];")
+consequences <- db_query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];")
 genes <- db_query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
 
 require_strs("database", chroms)
@@ -292,7 +292,7 @@ require_strs("database", genes)
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
-special_values[consequences$Name] <- consequences$pid
+special_values[consequences$Name] <- consequences$pk
 
 
 # Fill out default values not set by the user
@@ -354,9 +354,9 @@ server <- function(input, output, session) {
   }
 
   build_query <- function(input, query, params) {
-    consequence_pid <- consequences$pid[consequences$Name == input$consequence]
-    if (has_values(consequence_pid)) {
-      query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pid))
+    consequence_pk <- consequences$pk[consequences$Name == input$consequence]
+    if (has_values(consequence_pk)) {
+      query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pk))
     }
 
     if (input$require_pass) {
@@ -385,7 +385,7 @@ server <- function(input, output, session) {
 
       order <- table[, column]
       table[, column_order] <- ifelse(is.na(order), 1, order * -1)
-      table[, column] <- consequences$Name[match(order, consequences$pid)]
+      table[, column] <- consequences$Name[match(order, consequences$pk)]
     }
 
     return(table)

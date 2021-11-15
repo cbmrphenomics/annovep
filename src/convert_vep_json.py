@@ -774,11 +774,11 @@ class SQLOutput(Output):
         self._print()
 
         self._print("CREATE TABLE [Annotations] (")
-        self._print("    [pid] INTEGER PRIMARY KEY ASC", end="")
+        self._print("    [pk] INTEGER PRIMARY KEY ASC", end="")
         for key, description in self.keys.items():
             datatype = "TEXT"
             if key in CONSEQUENCE_COLUMNS:
-                datatype = "INTEGER REFERENCES [Consequenes]([pid])"
+                datatype = "INTEGER REFERENCES [Consequenes]([pk])"
             if isinstance(description, IntegerCol):
                 datatype = "INTEGER"
             elif isinstance(description, FloatCol):
@@ -849,16 +849,16 @@ class SQLOutput(Output):
     def _print_descriptions(self):
         self._print("DROP TABLE IF EXISTS [Columns];")
         self._print("CREATE TABLE [Columns] (")
-        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
         self._print("    [Name] TEXT,")
         self._print("    [Description] TEXT")
         self._print(");")
         self._print()
 
-        for pid, (key, description) in enumerate(self.keys.items()):
+        for pk, (key, description) in enumerate(self.keys.items()):
             self._print(
                 "INSERT INTO [Columns] VALUES ({}, {}, {});",
-                pid,
+                pk,
                 self._to_string(key),
                 self._to_string(description),
             )
@@ -866,22 +866,22 @@ class SQLOutput(Output):
     def _print_consequence_terms(self):
         self._print("DROP TABLE IF EXISTS [Consequences];")
         self._print("CREATE TABLE [Consequences] (")
-        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
         self._print("    [Name] TEXT")
         self._print(");")
         self._print()
 
-        for name, pid in self._consequence_ranks.items():
+        for name, pk in self._consequence_ranks.items():
             self._print(
                 "INSERT INTO [Consequences] VALUES ({}, {});",
-                pid,
+                pk,
                 self._to_string(name),
             )
 
     def _print_gene_tables(self):
         self._print("DROP TABLE IF EXISTS [Genes];")
         self._print("CREATE TABLE [Genes] (")
-        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
         self._print("    [Name] TEXT,")
         self._print("    [Chr] TEXT,")
         self._print("    [Start] INTEGER,")
@@ -892,16 +892,16 @@ class SQLOutput(Output):
     def _print_contig_names(self):
         self._print("DROP TABLE IF EXISTS [Contigs];")
         self._print("CREATE TABLE [Contigs] (")
-        self._print("    [pid] INTEGER PRIMARY KEY ASC,")
+        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
         self._print("    [Name] TEXT,")
         self._print("    [Variants] INTEGER")
         self._print(");")
         self._print()
 
-        for pid, (name, variants) in enumerate(self._contigs.items()):
+        for pk, (name, variants) in enumerate(self._contigs.items()):
             self._print(
                 "INSERT INTO [Contigs] VALUES ({}, {}, {});",
-                pid,
+                pk,
                 self._to_string(name),
                 self._to_string(variants),
             )
