@@ -416,6 +416,8 @@ server <- function(input, output, session) {
         selected_chrom <- with_default(input$chr, settings$chrom)
         visible_columns <- columns
         selected_columns <- with_default(input$columns, settings$columns)
+
+        updateTextInput(session, "password", "✔️ Password accepted!")
       } else {
         visible_genes <- NULL
         selected_gene <- NULL
@@ -423,6 +425,12 @@ server <- function(input, output, session) {
         selected_chrom <- NULL
         visible_columns <- NULL
         selected_columns <- NULL
+
+        if (nchar(input$password) > 0) {
+          updateTextInput(session, "password", "❌ Wrong password:")
+        } else {
+          updateTextInput(session, "password", "Please enter password:")
+        }
       }
 
       shiny::updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)

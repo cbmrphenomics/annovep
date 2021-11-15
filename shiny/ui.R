@@ -13,7 +13,7 @@ ui <- pageWithSidebar(
   headerPanel("AnnoVEP"),
   sidebarPanel(
     # Authentication
-    passwordInput("password", "Password"),
+    passwordInput("password", "Please enter password:"),
     hr(),
     # View by Gene / region
     radioButtons("select_by", "Select by:", c("Gene" = "gene", "Region" = "region"), inline = TRUE),
