@@ -33,7 +33,10 @@ ui <- pageWithSidebar(
       hr(),
       # Filters
       checkboxInput("require_pass", "Variants must PASS quality filtering", value = TRUE),
-      selectInput("consequence", "This consequence or worse", choices = c("Any consequence")),
+      selectInput("consequence",
+        HTML("This consequence or worse (<a target='_blank' href='https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html'>definitions</a>)"),
+        choices = c("Any consequence")
+      ),
       numericInput("min_maf", "Minimum MAF (gnomAD):", 0, min = 0, max = 1, step = 0.00001),
       numericInput("max_maf", "Maximum MAF (gnomAD):", 1, min = 0, max = 1, step = 0.00001),
       textAreaInput("query", "Filters", value = "", placeholder = example_query, rows = 3),
