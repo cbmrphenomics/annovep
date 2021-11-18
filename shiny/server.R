@@ -571,11 +571,11 @@ server <- function(input, output, session) {
         updateTextInput(session, "password", "✔️ Password accepted!")
       } else {
         visible_genes <- NULL
-        selected_gene <- character()
+        selected_gene <- NULL
         visible_chroms <- NULL
-        selected_chrom <- character()
+        selected_chrom <- NULL
         visible_columns <- NULL
-        selected_columns <- character()
+        selected_columns <- NULL
 
         if (nchar(input$password) > 0) {
           updateTextInput(session, "password", "❌ Wrong password:")
