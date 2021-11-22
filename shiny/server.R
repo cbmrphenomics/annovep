@@ -590,6 +590,8 @@ server <- function(input, output, session) {
       input$build
     },
     {
+      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
       visible_chroms <- if (hg_build(input) == "hg19") {
         database$chroms_hg19
       } else {
@@ -640,10 +642,10 @@ server <- function(input, output, session) {
       input$btn_view_all
     },
     {
-      if (input$password == settings$password) {
-        visible_columns <- c("Chr", "Pos", database$columns)
-        shiny::updateSelectizeInput(session, "columns", selected = visible_columns, choices = visible_columns)
-      }
+      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+      visible_columns <- c("Chr", "Pos", database$columns)
+      shiny::updateSelectizeInput(session, "columns", selected = visible_columns, choices = visible_columns)
     }
   )
 
@@ -653,10 +655,10 @@ server <- function(input, output, session) {
       input$btn_view_std
     },
     {
-      if (input$password == settings$password) {
-        visible_columns <- c("Chr", "Pos", database$columns)
-        shiny::updateSelectizeInput(session, "columns", selected = settings$columns, choices = visible_columns)
-      }
+      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+      visible_columns <- c("Chr", "Pos", database$columns)
+      shiny::updateSelectizeInput(session, "columns", selected = settings$columns, choices = visible_columns)
     }
   )
 
