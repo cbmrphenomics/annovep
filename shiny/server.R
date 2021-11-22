@@ -317,6 +317,7 @@ database <- tryCatch(
       chroms_hg19 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg19' ORDER BY [pk];"),
       chroms_hg38 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg38' ORDER BY [pk];"),
       columns = query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];"),
+      columns_info = query("SELECT [Name], [Description] FROM [Columns] ORDER BY [pk];"),
       consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
       genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
     )
@@ -331,6 +332,7 @@ database <- tryCatch(
       query_vec = function(...) (stop(e)),
       chroms = character(),
       columns = character(),
+      columns_info = data.frame(Name = character(), Description = character(), stringsAsFactors = FALSE),
       consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
       genes = character()
     )
@@ -341,6 +343,8 @@ require_strs("database", database$errors, optional = TRUE)
 require_strs("database", database$chroms_hg19)
 require_strs("database", database$chroms_hg38)
 require_strs("database", database$columns)
+require_strs("database", database$columns_info$Name)
+require_strs("database", database$columns_info$Description)
 require_strs("database", database$genes)
 require_nums("database", database$consequences$pk)
 require_strs("database", database$consequences$Name)
@@ -726,6 +730,36 @@ server <- function(input, output, session) {
       )
     }
   )
+
+  observeEvent(
+    {
+      input$password
+      input$columns
+    },
+    {
+      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+      names <- c("Chr", "Pos", database$columns_info$Name)
+      descs <- c("Chromosome in the selected build", "Position in the selected build", database$columns_info$Description)
+
+      info <- data.frame(
+        Enabled = ifelse(names %in% input$columns, "✓", ""),
+        Name = names,
+        Description = descs
+      )
+
+      output$columns <- DT::renderDataTable(
+        info,
+        selection = "single",
+        options = list(
+          scrollX = TRUE,
+          scrollY = "80vh",
+          paging = FALSE
+        )
+      )
+    }
+  )
+
 
   output$btn_download <- downloadHandler(
     filename = function() {

@@ -55,7 +55,11 @@ ui <- pageWithSidebar(
     width = 3
   ),
   mainPanel(
-    DT::dataTableOutput("table"),
+    tabsetPanel(
+      id = "tabs",
+      tabPanel("Variants", DT::dataTableOutput("table"), value = "tab_var"),
+      tabPanel("Columns", DT::dataTableOutput("columns"), value = "tab_col")
+    ),
     width = 9
   )
 )
