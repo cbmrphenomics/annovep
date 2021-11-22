@@ -42,13 +42,15 @@ ui <- pageWithSidebar(
       numericInput("max_maf", "Maximum MAF (gnomAD):", 1, min = 0, max = 1, step = 0.00001),
       textAreaInput("query", "Filters", value = "", placeholder = example_query, rows = 3),
       uiOutput("query_errors"),
-      actionButton("btn_reset", "Reset filters"),
       hr(),
       # Visible columns
       selectizeInput("columns", "Visible columns", choices = c(), multiple = TRUE),
       hr(),
       # Export buttons
-      downloadButton("btn_download", "Download")
+      downloadButton("btn_download", "Download"),
+      actionButton("btn_reset", "Reset filters", icon = icon("redo-alt")),
+      actionButton("btn_view_all", "All columns", icon = icon("eye")),
+      actionButton("btn_view_std", "Reset columns", icon = icon("eye-slash"))
     ),
     width = 3
   ),

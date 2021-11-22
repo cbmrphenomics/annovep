@@ -634,6 +634,32 @@ server <- function(input, output, session) {
     }
   )
 
+  # Set visible columns on request
+  observeEvent(
+    {
+      input$btn_view_all
+    },
+    {
+      if (input$password == settings$password) {
+        visible_columns <- c("Chr", "Pos", database$columns)
+        shiny::updateSelectizeInput(session, "columns", selected = visible_columns, choices = visible_columns)
+      }
+    }
+  )
+
+  # Reset visible columns on request
+  observeEvent(
+    {
+      input$btn_view_std
+    },
+    {
+      if (input$password == settings$password) {
+        visible_columns <- c("Chr", "Pos", database$columns)
+        shiny::updateSelectizeInput(session, "columns", selected = settings$columns, choices = visible_columns)
+      }
+    }
+  )
+
   data <- reactive({
     shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
