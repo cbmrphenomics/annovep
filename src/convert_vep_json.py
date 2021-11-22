@@ -746,11 +746,20 @@ class TSVOutput(Output):
 
 
 class SQLOutput(Output):
+    # Columns that are renamed for the DB/shiny interface
+    COLUMN_MAPPING = {
+        "Chr": "Hg38_chr",
+        "Pos": "Hg38_pos",
+    }
+
     def __init__(self, keys, out_prefix):
         super().__init__(keys, out_prefix, ".sql")
 
         self._consequence_ranks = self._build_consequence_ranks()
-        self._contigs = collections.defaultdict(int)
+        self._contigs = {
+            "hg19": collections.defaultdict(int),
+            "hg38": collections.defaultdict(int),
+        }
         self._genes = {}
         self._n_overlap = 0
         self._n_row = 0
@@ -779,6 +788,10 @@ class SQLOutput(Output):
             datatype = "TEXT"
             if key in CONSEQUENCE_COLUMNS:
                 datatype = "INTEGER REFERENCES [Consequenes]([pk])"
+
+            # Rename columns for SQL output only
+            key = self.COLUMN_MAPPING.get(key, key)
+
             if isinstance(description, IntegerCol):
                 datatype = "INTEGER"
             elif isinstance(description, FloatCol):
@@ -809,14 +822,16 @@ class SQLOutput(Output):
         self._print()
         self._print_contig_names()
         self._print()
-        self._print("CREATE INDEX IPositions_hg38 ON Annotations (Chr, Pos);")
+        self._print("CREATE INDEX IPositions_hg38 ON Annotations (Hg38_chr, Hg38_pos);")
         self._print("CREATE INDEX IPositions_hg19 ON Annotations (Hg19_chr, Hg19_pos);")
         self._print("END;")
         self._handle.close()
 
     def process_row(self, data):
         self._n_row += 1
-        self._contigs[data["Chr"]] += 1
+        self._contigs["hg38"][data["Chr"]] += 1
+        self._contigs["hg19"][data["Hg19_chr"]] += 1
+
         data = dict(data)
 
         # VEP consequence terms
@@ -856,6 +871,9 @@ class SQLOutput(Output):
         self._print()
 
         for pk, (key, description) in enumerate(self.keys.items()):
+            # Rename columns for SQL output only
+            key = self.COLUMN_MAPPING.get(key, key)
+
             self._print(
                 "INSERT INTO [Columns] VALUES ({}, {}, {});",
                 pk,
@@ -883,9 +901,9 @@ class SQLOutput(Output):
         self._print("CREATE TABLE [Genes] (")
         self._print("    [pk] INTEGER PRIMARY KEY ASC,")
         self._print("    [Name] TEXT,")
-        self._print("    [Chr] TEXT,")
-        self._print("    [Start] INTEGER,")
-        self._print("    [End] INTEGER")
+        self._print("    [Hg38_chr] TEXT,")
+        self._print("    [Hg38_start] INTEGER,")
+        self._print("    [Hg38_end] INTEGER")
         self._print(");")
         self._print()
 
@@ -893,15 +911,30 @@ class SQLOutput(Output):
         self._print("DROP TABLE IF EXISTS [Contigs];")
         self._print("CREATE TABLE [Contigs] (")
         self._print("    [pk] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Build] TEXT,")
         self._print("    [Name] TEXT,")
         self._print("    [Variants] INTEGER")
         self._print(");")
         self._print()
 
-        for pk, (name, variants) in enumerate(self._contigs.items()):
+        contigs = []
+        overlap = self._contigs["hg19"].keys() & self._contigs["hg38"].keys()
+
+        # Collect hg38 contigs. These should be in the proper order
+        for name, variants in self._contigs["hg38"].items():
+            contigs.append(("hg38", name, variants))
+            if name in overlap:
+                contigs.append(("hg19", name, variants))
+
+        # Collect hg19 only contigs; unmapped variants are ignored
+        for name in sorted(self._contigs["hg19"].keys() - overlap - set([None])):
+            contigs.append(("hg19", name, self._contigs["hg19"][name]))
+
+        for primary_key, (build, name, variants) in enumerate(contigs):
             self._print(
-                "INSERT INTO [Contigs] VALUES ({}, {}, {});",
-                pk,
+                "INSERT INTO [Contigs] VALUES ({}, {}, {}, {});",
+                primary_key,
+                self._to_string(build),
                 self._to_string(name),
                 self._to_string(variants),
             )

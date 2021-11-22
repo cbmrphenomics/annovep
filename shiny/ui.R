@@ -19,6 +19,7 @@ ui <- pageWithSidebar(
     conditionalPanel(
       condition = "output.show_ui && !output.database_errors",
       # View by Genes / Chromosome
+      radioButtons("build", "Build:", c("Hg38" = "hg38", "Hg19 (liftover)" = "hg19"), inline = TRUE),
       radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Chromosome" = "chromosome"), inline = TRUE),
       conditionalPanel(
         condition = "input.select_by === 'genes'",

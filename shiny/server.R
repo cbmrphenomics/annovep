@@ -3,6 +3,7 @@
 defaults <- list(
   password = paste0(sample(c(letters, LETTERS, 0:9), 16), collapse = ""),
   database = "sqlite3.db",
+  build = "hg38",
   chrom = NULL,
   genes = NULL,
   columns = c(
@@ -107,6 +108,7 @@ load_settings <- function(settings) {
   require_str("user settings", settings$password)
   require_str("user settings", settings$database)
   require_str("user settings", settings$genes, optional = TRUE)
+  require_str("user settings", settings$build, optional = TRUE)
   require_str("user settings", settings$chrom, optional = TRUE)
   require_strs("user settings", settings$columns, optional = TRUE)
 
@@ -145,9 +147,10 @@ with_default <- function(value, default) {
 }
 
 
-parse_query <- function(value, symbols, special_values = list()) {
+parse_query <- function(value, symbols, special_symbols = list(), special_values = list()) {
   require_str("parse_query", value)
   require_strs("parse_query", symbols)
+  require_list("parse_query", special_symbols)
   require_list("parse_query", special_values)
 
   # Parsing rules for simplified SQL "WHERE" conditions
@@ -215,7 +218,9 @@ parse_query <- function(value, symbols, special_values = list()) {
           name <- "symbol"
         }
 
-        index <- match(tolower(token), symbols_lc)
+        # Some values may be strings mapped onto numbers, etc.
+        value <- with_default(special_symbols[[tolower(token)]], token)
+        index <- match(tolower(value), symbols_lc)
         check(!is.na(index), token, "not a valid column name")
 
         query <- c(query, symbols[index])
@@ -309,7 +314,8 @@ database <- tryCatch(
       errors = NULL,
       query = query,
       query_vec = query_vec,
-      chroms = query_vec("SELECT DISTINCT [Name] FROM [Contigs] ORDER BY [pk];"),
+      chroms_hg19 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg19' ORDER BY [pk];"),
+      chroms_hg38 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg38' ORDER BY [pk];"),
       columns = query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];"),
       consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
       genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
@@ -332,7 +338,8 @@ database <- tryCatch(
 )
 
 require_strs("database", database$errors, optional = TRUE)
-require_strs("database", database$chroms)
+require_strs("database", database$chroms_hg19)
+require_strs("database", database$chroms_hg38)
 require_strs("database", database$columns)
 require_strs("database", database$genes)
 require_nums("database", database$consequences$pk)
@@ -347,10 +354,18 @@ if (is.null(settings$genes)) {
   settings$genes <- database$genes[1]
 }
 
-if (is.null(settings$chrom)) {
-  settings$chrom <- database$chroms[1]
+if (is.null(settings$build)) {
+  settings$build <- "hg38"
 }
 
+
+if (is.null(settings$chrom)) {
+  if (settings$build == "hg19") {
+    settings$chrom <- database$chroms_hg19[1]
+  } else {
+    settings$chrom <- database$chroms_hg38[1]
+  }
+}
 
 server <- function(input, output, session) {
   user_filter <- reactiveValues(
@@ -360,16 +375,40 @@ server <- function(input, output, session) {
     errors = NULL
   )
 
+  # `input$build` is used in queries, so for safety the user value is not used directly
+  hg_build <- function(input) {
+    if (is.null(input$build) || input$build != "hg19") {
+      return("hg38")
+    } else {
+      return("hg19")
+    }
+  }
+
   observeEvent(
     {
       input$query
       input$password
+      input$build
     },
     {
       if (input$password == settings$password) {
+        # Allow user queries using Chr/Pos instead of Hg38_pos/Hg38_chr
+        if (hg_build(input) == "hg38") {
+          special_symbols <- list("chr" = "hg38_chr", "pos" = "hg38_pos")
+        } else {
+          special_symbols <- list("chr" = "hg19_chr", "pos" = "hg19_pos")
+        }
+
         tryCatch(
           {
-            query <- parse_query(input$query, symbols = database$columns, special_values = special_values)
+            # Parse user-query
+            query <- parse_query(
+              input$query,
+              symbols = database$columns,
+              special_symbols = special_symbols,
+              special_values = special_values
+            )
+
             # Avoid spurious updates for white space changes
             if (!identical(query, user_filter$query)) {
               user_filter$query <- query
@@ -395,36 +434,104 @@ server <- function(input, output, session) {
     if (input$select_by == "genes") {
       result <- database$query("SELECT * FROM [Genes] WHERE Name IN (:genes)", params = list(genes = input$genes))
 
-      list(chr = result$Chr, min_pos = result$Start, max_pos = result$End)
+      # For simplicity regions are always given in terms of hg38
+      list(chr = result$Hg38_chr, min_pos = result$Hg38_start, max_pos = result$Hg38_end)
     } else {
       list(chr = input$chr, min_pos = input$min_pos, max_pos = input$max_pos)
     }
   }
 
-  build_query <- function(input, query, params) {
+  build_query <- function(input, region, params, columns) {
+    build <- hg_build(input)
+    col_chr <- sprintf("%s_chr", build)
+    col_pos <- sprintf("%s_pos", build)
+
+    ####################################################################################
+    # SELECT
+    query <- "SELECT "
+
+    # Chr is a column created on demand based on the user-selected pick
+    if ("Chr" %in% input$columns) {
+      query <- c(query, sprintf("[%s] AS [Chr], ", col_chr))
+    }
+
+    # Pos is a column created on demand based on the user-selected pick
+    if ("Pos" %in% input$columns) {
+      query <- c(query, sprintf("[%s] AS [Pos], ", col_pos))
+    }
+
+    # Chr and Pos do not correspond to actual columns (see above) and have to be removed
+    db_columns <- subset(columns, !(columns %in% c("Chr", "Pos")))
+    query <- c(query, paste(sprintf("[%s]", db_columns), collapse = ", "))
+
+    ####################################################################################
+    # FROM
+    query <- c(query, "FROM [Annotations]")
+
+    ####################################################################################
+    # WHERE
+
+    # Select rows in regions of interest (one for contigs, one or more for genes)
+    params_chr <- as.list(region$chr)
+    params_min <- as.list(region$min_pos)
+    params_max <- as.list(region$max_pos)
+
+    names(params_chr) <- sprintf("chr%i", seq_along(params_chr))
+    names(params_min) <- sprintf("min%i", seq_along(params_min))
+    names(params_max) <- sprintf("max%i", seq_along(params_max))
+
+    if (is.numeric(region$max_pos)) {
+      params <- c(params_chr, params_min, params_max)
+      where <- sprintf("(%s = :%s AND %s >= :%s AND %s <= :%s)", col_chr, names(params_chr), col_pos, names(params_min), col_pos, names(params_max))
+    } else {
+      params <- c(params_chr, params_min)
+      where <- sprintf("(%s = :%s AND %s >= :%s)", col_chr, names(params_chr), col_pos, names(params_min))
+    }
+
+    where <- sprintf("(%s)", paste(where, collapse = " OR "))
+
+    # Exclude rows that do not have positions on the selected build
+    where <- c(where, sprintf("AND %s IS NOT NULL", col_chr))
+
+    # Map consequence term onto numerical ID
     consequence_pk <- database$consequences$pk[database$consequences$Name == input$consequence]
     if (has_values(consequence_pk)) {
-      query <- c(query, sprintf("  AND Func_most_significant >= %i", consequence_pk))
+      where <- c(where, sprintf("  AND Func_most_significant >= %i", consequence_pk))
     }
 
+    # Whether or not the variant passed QC filters
     if (input$require_pass) {
-      query <- c(query, "  AND Filters = 'PASS'")
+      where <- c(where, "  AND Filters = 'PASS'")
     }
 
-    query <- c(query, "  AND gnomAD_min >= :gmin AND gnomAD_max <= :gmax")
+    # gnomAD min/max minor allele frequencies
+    where <- c(where, "  AND gnomAD_min >= :gmin AND gnomAD_max <= :gmax")
     params <- c(params, list(gmin = input$min_maf, gmax = input$max_maf))
 
+    # Optional user-provided filter
     user_query <- user_filter$query
     if (nchar(user_query$string) > 0) {
-      query <- c(query, paste("AND", user_query$string, sep = " "))
+      where <- c(where, paste("AND", user_query$string, sep = " "))
       params <- c(params, user_query$params)
     }
 
+    query <- c(query, "WHERE", where)
+
+    ####################################################################################
+    # ORDER BY
+    query <- c(query, sprintf("ORDER BY %s, %s", col_chr, col_pos))
+
+    ####################################################################################
+    # LIMIT
     if (input$select_by == "chromosome") {
       query <- c(query, sprintf("LIMIT %i", max(1, min(10000, input$maxRows))))
     }
 
-    return(list(string = paste(c(query, ";"), collapse = "\n"), params = params))
+    return(list(
+      string = paste(c(query, ";"), collapse = "\n"),
+      params = params,
+      columns = columns
+    ))
   }
 
   create_sort_order <- function(table, visible_columns, column) {
@@ -447,9 +554,9 @@ server <- function(input, output, session) {
       if (input$password == settings$password) {
         visible_genes <- database$genes
         selected_gene <- with_default(input$genes, settings$genes)
-        visible_chroms <- database$chroms
+        visible_chroms <- database$chroms_hg38
         selected_chrom <- with_default(input$chr, settings$chrom)
-        visible_columns <- database$columns
+        visible_columns <- c("Chr", "Pos", database$columns)
         selected_columns <- with_default(input$columns, settings$columns)
 
         updateTextInput(session, "password", "✔️ Password accepted!")
@@ -468,9 +575,26 @@ server <- function(input, output, session) {
         }
       }
 
+      shiny::updateRadioButtons(session, "build", selected = settings$build)
       shiny::updateSelectInput(session, "chr", selected = selected_chrom, choices = visible_chroms)
       shiny::updateSelectizeInput(session, "genes", selected = selected_gene, choices = visible_genes, server = TRUE)
       shiny::updateSelectizeInput(session, "columns", selected = selected_columns, choices = visible_columns)
+    }
+  )
+
+  # Update list of visible chromosomes when the user changes build
+  observeEvent(
+    {
+      input$build
+    },
+    {
+      visible_chroms <- if (hg_build(input) == "hg19") {
+        database$chroms_hg19
+      } else {
+        database$chroms_hg38
+      }
+
+      shiny::updateSelectInput(session, "chr", choices = visible_chroms)
     }
   )
 
@@ -513,40 +637,16 @@ server <- function(input, output, session) {
 
     region <- select_regions(input)
     # Ensure that only valid column names are used
-    visible_columns <- subset(database$columns, database$columns %in% input$columns)
+    valid_columns <- c("Chr", "Pos", database$columns)
+    visible_columns <- subset(valid_columns, valid_columns %in% input$columns)
 
     if (has_values(region$chr, region$min_pos, visible_columns)) {
-      query <- c(
-        sprintf("SELECT %s", paste(sprintf("[%s]", visible_columns), collapse = ", ")),
-        "FROM [Annotations] WHERE"
-      )
-
-      params_chr <- as.list(region$chr)
-      params_min <- as.list(region$min_pos)
-      params_max <- as.list(region$max_pos)
-
-      names(params_chr) <- sprintf("chr%i", seq_along(params_chr))
-      names(params_min) <- sprintf("min%i", seq_along(params_min))
-      names(params_max) <- sprintf("max%i", seq_along(params_max))
-
-      indices <- seq_along(params_chr)
-
-      if (is.numeric(region$max_pos)) {
-        params <- c(params_chr, params_min, params_max)
-        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i AND Pos <= :max%i)", indices, indices, indices)
-      } else {
-        params <- c(params_chr, params_min)
-        where <- sprintf("(Chr = :chr%i AND Pos >= :min%i)", indices, indices)
-      }
-
-      query <- c(query, sprintf("(%s)", paste(where, collapse = " OR ")))
-
-      query <- build_query(input, query, params)
+      query <- build_query(input, region, params, visible_columns)
       result <- database$query(query$string, params = query$params)
 
-      result <- create_sort_order(result, visible_columns, "Func_most_significant")
-      result <- create_sort_order(result, visible_columns, "Func_least_significant")
-      result <- create_sort_order(result, visible_columns, "Func_most_significant_canonical")
+      result <- create_sort_order(result, query$columns, "Func_most_significant")
+      result <- create_sort_order(result, query$columns, "Func_least_significant")
+      result <- create_sort_order(result, query$columns, "Func_most_significant_canonical")
 
       result
     }
@@ -565,7 +665,8 @@ server <- function(input, output, session) {
       )
 
       # Ensure that only valid column names are used
-      visible_columns <- subset(database$columns, database$columns %in% input$columns)
+      valid_columns <- c("Chr", "Pos", database$columns)
+      visible_columns <- subset(valid_columns, valid_columns %in% input$columns)
       visible_consequences <- subset(consequence_columns, consequence_columns %in% visible_columns)
 
       coldefs <- list()
