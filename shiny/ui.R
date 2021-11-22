@@ -23,7 +23,7 @@ ui <- pageWithSidebar(
       radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Chromosome" = "chromosome"), inline = TRUE),
       conditionalPanel(
         condition = "input.select_by === 'genes'",
-        selectizeInput("genes", NULL, choices = NULL, multiple = TRUE, options = list(maxOptions = 10))
+        selectizeInput("genes", NULL, choices = NULL, multiple = TRUE, options = list(maxOptions = 10, maxItems = 10))
       ),
       conditionalPanel(
         condition = "input.select_by === 'chromosome'",

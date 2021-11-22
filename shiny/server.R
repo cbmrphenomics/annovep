@@ -432,7 +432,9 @@ server <- function(input, output, session) {
     shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
     if (input$select_by == "genes") {
-      result <- database$query("SELECT * FROM [Genes] WHERE Name IN (:genes)", params = list(genes = input$genes))
+      # The number of visible genes is hard-capped at 10 to prevent performance problems
+      params <- list(genes = head(input$genes, n = 10))
+      result <- database$query("SELECT * FROM [Genes] WHERE Name IN (:genes)", params = params)
 
       # For simplicity regions are always given in terms of hg38
       list(chr = result$Hg38_chr, min_pos = result$Hg38_start, max_pos = result$Hg38_end)
