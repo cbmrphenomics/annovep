@@ -402,11 +402,8 @@ class Annotator:
                         canonical_consequences.append(entry)
 
         if not consequences:
-            if allele == vep["allele_string"] or allele.startswith("*"):
-                # No consequences for non-variable sites
-                return {}
-
-            raise ValueError((allele, vep))
+            # No consequences for non-variable sites or sites with only NMD consequences
+            return {}
 
         consequences.sort(key=lambda it: it[0])
         canonical_consequences.sort(key=lambda it: it[0])
