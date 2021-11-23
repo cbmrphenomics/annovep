@@ -726,7 +726,7 @@ server <- function(input, output, session) {
 
           # Remove any columns added for house-keeping
           hidden_columns <- sprintf("%s_order", visible_consequences)
-          results[, setdiff(colnames(results), c(visible_columns, hidden_columns))] <- NULL
+          results <- results[, c(visible_columns, hidden_columns), drop = FALSE]
 
           results
         },
@@ -781,7 +781,7 @@ server <- function(input, output, session) {
       results <- data()
 
       # Remove any columns added for house-keeping
-      results[, setdiff(colnames(results), input$columns)] <- NULL
+      results <- results[, input$columns, drop = FALSE]
 
       write.table(results, file, quote = FALSE, sep = "\t", row.names = FALSE)
     }
