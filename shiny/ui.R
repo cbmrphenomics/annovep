@@ -55,10 +55,18 @@ ui <- pageWithSidebar(
     width = 3
   ),
   mainPanel(
+    tags$head(
+      # https://highlightjs.org/download/
+      tags$link(rel="stylesheet", href="highlight.v11.3.1.css"),
+      tags$script(src="highlight.v11.3.1.js"),
+      # https://github.com/nodeca/pako/
+      tags$head(tags$script(src="pako_inflate.v2.0.4.js"))
+    ),
     tabsetPanel(
       id = "tabs",
       tabPanel("Variants", DT::dataTableOutput("table"), value = "tab_var"),
-      tabPanel("Columns", DT::dataTableOutput("columns"), value = "tab_col")
+      tabPanel("Columns", DT::dataTableOutput("columns"), value = "tab_col"),
+      tabPanel("JSON", uiOutput("json"), value = "tab_json")
     ),
     width = 9
   )

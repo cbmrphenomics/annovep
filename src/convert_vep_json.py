@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import sys
+import zlib
 from itertools import groupby
 from pathlib import Path
 from typing import Dict
@@ -698,6 +699,9 @@ class Output:
     def finalize(self):
         self._handle.close()
 
+    def process_json(self, data):
+        pass
+
     def process_row(self, data):
         raise NotImplementedError()
 
@@ -763,6 +767,7 @@ class SQLOutput(Output):
         self._genes = {}
         self._n_overlap = 0
         self._n_row = 0
+        self._n_json = 0
 
         self._print("PRAGMA TEMP_STORE=MEMORY;")
         self._print("PRAGMA JOURNAL_MODE=OFF;")
@@ -800,6 +805,8 @@ class SQLOutput(Output):
             self._print(f",\n    [{key}] {datatype}", end="")
         self._print("\n);")
         self._print()
+        self._print_json_table()
+        self._print()
         self._print("END;")
         self._print()
         self._print("BEGIN;")
@@ -824,8 +831,29 @@ class SQLOutput(Output):
         self._print()
         self._print("CREATE INDEX IPositions_hg38 ON Annotations (Hg38_chr, Hg38_pos);")
         self._print("CREATE INDEX IPositions_hg19 ON Annotations (Hg19_chr, Hg19_pos);")
+        self._print("CREATE INDEX IPositions_json ON JSON (Hg38_chr, Hg38_pos);")
         self._print("END;")
         self._handle.close()
+
+    def process_json(self, data):
+        data = dict(data)
+
+        # Remove any sample specific information and leave only summary information
+        vcf_fields = data.pop("input").split("\t", 8)[:8]
+        data["input"] = "\t".join(vcf_fields).rstrip("\r\n")
+
+        # Keys are sorted to improve compression ratio
+        blob = zlib.compress(json.dumps(data, sort_keys=True).encode("utf-8")).hex()
+
+        self._print(
+            "INSERT INTO [JSON] VALUES ({}, {}, {}, {});",
+            self._n_json,
+            self._to_string(vcf_fields[0]),
+            self._to_string(int(vcf_fields[1])),
+            "X'{}'".format(blob),
+        )
+
+        self._n_json += 1
 
     def process_row(self, data):
         self._n_row += 1
@@ -904,6 +932,16 @@ class SQLOutput(Output):
         self._print("    [Hg38_chr] TEXT,")
         self._print("    [Hg38_start] INTEGER,")
         self._print("    [Hg38_end] INTEGER")
+        self._print(");")
+        self._print()
+
+    def _print_json_table(self):
+        self._print("DROP TABLE IF EXISTS [JSON];")
+        self._print("CREATE TABLE [JSON] (")
+        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
+        self._print("    [Hg38_chr] TEXT,")
+        self._print("    [Hg38_pos] INTEGER,")
+        self._print("    [Data] BINARY")
         self._print(");")
         self._print()
 
@@ -1031,6 +1069,12 @@ def parse_args(argv):
     )
 
     parser.add_argument(
+        "--include-json",
+        action="store_true",
+        help="Include JSON data in SQL output, excluding sample specific information",
+    )
+
+    parser.add_argument(
         "--liftover-cache",
         type=Path,
     )
@@ -1049,6 +1093,7 @@ def parse_args(argv):
 
 def main(argv):
     args = parse_args(argv)
+    args.include_json = args.include_json and "sql" in args.output_format
 
     coloredlogs.install(
         level=args.log_level,
@@ -1078,6 +1123,10 @@ def main(argv):
         for contig, records in groupby(read_vep_json(args.in_json), key=_contig_key):
             count = 0
             for record in records:
+                if args.include_json:
+                    for writer in writers.values():
+                        writer.process_json(record)
+
                 for row in annotator.annotate(record):
                     for writer in writers.values():
                         writer.process_row(row)

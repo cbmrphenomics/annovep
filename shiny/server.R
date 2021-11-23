@@ -456,18 +456,21 @@ server <- function(input, output, session) {
     # SELECT
     query <- "SELECT "
 
-    # Chr is a column created on demand based on the user-selected pick
-    if ("Chr" %in% input$columns) {
+    # Chr is a column created on demand based on the user-selected build
+    if ("Chr" %in% columns) {
       query <- c(query, sprintf("[%s] AS [Chr], ", col_chr))
     }
 
-    # Pos is a column created on demand based on the user-selected pick
-    if ("Pos" %in% input$columns) {
+    # Pos is a column created on demand based on the user-selected build
+    if ("Pos" %in% columns) {
       query <- c(query, sprintf("[%s] AS [Pos], ", col_pos))
     }
 
     # Chr and Pos do not correspond to actual columns (see above) and have to be removed
-    db_columns <- subset(columns, !(columns %in% c("Chr", "Pos")))
+    db_columns <- setdiff(columns, c("Chr", "Pos"))
+    # The hg38 coordinates are required for some functionality, so include if missing
+    db_columns <- c(db_columns, setdiff(c("Hg38_chr", "Hg38_pos"), db_columns))
+
     query <- c(query, paste(sprintf("[%s]", db_columns), collapse = ", "))
 
     ####################################################################################
@@ -672,12 +675,13 @@ server <- function(input, output, session) {
     region <- select_regions(input)
     # Ensure that only valid column names are used
     valid_columns <- c("Chr", "Pos", database$columns)
-    visible_columns <- subset(valid_columns, valid_columns %in% input$columns)
+    visible_columns <- intersect(valid_columns, input$columns)
 
     if (has_values(region$chr, region$min_pos, visible_columns)) {
       query <- build_query(input, region, params, visible_columns)
       result <- database$query(query$string, params = query$params)
 
+      # Fill in names and setup sorting of consequence terms based on rank
       result <- create_sort_order(result, query$columns, "Func_most_significant")
       result <- create_sort_order(result, query$columns, "Func_least_significant")
       result <- create_sort_order(result, query$columns, "Func_most_significant_canonical")
@@ -700,8 +704,8 @@ server <- function(input, output, session) {
 
       # Ensure that only valid column names are used
       valid_columns <- c("Chr", "Pos", database$columns)
-      visible_columns <- subset(valid_columns, valid_columns %in% input$columns)
-      visible_consequences <- subset(consequence_columns, consequence_columns %in% visible_columns)
+      visible_columns <- intersect(valid_columns, input$columns)
+      visible_consequences <- intersect(consequence_columns, visible_columns)
 
       coldefs <- list()
       offset <- length(visible_columns)
@@ -717,7 +721,15 @@ server <- function(input, output, session) {
       }
 
       output$table <- DT::renderDataTable(
-        data(),
+        {
+          results <- data()
+
+          # Remove any columns added for house-keeping
+          hidden_columns <- sprintf("%s_order", visible_consequences)
+          results[, setdiff(colnames(results), c(visible_columns, hidden_columns))] <- NULL
+
+          results
+        },
         selection = "single",
         server = TRUE,
         options = list(
@@ -768,10 +780,8 @@ server <- function(input, output, session) {
     content = function(file) {
       results <- data()
 
-      # Erase sort-order columns
-      results$Func_most_significant_order <- NULL
-      results$Func_least_significant_order <- NULL
-      results$Func_most_significant_canonical_order <- NULL
+      # Remove any columns added for house-keeping
+      results[, setdiff(colnames(results), input$columns)] <- NULL
 
       write.table(results, file, quote = FALSE, sep = "\t", row.names = FALSE)
     }
@@ -801,6 +811,69 @@ server <- function(input, output, session) {
       HTML("</h5>")
     )
   })
+
+  observeEvent(
+    {
+      input$password
+      input$table_cell_clicked
+    },
+    {
+        output$json <- renderUI({
+        shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+        if (length(input$table_cell_clicked) > 0) {
+          results <- data()
+          row <- results[input$table_cell_clicked$row, , drop=FALSE]
+
+          json <- database$query_vec(
+            "SELECT HEX(Data) FROM [JSON] Where [Hg38_chr] = :chr AND [Hg38_pos] = :pos",
+            params = list(chr = row$Hg38_chr, pos = row$Hg38_pos)
+          )
+
+          json <- paste("[", paste(sprintf('"%s"', json), collapse = ", "), "]")
+        } else {
+          json <- "null"
+        }
+
+        shiny::div(
+          shiny::pre(
+            shiny::code(class="language-json")
+          ),
+          # JSON data is stored in compact form and needs to be pretty-printed\n
+          shiny::tags$script(HTML(sprintf("
+            var input = %s;
+            var output = '\"Click a row to view raw annotation data.\"';
+
+            if (input !== null) {
+              var output = [];
+              for (var i = 0; i < input.length; ++i) {
+                /* Convert hex-encoded data to binary */
+                var enc_data = input[i];
+                var raw_data = new Uint8Array(enc_data.length / 2);
+                for (var j = 0; j < enc_data.length; j += 2) {
+                  raw_data[j / 2] = parseInt(enc_data.substr(j, 2), 16);
+                }
+
+                /* zlib decompress binary data */
+                var data = pako.inflate(raw_data);
+                /* Convert binary data to text and parse JSON */
+                var text = new TextDecoder().decode(data);
+                output.push(JSON.parse(text));
+              }
+
+              /* Pretty print JSON */
+              output = JSON.stringify(output, null, 2);
+            }
+
+            var elem = document.getElementsByClassName(\"language-json\")[0];
+            elem.innerHTML = output;
+
+            hljs.highlightAll();
+          ", json)))
+        )
+      })
+    }
+  )
 
   # Fill in dynamic list of consequence terms
   shiny::updateSelectInput(session, "consequence", choices = c("Any consequence", rev(database$consequences$Name)))
