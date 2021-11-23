@@ -45,7 +45,7 @@ def _build_consequence_ranks():
         "3_prime_UTR_variant",
         "non_coding_transcript_exon_variant",
         "intron_variant",
-        # See below for special handling of variants in NMD transcripts
+        # Consequences for NMD transcripts are ignored
         # "NMD_transcript_variant",
         "non_coding_transcript_variant",
         "upstream_gene_variant",
@@ -58,15 +58,8 @@ def _build_consequence_ranks():
         "feature_elongation",
         "regulatory_region_variant",
         "feature_truncation",
-        # See below; is ranked below custom NMD terms
-        # "intergenic_variant",
+        "intergenic_variant",
     ]
-
-    # Consequences in NMD transcripts are given the lowest priority
-    consequences.extend(f"NMD_{_name}" for _name in tuple(consequences))
-    consequences.append("NMD_transcript_variant")
-    # Intergenic is the absolutely most insignificant term
-    consequences.append("intergenic_variant")
 
     return {consequence: rank for rank, consequence in enumerate(consequences)}
 
@@ -394,11 +387,8 @@ class Annotator:
             if consequence["variant_allele"] == allele:
                 consequence_terms = consequence["consequence_terms"]
                 if "NMD_transcript_variant" in consequence_terms:
-                    # terms in Nonsence Mediated Decay variants are of no significance
-                    consequence_terms = [
-                        term if term == "NMD_transcript_variant" else f"NMD_{term}"
-                        for term in consequence_terms
-                    ]
+                    # Consequences for NMD transcripts are not informative
+                    continue
 
                 # Gene ID will be missing for intergenetic consequences
                 gene = consequence.get("gene_id")
@@ -442,10 +432,6 @@ class Annotator:
             if gene_id_ == gene_id:
                 consequence["least_significant"] = term
                 break
-
-        # Effects on NMD transcritps are considered to be the lowest possible
-        if most_significant.startswith("NMD_"):
-            consequence["impact"] = "MODIFIER"
 
         return consequence
 
