@@ -525,7 +525,11 @@ server <- function(input, output, session) {
     names(params_min) <- sprintf("min%i", seq_along(params_min))
     names(params_max) <- sprintf("max%i", seq_along(params_max))
 
-    if (is.numeric(region$max_pos)) {
+    if (input$select_by == "genes") {
+      # Genic regions are given relative to hg38
+      params <- c(params_chr, params_min, params_max)
+      where <- sprintf("(Hg38_chr = :%s AND Hg38_pos >= :%s AND Hg38_pos <= :%s)", names(params_chr), names(params_min), names(params_max))
+    } else if (is.numeric(region$max_pos)) {
       params <- c(params_chr, params_min, params_max)
       where <- sprintf("(%s = :%s AND %s >= :%s AND %s <= :%s)", col_chr, names(params_chr), col_pos, names(params_min), col_pos, names(params_max))
     } else {
