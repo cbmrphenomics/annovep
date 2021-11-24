@@ -62,11 +62,14 @@ ui <- pageWithSidebar(
       # https://github.com/nodeca/pako/
       tags$head(tags$script(src="pako_inflate.v2.0.4.js"))
     ),
-    tabsetPanel(
-      id = "tabs",
-      tabPanel("Variants", DT::dataTableOutput("table"), value = "tab_var"),
-      tabPanel("Columns", DT::dataTableOutput("columns"), value = "tab_col"),
-      tabPanel("JSON", uiOutput("json"), value = "tab_json")
+    conditionalPanel(
+      condition = "output.show_ui && !output.database_errors",
+      tabsetPanel(
+        id = "tabs",
+        tabPanel("Variants", DT::dataTableOutput("table"), value = "tab_var"),
+        tabPanel("Columns", DT::dataTableOutput("columns"), value = "tab_col"),
+        tabPanel("JSON", uiOutput("json"), value = "tab_json")
+      )
     ),
     width = 9
   )
