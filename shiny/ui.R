@@ -18,15 +18,15 @@ ui <- pageWithSidebar(
     hr(),
     conditionalPanel(
       condition = "output.show_ui && !output.database_errors",
-      # View by Genes / Chromosome
+      # View by Genes / Contig
       radioButtons("build", "Build:", c("Hg38" = "hg38", "Hg19 (liftover)" = "hg19"), inline = TRUE),
-      radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Chromosome" = "chromosome"), inline = TRUE),
+      radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Contig" = "contig"), inline = TRUE),
       conditionalPanel(
         condition = "input.select_by === 'genes'",
         selectizeInput("genes", NULL, choices = NULL, multiple = TRUE, options = list(maxOptions = 10, maxItems = 10))
       ),
       conditionalPanel(
-        condition = "input.select_by === 'chromosome'",
+        condition = "input.select_by === 'contig'",
         selectInput("chr", NULL, choices = NULL),
         numericInput("min_pos", "Start position (bp):", 1, min = 1, step = 1),
         numericInput("max_pos", "End position (bp; max 10k rows shown):", NULL, min = 1, step = 1)

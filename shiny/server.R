@@ -537,7 +537,7 @@ server <- function(input, output, session) {
 
     ####################################################################################
     # LIMIT
-    if (input$select_by == "chromosome") {
+    if (input$select_by == "contig") {
       query <- c(query, sprintf("LIMIT %i", max(1, min(10000, input$maxRows))))
     }
 
@@ -611,6 +611,12 @@ server <- function(input, output, session) {
       }
 
       shiny::updateSelectInput(session, "chr", choices = visible_chroms)
+
+      choices = list()
+      choices[[sprintf("Gene (%i)", length(database$genes))]] = "genes"
+      choices[[sprintf("Contig (%i)", length(visible_chroms))]] = "contig"
+
+      shiny::updateRadioButtons(session, "select_by", choices = choices, inline = TRUE)
     }
   )
 
@@ -757,7 +763,7 @@ server <- function(input, output, session) {
       shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
       names <- c("Chr", "Pos", database$columns_info$Name)
-      descs <- c("Chromosome in the selected build", "Position in the selected build", database$columns_info$Description)
+      descs <- c("Contig in the selected build", "Position in the selected build", database$columns_info$Description)
 
       info <- data.frame(
         Enabled = ifelse(names %in% input$columns, "✓", ""),
