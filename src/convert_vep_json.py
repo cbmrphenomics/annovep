@@ -783,6 +783,7 @@ class SQLOutput(Output):
         for key, description in self.keys.items():
             datatype = "TEXT"
             if key in CONSEQUENCE_COLUMNS:
+                key = f"{key}_id"
                 datatype = "INTEGER REFERENCES [Consequenes]([pk])"
 
             # Rename columns for SQL output only
@@ -885,6 +886,8 @@ class SQLOutput(Output):
         self._print("CREATE TABLE [Columns] (")
         self._print("    [pk] INTEGER PRIMARY KEY ASC,")
         self._print("    [Name] TEXT,")
+        self._print("    [Table] TEXT,")
+        self._print("    [Column] TEXT,")
         self._print("    [Description] TEXT")
         self._print(");")
         self._print()
@@ -893,10 +896,19 @@ class SQLOutput(Output):
             # Rename columns for SQL output only
             key = self.COLUMN_MAPPING.get(key, key)
 
+            table = "Annotations"
+            column = key
+
+            if key in CONSEQUENCE_COLUMNS:
+                table = "Consequences"
+                column = f"{key}_id"
+
             self._print(
-                "INSERT INTO [Columns] VALUES ({}, {}, {});",
+                "INSERT INTO [Columns] VALUES ({}, {}, {}, {}, {});",
                 pk,
                 self._to_string(key),
+                self._to_string(table),
+                self._to_string(column),
                 self._to_string(description),
             )
 

@@ -310,6 +310,19 @@ database <- tryCatch(
       return(unlist(query(string, ...), use.names = FALSE))
     }
 
+    # Information about all user-facing columns; Chr and Pos are created based on the selected build
+    columns_info <- rbind(
+      data.frame(
+        Name = c("Chr", "Pos"),
+        Table = "Annotations",
+        # The exact column will depend on the build
+        Column = NA,
+        Description = c("Contig in the selected build", "Position in the selected build"),
+        stringsAsFactors = FALSE
+      ),
+      query("SELECT [Name], [Table], [Column], [Description] FROM [Columns] ORDER BY [pk];")
+    )
+
     list(
       conn = conn,
       errors = NULL,
@@ -317,8 +330,9 @@ database <- tryCatch(
       query_vec = query_vec,
       chroms_hg19 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg19' ORDER BY [pk];"),
       chroms_hg38 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg38' ORDER BY [pk];"),
-      columns = query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];"),
-      columns_info = query("SELECT [Name], [Description] FROM [Columns] ORDER BY [pk];"),
+      # User facing columns
+      columns = columns_info$Name,
+      columns_info = columns_info,
       consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
       genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];"),
       has_json = length(query_vec("SELECT 1 FROM [JSON];")) > 0
@@ -401,19 +415,20 @@ server <- function(input, output, session) {
     },
     {
       if (input$password == settings$password) {
+        special_symbols <- list()
+
+        # Map special columns onto their ID columns
+        special_symbols[tolower(database$columns_info$Name)] <- database$columns_info$Column
+
         # Allow user queries using Chr/Pos instead of Hg38_pos/Hg38_chr
-        if (hg_build(input) == "hg38") {
-          special_symbols <- list("chr" = "hg38_chr", "pos" = "hg38_pos")
-        } else {
-          special_symbols <- list("chr" = "hg19_chr", "pos" = "hg19_pos")
-        }
+        special_symbols[c("chr", "pos")] <- sprintf("%s_%s", hg_build(input), c("chr", "pos"))
 
         tryCatch(
           {
             # Parse user-query
             query <- parse_query(
               input$query,
-              symbols = database$columns,
+              symbols = na.omit(database$columns_info$Column),
               special_symbols = special_symbols,
               special_values = special_values
             )
@@ -457,30 +472,46 @@ server <- function(input, output, session) {
     col_chr <- sprintf("%s_chr", build)
     col_pos <- sprintf("%s_pos", build)
 
+    # The hg38 coordinates are required for some functionality, so include if missing
+    db_columns <- union(columns, c("Hg38_chr", "Hg38_pos"))
+
+    columns_info <- database$columns_info
+    columns_info$Column[columns_info$Name == "Chr"] <- col_chr
+    columns_info$Column[columns_info$Name == "Pos"] <- col_pos
+    columns_info <- columns_info[columns_info$Name %in% db_columns, , drop = FALSE]
+
     ####################################################################################
     # SELECT
-    query <- "SELECT "
+    select <- NULL
 
-    # Chr is a column created on demand based on the user-selected build
-    if ("Chr" %in% columns) {
-      query <- c(query, sprintf("[%s] AS [Chr], ", col_chr))
-    }
+    # Basic annotations
+    annotations <- columns_info[columns_info$Table == "Annotations", , drop = FALSE] 
+    select <- c(select, sprintf("[%s] as [%s]", annotations$Column, annotations$Name))
 
-    # Pos is a column created on demand based on the user-selected build
-    if ("Pos" %in% columns) {
-      query <- c(query, sprintf("[%s] AS [Pos], ", col_pos))
-    }
+    # Normalized columns
+    normalized <- columns_info[columns_info$Table != "Annotations", , drop = FALSE]
+    normalized$TableAlias <- letters[seq_along(normalized$Name)]
 
-    # Chr and Pos do not correspond to actual columns (see above) and have to be removed
-    db_columns <- setdiff(columns, c("Chr", "Pos"))
-    # The hg38 coordinates are required for some functionality, so include if missing
-    db_columns <- c(db_columns, setdiff(c("Hg38_chr", "Hg38_pos"), db_columns))
+    select <- c(select, sprintf("[%s]", normalized$Column))
+    select <- c(select, sprintf("[%s].[Name] as [%s]", normalized$TableAlias, normalized$Name))
 
-    query <- c(query, paste(sprintf("[%s]", db_columns), collapse = ", "))
+    query <- c("SELECT ", paste("  ", paste(select, collapse = ",\n  "), sep = ""))
 
     ####################################################################################
     # FROM
     query <- c(query, "FROM [Annotations]")
+
+    ####################################################################################
+    # LEFT JOIN ON
+    query <- c(
+      query,
+      sprintf(
+        "LEFT JOIN [Consequences] %s ON [%s] = [%s].[pk]",
+        normalized$TableAlias,
+        normalized$Column,
+        normalized$TableAlias
+      )
+    )
 
     ####################################################################################
     # WHERE
@@ -502,15 +533,15 @@ server <- function(input, output, session) {
       where <- sprintf("(%s = :%s AND %s >= :%s)", col_chr, names(params_chr), col_pos, names(params_min))
     }
 
-    where <- sprintf("(%s)", paste(where, collapse = " OR "))
+    where <- sprintf("  (%s)", paste(where, collapse = " OR "))
 
     # Exclude rows that do not have positions on the selected build
-    where <- c(where, sprintf("AND %s IS NOT NULL", col_chr))
+    where <- c(where, sprintf("  AND %s IS NOT NULL", col_chr))
 
     # Map consequence term onto numerical ID
     consequence_pk <- database$consequences$pk[database$consequences$Name == input$consequence]
     if (has_values(consequence_pk)) {
-      where <- c(where, sprintf("  AND Func_most_significant >= %i", consequence_pk))
+      where <- c(where, sprintf("  AND Func_most_significant_id >= %i", consequence_pk))
     }
 
     # Whether or not the variant passed QC filters
@@ -548,18 +579,6 @@ server <- function(input, output, session) {
     ))
   }
 
-  create_sort_order <- function(table, visible_columns, column) {
-    if (column %in% visible_columns) {
-      column_order <- sprintf("%s_order", column)
-
-      order <- table[, column]
-      table[, column_order] <- ifelse(is.na(order), 1, order * -1)
-      table[, column] <- database$consequences$Name[match(order, database$consequences$pk)]
-    }
-
-    return(table)
-  }
-
   observeEvent(
     {
       input$password
@@ -570,7 +589,7 @@ server <- function(input, output, session) {
         selected_gene <- with_default(input$genes, settings$genes)
         visible_chroms <- database$chroms_hg38
         selected_chrom <- with_default(input$chr, settings$chrom)
-        visible_columns <- c("Chr", "Pos", database$columns)
+        visible_columns <- database$columns
         selected_columns <- with_default(input$columns, settings$columns)
 
         updateTextInput(session, "password", "✔️ Password accepted!")
@@ -662,7 +681,7 @@ server <- function(input, output, session) {
     {
       shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
-      visible_columns <- c("Chr", "Pos", database$columns)
+      visible_columns <- database$columns
       shiny::updateSelectizeInput(session, "columns", selected = visible_columns, choices = visible_columns)
     }
   )
@@ -675,7 +694,7 @@ server <- function(input, output, session) {
     {
       shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
-      visible_columns <- c("Chr", "Pos", database$columns)
+      visible_columns <- database$columns
       shiny::updateSelectizeInput(session, "columns", selected = settings$columns, choices = visible_columns)
     }
   )
@@ -685,19 +704,13 @@ server <- function(input, output, session) {
 
     region <- select_regions(input)
     # Ensure that only valid column names are used
-    valid_columns <- c("Chr", "Pos", database$columns)
+    valid_columns <- database$columns
     visible_columns <- intersect(valid_columns, input$columns)
 
     if (has_values(region$chr, region$min_pos, visible_columns)) {
       query <- build_query(input, region, params, visible_columns)
-      result <- database$query(query$string, params = query$params)
-
-      # Fill in names and setup sorting of consequence terms based on rank
-      result <- create_sort_order(result, query$columns, "Func_most_significant")
-      result <- create_sort_order(result, query$columns, "Func_least_significant")
-      result <- create_sort_order(result, query$columns, "Func_most_significant_canonical")
-
-      result
+      
+      database$query(query$string, params = query$params)
     }
   })
 
@@ -707,39 +720,32 @@ server <- function(input, output, session) {
       input$columns
     },
     {
-      consequence_columns <- c(
-        "Func_most_significant",
-        "Func_least_significant",
-        "Func_most_significant_canonical"
-      )
-
       # Ensure that only valid column names are used
-      valid_columns <- c("Chr", "Pos", database$columns)
+      valid_columns <- database$columns
       visible_columns <- intersect(valid_columns, input$columns)
-      visible_consequences <- intersect(consequence_columns, visible_columns)
+
+      # Normalized columns should be ordered by ID/rank and not alphanumerically
+      normalized <- database$columns_info[database$columns_info$Table != "Annotations", ]
+      normalized <- normalized[normalized$Name %in% visible_columns, , drop = FALSE]
 
       coldefs <- list()
       offset <- length(visible_columns)
       hidden_columns <- numeric(0)
-      for (name in visible_consequences) {
+      for (name in normalized$Name) {
+        # Specify that the consequence column be sorted by its ID/rank
         coldefs <- c(coldefs, list(list(targets = match(name, visible_columns), orderData = offset + 1)))
         hidden_columns <- c(hidden_columns, offset + 1)
         offset <- offset + 1
       }
 
-      if (length(hidden_columns) > 0) {
-        coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
-      }
+      # Hide columns containing consequence IDs/ranks
+      coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
 
       output$table <- DT::renderDataTable(
         {
           results <- data()
-
-          # Remove any columns added for house-keeping
-          hidden_columns <- sprintf("%s_order", visible_consequences)
-          results <- results[, c(visible_columns, hidden_columns), drop = FALSE]
-
-          results
+          # Remove any columns added for house-keeping and match column order to the above
+          results[, c(visible_columns, normalized$Column), drop = FALSE]
         },
         selection = "single",
         server = TRUE,
@@ -762,13 +768,10 @@ server <- function(input, output, session) {
     {
       shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
-      names <- c("Chr", "Pos", database$columns_info$Name)
-      descs <- c("Contig in the selected build", "Position in the selected build", database$columns_info$Description)
-
-      info <- data.frame(
-        Enabled = ifelse(names %in% input$columns, "✓", ""),
-        Name = names,
-        Description = descs
+      info <- cbind(
+        Enabled = ifelse(database$columns_info$Name %in% input$columns, "✓", ""),
+        Name = database$columns_info$Name,
+        Description = database$columns_info$Description
       )
 
       output$columns <- DT::renderDataTable(
