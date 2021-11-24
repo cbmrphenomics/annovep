@@ -16,11 +16,19 @@ import coloredlogs
 _RE_CONTIG_ID = re.compile("^(##contig=<.*ID=)([^,]+)(.*>)$", re.I)
 
 
+def encode_contig_name(name):
+    """Reversible encoding of contig names that cause problems with VEP."""
+    if ":" in name or "*" in name:
+        return "annovep_{}".format(name.encode("utf-8").hex())
+
+    return name
+
+
 def fix_contig_name(line):
     match = _RE_CONTIG_ID.match(line)
     if match is not None:
         before, name, after = match.groups()
-        new_name = name.replace(":", "_")
+        new_name = encode_contig_name(name)
 
         return "".join((before, new_name, after, "\n")), name, new_name
 
@@ -101,14 +109,12 @@ def main(argv):
                 n_decoys += 1
                 if n_decoys == 1:
                     log.warning("Filtering variants on decoy contigs (e.g. %r)", chrom)
-            elif ":" in chrom:
-                new_chrom = chrom.replace(":", "_")
 
+            new_chrom = encode_contig_name(chrom)
+            if chrom != new_chrom:
                 n_bad_contigs_vcf += 1
 
-                print(new_chrom, rest, sep="\t", end="")
-            else:
-                print(chrom, rest, sep="\t", end="")
+            print(new_chrom, rest, sep="\t", end="")
 
             if n_records % 100_000 == 0:
                 log.info("Read %s variants; at %r", "{:,}".format(n_records), chrom)

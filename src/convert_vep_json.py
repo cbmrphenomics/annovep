@@ -181,6 +181,14 @@ def abort(line, *args, **kwargs):
     sys.exit(1)
 
 
+def decode_contig_name(name):
+    """Decode contig name encoded by `preprocess_vcf.py`"""
+    if name.startswith("annovep_"):
+        return bytes.fromhex(name[8:]).decode("utf-8")
+
+    return name
+
+
 def parse_vcf(line):
     fields = line.rstrip("\r\n").split("\t")
     chr, pos, id, ref, alt, qual, filters, info, *fmt_and_samples = fields
@@ -192,7 +200,7 @@ def parse_vcf(line):
             samples.append(dict(zip(fmt_keys, sample.split(":"))))
 
     return {
-        "Chr": chr,
+        "Chr": decode_contig_name(chr),
         "Pos": int(pos),
         "ID": None if id == "." else id.split(";"),
         "Ref": ref,
@@ -1116,7 +1124,7 @@ def main(argv):
 
                 count += 1
 
-            log.info("Processed %i records on %r", count, contig)
+            log.info("Processed %i records on %r", count, decode_contig_name(contig))
 
         for writer in writers.values():
             writer.finalize()
