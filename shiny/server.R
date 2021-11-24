@@ -86,6 +86,7 @@ require_value <- function(check, min_len = 1, max_len = 1) {
   return(assert)
 }
 
+require_bool <- require_value(is.logical)
 require_num <- require_value(is.numeric)
 require_str <- require_value(is.character)
 require_nums <- require_value(is.numeric, min_len = 0, max_len = Inf)
@@ -319,7 +320,8 @@ database <- tryCatch(
       columns = query_vec("SELECT [Name] FROM [Columns] ORDER BY [pk];"),
       columns_info = query("SELECT [Name], [Description] FROM [Columns] ORDER BY [pk];"),
       consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
-      genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];")
+      genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];"),
+      has_json = length(query_vec("SELECT 1 FROM [JSON];")) > 0
     )
   },
   error = function(e) {
@@ -334,7 +336,8 @@ database <- tryCatch(
       columns = character(),
       columns_info = data.frame(Name = character(), Description = character(), stringsAsFactors = FALSE),
       consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
-      genes = character()
+      genes = character(),
+      has_json = FALSE
     )
   }
 )
@@ -345,9 +348,10 @@ require_strs("database", database$chroms_hg38)
 require_strs("database", database$columns)
 require_strs("database", database$columns_info$Name)
 require_strs("database", database$columns_info$Description)
-require_strs("database", database$genes)
 require_nums("database", database$consequences$pk)
 require_strs("database", database$consequences$Name)
+require_strs("database", database$genes)
+require_bool("database", database$has_json)
 
 # Consequences are foreign keys/ranks to allow ordering comparisons
 special_values <- list()
@@ -835,6 +839,12 @@ server <- function(input, output, session) {
           json <- "null"
         }
 
+        message <- ifelse(
+          database$has_json,
+          "Click a row to view raw annotation data.",
+          "Raw annotation data not available."
+        )
+
         shiny::div(
           shiny::pre(
             shiny::code(class="language-json")
@@ -842,7 +852,7 @@ server <- function(input, output, session) {
           # JSON data is stored in compact form and needs to be pretty-printed\n
           shiny::tags$script(HTML(sprintf("
             var input = %s;
-            var output = '\"Click a row to view raw annotation data.\"';
+            var output = '\"%s\"';
 
             if (input !== null) {
               var output = [];
@@ -869,7 +879,7 @@ server <- function(input, output, session) {
             elem.innerHTML = output;
 
             hljs.highlightAll();
-          ", json)))
+          ", json, message)))
         )
       })
     }
