@@ -759,7 +759,7 @@ server <- function(input, output, session) {
           # Remove any columns added for house-keeping and match column order to the above
           results[, c(visible_columns, normalized$Column), drop = FALSE]
         },
-        selection = "single",
+        selection = "multi",
         server = TRUE,
         options = list(
           scrollX = TRUE,
@@ -798,56 +798,111 @@ server <- function(input, output, session) {
     }
   )
 
+  ######################################################################################
+  # Genes tab -- table of genes with variants, that can be used to select genes
+
+  gene_info <- reactive({
+    shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+    # Map consequence term onto numerical ID
+    consequence_pk <- database$consequences$pk[database$consequences$Name == input$consequence]
+
+    query <- c(
+      "SELECT",
+      "  [Genes].[Name],",
+      "  [Genes].[Hg38_chr] as [Chr],",
+      "  [Genes].[Variants],",
+      "  [a].[Name] as [Most_significant],",
+      "  [b].[Name] as [Most_significant_canonical],",
+      "  [Most_significant] as [Most_significant_order],",
+      "  [Most_significant_canonical] as [Most_significant_canonical_order]",
+      "FROM [Genes]",
+      "LEFT JOIN [Consequences] a ON [Most_significant] = [a].[pk]",
+      "LEFT JOIN [Consequences] b ON [Most_significant_canonical] = [b].[pk]",
+      ifelse(
+        has_values(consequence_pk),
+        sprintf("WHERE [Genes].[Most_significant] >= %i", consequence_pk),
+        ""
+      ),
+      "ORDER BY [Genes].[Name];"
+    )
+
+    database$query(paste(query, collapse = "\n"))
+  })
+
+  output$gene_tbl <- DT::renderDataTable(
+    {
+      gene_info()
+    },
+    server = TRUE,
+    selection = list(mode = "multiple"),
+    options = list(
+      scrollX = TRUE,
+      scrollY = "80vh",
+      paging = FALSE,
+      columnDefs = list(
+        list(targets = 4, orderData = 6),
+        list(targets = 5, orderData = 7),
+        list(targets = 6:7, visible = FALSE)
+      )
+    )
+  )
+
+  update_gene_selection <- function() {
+      selection <- match(input$genes, gene_info()$Name)
+      proxy <- DT::dataTableProxy("gene_tbl")
+
+      if (!setequal(input$gene_tbl_rows_selected, selection)) {
+        DT::selectRows(proxy, selection)
+      }
+  }
+
+  # The gene table must be updated when the user picks a new gene from the dropdown
+  observeEvent(
+    {
+      input$genes
+    },
+    {
+      update_gene_selection()
+    }
+  )
+
+  # The data table is not instantiated until visible and must be updated at that point
+  observeEvent(
+    {
+      input$tabs
+    },
+    {
+      if (input$tabs == "tab_gene") {
+        update_gene_selection()
+      }
+    }
+  )
+
   observeEvent(
     {
       input$password
-      input$consequence
+      input$gene_tbl_rows_selected
+      input$gene_tbl_cell_clicked
     },
     {
-      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
-
-      # Map consequence term onto numerical ID
-      consequence_pk <- database$consequences$pk[database$consequences$Name == input$consequence]
-
-      query <- c(
-        "SELECT",
-        "  [Genes].[Name],",
-        "  [Genes].[Hg38_chr] as [Chr],",
-        "  [Genes].[Variants],",
-        "  [a].[Name] as [Most_significant],",
-        "  [b].[Name] as [Most_significant_canonical],",
-        "  [Most_significant] as [Most_significant_order],",
-        "  [Most_significant_canonical] as [Most_significant_canonical_order]",
-        "FROM [Genes]",
-        "LEFT JOIN [Consequences] a ON [Most_significant] = [a].[pk]",
-        "LEFT JOIN [Consequences] b ON [Most_significant_canonical] = [b].[pk]",
-        ifelse(
-          has_values(consequence_pk),
-          sprintf("WHERE [Genes].[Most_significant] >= %i", consequence_pk),
-          ""
-        ),
-        "ORDER BY [Genes].[Name];"
-      )
-
-      data <- database$query(paste(query, collapse = "\n"))
-
-      output$gene_tbl <- DT::renderDataTable(
-        data,
-        server = TRUE,
-        selection = "single",
-        options = list(
-          scrollX = TRUE,
-          scrollY = "80vh",
-          paging = FALSE,
-          columnDefs = list(
-            list(targets = 4, orderData = 6),
-            list(targets = 5, orderData = 7),
-            list(targets = 6:7, visible = FALSE)
-          )
-        )
-      )
+      data <- gene_info()
+      selected <- input$gene_tbl_rows_selected
+      if (length(selected) > 10) {
+        proxy <- DT::dataTableProxy("gene_tbl")
+        DT::selectRows(proxy, match(input$genes, data$Name), ignore.selectable = TRUE)
+      } else if (!is.null(input$gene_tbl_cell_clicked)) {
+        new_selection <- head(data[selected, "Name"], n = 10)
+        if (!identical(input$genes, new_selection)) {
+          # Despite what the documentation claims, it appears to be nessseary to provide all arguments
+          shiny::updateSelectizeInput(session, "genes", selected = new_selection, choices = database$genes, server = TRUE)
+        }
+      }
     }
   )
+
+  ######################################################################################
+  # Download button -- downloads all pages of visible genes / region
 
   output$btn_download <- downloadHandler(
     filename = function() {
