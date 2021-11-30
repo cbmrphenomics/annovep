@@ -1124,7 +1124,7 @@ def parse_args(argv):
 
 def main(argv):
     args = parse_args(argv)
-    args.include_json = args.include_json and "sql" in args.output_format
+    args.include_json = args.include_json and "sql" in (args.output_format or ())
 
     coloredlogs.install(
         level=args.log_level,
