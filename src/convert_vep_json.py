@@ -810,12 +810,15 @@ class SQLOutput(Output):
 
         for idx, (gene, info) in enumerate(sorted(self._genes.items())):
             self._print(
-                "INSERT INTO [Genes] VALUES ({}, {}, {}, {}, {});",
+                "INSERT INTO [Genes] VALUES ({}, {}, {}, {}, {}, {}, {}, {});",
                 idx,
                 self._to_string(gene),
                 self._to_string(info["Chr"]),
                 self._to_string(info["MinPos"]),
                 self._to_string(info["MaxPos"]),
+                self._to_string(info["Variants"]),
+                self._to_string(info["Most_significant"]),
+                self._to_string(info["Most_significant_canonical"]),
             )
 
         self._print()
@@ -874,12 +877,32 @@ class SQLOutput(Output):
                     "Chr": data["Chr"],
                     "MinPos": data["Pos"],
                     "MaxPos": data["Pos"],
+                    "Variants": 1,
+                    "Most_significant": data["Func_most_significant"],
+                    "Most_significant_canonical": data[
+                        "Func_most_significant_canonical"
+                    ],
                 }
             elif gene_info["Chr"] != data["Chr"]:
                 raise ValueError(f"gene {gene!r} found on multiple contigs")
             else:
                 gene_info["MinPos"] = min(data["Pos"], gene_info["MinPos"])
                 gene_info["MaxPos"] = max(data["Pos"], gene_info["MaxPos"])
+                gene_info["Variants"] += 1
+
+                for key in ("Most_significant", "Most_significant_canonical"):
+                    gene_info[key] = self._worst_consequence(
+                        gene_info[key], data[f"Func_{key.lower()}"]
+                    )
+
+    @staticmethod
+    def _worst_consequence(consequence_a, consequence_b):
+        if consequence_a is None:
+            return consequence_b
+        elif consequence_b is None:
+            return consequence_a
+
+        return max(consequence_a, consequence_b)
 
     def _print_descriptions(self):
         self._print("DROP TABLE IF EXISTS [Columns];")
@@ -930,11 +953,16 @@ class SQLOutput(Output):
     def _print_gene_tables(self):
         self._print("DROP TABLE IF EXISTS [Genes];")
         self._print("CREATE TABLE [Genes] (")
-        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Name] TEXT,")
-        self._print("    [Hg38_chr] TEXT,")
-        self._print("    [Hg38_start] INTEGER,")
-        self._print("    [Hg38_end] INTEGER")
+        self._print("  [pk] INTEGER PRIMARY KEY ASC,")
+        self._print("  [Name] TEXT,")
+        self._print("  [Hg38_chr] TEXT,")
+        self._print("  [Hg38_start] INTEGER,")
+        self._print("  [Hg38_end] INTEGER,")
+        self._print("  [Variants] INTEGER,")
+        self._print("  [Most_significant] INTEGER REFERENCES [Consequenes]([pk]),")
+        self._print(
+            "  [Most_significant_canonical] INTEGER REFERENCES [Consequenes]([pk])"
+        )
         self._print(");")
         self._print()
 

@@ -793,6 +793,55 @@ server <- function(input, output, session) {
     }
   )
 
+  observeEvent(
+    {
+      input$password
+      input$consequence
+    },
+    {
+      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+      # Map consequence term onto numerical ID
+      consequence_pk <- database$consequences$pk[database$consequences$Name == input$consequence]
+
+      query <- c(
+        "SELECT",
+        "  [Genes].[Name],",
+        "  [Genes].[Hg38_chr] as [Chr],",
+        "  [Genes].[Variants],",
+        "  [a].[Name] as [Most_significant],",
+        "  [b].[Name] as [Most_significant_canonical],",
+        "  [Most_significant] as [Most_significant_order],",
+        "  [Most_significant_canonical] as [Most_significant_canonical_order]",
+        "FROM [Genes]",
+        "LEFT JOIN [Consequences] a ON [Most_significant] = [a].[pk]",
+        "LEFT JOIN [Consequences] b ON [Most_significant_canonical] = [b].[pk]",
+        ifelse(
+          has_values(consequence_pk),
+          sprintf("WHERE [Genes].[Most_significant] >= %i", consequence_pk),
+          ""
+        ),
+        "ORDER BY [Genes].[Name];"
+      )
+
+      data <- database$query(paste(query, collapse = "\n"))
+
+      output$gene_tbl <- DT::renderDataTable(
+        data,
+        selection = "single",
+        options = list(
+          scrollX = TRUE,
+          scrollY = "80vh",
+          paging = FALSE,
+          columnDefs = list(
+            list(targets = 4, orderData = 6),
+            list(targets = 5, orderData = 7),
+            list(targets = 6:7, visible = FALSE)
+          )
+        )
+      )
+    }
+  )
 
   output$btn_download <- downloadHandler(
     filename = function() {
