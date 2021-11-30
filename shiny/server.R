@@ -833,6 +833,7 @@ server <- function(input, output, session) {
 
       output$gene_tbl <- DT::renderDataTable(
         data,
+        server = TRUE,
         selection = "single",
         options = list(
           scrollX = TRUE,
