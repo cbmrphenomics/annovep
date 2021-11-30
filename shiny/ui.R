@@ -10,7 +10,7 @@ example_query <- paste(
 )
 
 ui <- pageWithSidebar(
-  headerPanel("AnnoVEP"),
+  uiOutput("title"),
   sidebarPanel(
     # Authentication
     passwordInput("password", "Please enter password:"),

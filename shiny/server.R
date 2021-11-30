@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 
 defaults <- list(
+  title = "AnnoVEP",
   password = paste0(sample(c(letters, LETTERS, 0:9), 16), collapse = ""),
   database = "sqlite3.db",
   build = "hg38",
@@ -106,6 +107,7 @@ load_settings <- function(settings) {
   }
 
   require_list("user settings", settings)
+  require_str("user settings", settings$title)
   require_str("user settings", settings$password)
   require_str("user settings", settings$database)
   require_str("user settings", settings$genes, optional = TRUE)
@@ -828,6 +830,10 @@ server <- function(input, output, session) {
       as.character(database$errors),
       HTML("</h5>")
     )
+  })
+
+  output$title <- renderUI({
+    titlePanel(settings$title)
   })
 
   observeEvent(

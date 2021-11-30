@@ -4,6 +4,9 @@
 ## Load libraries for from external locations here:
 # library(flexo, lib="/path/to/R/")
 
+## Title used on shiny page
+# settings$title <- "AnnoVEP"
+
 ## Password required to view page
 # settings$password <- "..."
 
