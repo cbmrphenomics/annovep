@@ -57,10 +57,10 @@ ui <- pageWithSidebar(
   mainPanel(
     tags$head(
       # https://highlightjs.org/download/
-      tags$link(rel="stylesheet", href="highlight.v11.3.1.css"),
-      tags$script(src="highlight.v11.3.1.js"),
+      tags$link(rel = "stylesheet", href = "highlight.v11.3.1.css"),
+      tags$script(src = "highlight.v11.3.1.js"),
       # https://github.com/nodeca/pako/
-      tags$head(tags$script(src="pako_inflate.v2.0.4.js"))
+      tags$head(tags$script(src = "pako_inflate.v2.0.4.js"))
     ),
     conditionalPanel(
       condition = "output.show_ui && !output.database_errors",

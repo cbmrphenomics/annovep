@@ -487,7 +487,7 @@ server <- function(input, output, session) {
     select <- NULL
 
     # Basic annotations
-    annotations <- columns_info[columns_info$Table == "Annotations", , drop = FALSE] 
+    annotations <- columns_info[columns_info$Table == "Annotations", , drop = FALSE]
     select <- c(select, sprintf("[%s] as [%s]", annotations$Column, annotations$Name))
 
     # Normalized columns
@@ -638,9 +638,9 @@ server <- function(input, output, session) {
 
       shiny::updateSelectInput(session, "chr", choices = visible_chroms)
 
-      choices = list()
-      choices[[sprintf("Gene (%i)", length(database$genes))]] = "genes"
-      choices[[sprintf("Contig (%i)", length(visible_chroms))]] = "contig"
+      choices <- list()
+      choices[[sprintf("Gene (%i)", length(database$genes))]] <- "genes"
+      choices[[sprintf("Contig (%i)", length(visible_chroms))]] <- "contig"
 
       shiny::updateRadioButtons(session, "select_by", choices = choices, inline = TRUE)
     }
@@ -716,7 +716,7 @@ server <- function(input, output, session) {
 
     if (has_values(region$chr, region$min_pos, visible_columns)) {
       query <- build_query(input, region, params, visible_columns)
-      
+
       database$query(query$string, params = query$params)
     }
   })
@@ -843,12 +843,12 @@ server <- function(input, output, session) {
       input$table_cell_clicked
     },
     {
-        output$json <- renderUI({
+      output$json <- renderUI({
         shiny::validate(shiny::need(input$password == settings$password, "Password required"))
 
         if (length(input$table_cell_clicked) > 0) {
           results <- data()
-          row <- results[input$table_cell_clicked$row, , drop=FALSE]
+          row <- results[input$table_cell_clicked$row, , drop = FALSE]
 
           json <- database$query_vec(
             "SELECT HEX(Data) FROM [JSON] Where [Hg38_chr] = :chr AND [Hg38_pos] = :pos",
@@ -868,7 +868,7 @@ server <- function(input, output, session) {
 
         shiny::div(
           shiny::pre(
-            shiny::code(class="language-json")
+            shiny::code(class = "language-json")
           ),
           # JSON data is stored in compact form and needs to be pretty-printed\n
           shiny::tags$script(HTML(sprintf("
