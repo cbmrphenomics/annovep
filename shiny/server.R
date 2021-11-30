@@ -305,6 +305,11 @@ server <- function(input, output, session) {
       # Read-only connection to SQLite3 database
       conn <- DBI::dbConnect(RSQLite::SQLite(), settings$database, flags = RSQLite::SQLITE_RO)
 
+      # Close connection when the session ends
+      session$onSessionEnded(function() {
+        DBI::dbDisconnect(conn)
+      })
+
       query <- function(string, ...) {
         return(DBI::dbGetQuery(conn, string, ...))
       }
