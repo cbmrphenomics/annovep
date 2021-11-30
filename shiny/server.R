@@ -625,6 +625,7 @@ server <- function(input, output, session) {
   observeEvent(
     {
       input$build
+      input$password
     },
     {
       shiny::validate(shiny::need(input$password == settings$password, "Password required"))
