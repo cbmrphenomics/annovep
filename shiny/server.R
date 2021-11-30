@@ -298,101 +298,101 @@ parse_query <- function(value, symbols, special_symbols = list(), special_values
 }
 
 
-# Attempt to open the user-provided database
-database <- tryCatch(
-  {
-    # Read-only connection to SQLite3 database
-    conn <- DBI::dbConnect(RSQLite::SQLite(), settings$database, flags = RSQLite::SQLITE_RO)
-
-    query <- function(string, ...) {
-      return(DBI::dbGetQuery(conn, string, ...))
-    }
-
-    query_vec <- function(string, ...) {
-      return(unlist(query(string, ...), use.names = FALSE))
-    }
-
-    # Information about all user-facing columns; Chr and Pos are created based on the selected build
-    columns_info <- rbind(
-      data.frame(
-        Name = c("Chr", "Pos"),
-        Table = "Annotations",
-        # The exact column will depend on the build
-        Column = NA,
-        Description = c("Contig in the selected build", "Position in the selected build"),
-        stringsAsFactors = FALSE
-      ),
-      query("SELECT [Name], [Table], [Column], [Description] FROM [Columns] ORDER BY [pk];")
-    )
-
-    list(
-      conn = conn,
-      errors = NULL,
-      query = query,
-      query_vec = query_vec,
-      chroms_hg19 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg19' ORDER BY [pk];"),
-      chroms_hg38 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg38' ORDER BY [pk];"),
-      # User facing columns
-      columns = columns_info$Name,
-      columns_info = columns_info,
-      consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
-      genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];"),
-      has_json = length(query_vec("SELECT 1 FROM [JSON];")) > 0
-    )
-  },
-  error = function(e) {
-    error("Error opening/querying database: ", e)
-
-    list(
-      conn = NULL,
-      errors = as.character(e),
-      query = function(...) (stop(e)),
-      query_vec = function(...) (stop(e)),
-      chroms_hg19 = character(),
-      chroms_hg38 = character(),
-      columns = character(),
-      columns_info = data.frame(Name = character(), Description = character(), stringsAsFactors = FALSE),
-      consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
-      genes = character(),
-      has_json = FALSE
-    )
-  }
-)
-
-require_strs("database", database$errors, optional = TRUE)
-require_strs("database", database$chroms_hg19)
-require_strs("database", database$chroms_hg38)
-require_strs("database", database$columns)
-require_strs("database", database$columns_info$Name)
-require_strs("database", database$columns_info$Description)
-require_nums("database", database$consequences$pk)
-require_strs("database", database$consequences$Name)
-require_strs("database", database$genes)
-require_bool("database", database$has_json)
-
-# Consequences are foreign keys/ranks to allow ordering comparisons
-special_values <- list()
-special_values[database$consequences$Name] <- database$consequences$pk
-
-# Fill out default values not set by the user
-if (is.null(settings$genes)) {
-  settings$genes <- database$genes[1]
-}
-
-if (is.null(settings$build)) {
-  settings$build <- "hg38"
-}
-
-
-if (is.null(settings$chrom)) {
-  if (settings$build == "hg19") {
-    settings$chrom <- database$chroms_hg19[1]
-  } else {
-    settings$chrom <- database$chroms_hg38[1]
-  }
-}
-
 server <- function(input, output, session) {
+  # Attempt to open the user-provided database
+  database <- tryCatch(
+    {
+      # Read-only connection to SQLite3 database
+      conn <- DBI::dbConnect(RSQLite::SQLite(), settings$database, flags = RSQLite::SQLITE_RO)
+
+      query <- function(string, ...) {
+        return(DBI::dbGetQuery(conn, string, ...))
+      }
+
+      query_vec <- function(string, ...) {
+        return(unlist(query(string, ...), use.names = FALSE))
+      }
+
+      # Information about all user-facing columns; Chr and Pos are created based on the selected build
+      columns_info <- rbind(
+        data.frame(
+          Name = c("Chr", "Pos"),
+          Table = "Annotations",
+          # The exact column will depend on the build
+          Column = NA,
+          Description = c("Contig in the selected build", "Position in the selected build"),
+          stringsAsFactors = FALSE
+        ),
+        query("SELECT [Name], [Table], [Column], [Description] FROM [Columns] ORDER BY [pk];")
+      )
+
+      list(
+        conn = conn,
+        errors = NULL,
+        query = query,
+        query_vec = query_vec,
+        chroms_hg19 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg19' ORDER BY [pk];"),
+        chroms_hg38 = query_vec("SELECT DISTINCT [Name] FROM [Contigs] WHERE [Build] = 'hg38' ORDER BY [pk];"),
+        # User facing columns
+        columns = columns_info$Name,
+        columns_info = columns_info,
+        consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
+        genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];"),
+        has_json = length(query_vec("SELECT 1 FROM [JSON];")) > 0
+      )
+    },
+    error = function(e) {
+      error("Error opening/querying database: ", e)
+
+      list(
+        conn = NULL,
+        errors = as.character(e),
+        query = function(...) (stop(e)),
+        query_vec = function(...) (stop(e)),
+        chroms_hg19 = character(),
+        chroms_hg38 = character(),
+        columns = character(),
+        columns_info = data.frame(Name = character(), Description = character(), stringsAsFactors = FALSE),
+        consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
+        genes = character(),
+        has_json = FALSE
+      )
+    }
+  )
+
+  require_strs("database", database$errors, optional = TRUE)
+  require_strs("database", database$chroms_hg19)
+  require_strs("database", database$chroms_hg38)
+  require_strs("database", database$columns)
+  require_strs("database", database$columns_info$Name)
+  require_strs("database", database$columns_info$Description)
+  require_nums("database", database$consequences$pk)
+  require_strs("database", database$consequences$Name)
+  require_strs("database", database$genes)
+  require_bool("database", database$has_json)
+
+  # Consequences are foreign keys/ranks to allow ordering comparisons
+  special_values <- list()
+  special_values[database$consequences$Name] <- database$consequences$pk
+
+  # Fill out default values not set by the user
+  if (is.null(settings$genes)) {
+    settings$genes <- database$genes[1]
+  }
+
+  if (is.null(settings$build)) {
+    settings$build <- "hg38"
+  }
+
+
+  if (is.null(settings$chrom)) {
+    if (settings$build == "hg19") {
+      settings$chrom <- database$chroms_hg19[1]
+    } else {
+      settings$chrom <- database$chroms_hg38[1]
+    }
+  }
+
   user_filter <- reactiveValues(
     # The last valid user query
     query = list(string = "", params = list()),
