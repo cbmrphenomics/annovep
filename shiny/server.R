@@ -343,7 +343,7 @@ server <- function(input, output, session) {
         columns_info = columns_info,
         consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
         genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];"),
-        has_json = length(query_vec("SELECT 1 FROM [JSON];")) > 0
+        has_json = length(query_vec("SELECT 1 FROM [JSON] LIMIT 1;")) > 0
       )
     },
     error = function(e) {
