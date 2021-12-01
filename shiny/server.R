@@ -891,7 +891,7 @@ server <- function(input, output, session) {
       if (length(selected) > 10) {
         proxy <- DT::dataTableProxy("gene_tbl")
         DT::selectRows(proxy, match(input$genes, data$Name), ignore.selectable = TRUE)
-      } else if (!is.null(input$gene_tbl_cell_clicked)) {
+      } else if (length(input$gene_tbl_cell_clicked) > 0) {
         new_selection <- head(data[selected, "Name"], n = 10)
         if (!identical(input$genes, new_selection)) {
           # Despite what the documentation claims, it appears to be nessseary to provide all arguments
