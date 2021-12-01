@@ -839,7 +839,7 @@ server <- function(input, output, session) {
     options = list(
       scrollX = TRUE,
       scrollY = "80vh",
-      paging = FALSE,
+      pageLength = 100,
       columnDefs = list(
         list(targets = 4, orderData = 6),
         list(targets = 5, orderData = 7),
