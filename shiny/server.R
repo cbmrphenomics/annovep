@@ -532,7 +532,11 @@ server <- function(input, output, session) {
     names(params_min) <- sprintf("min%i", seq_along(params_min))
     names(params_max) <- sprintf("max%i", seq_along(params_max))
 
-    if (input$select_by == "genes") {
+    if (input$select_by == "anywhere") {
+      # No chromosome / position filters
+      params <- NULL
+      where <- "TRUE"
+    } else if (input$select_by == "genes") {
       # Genic regions are given relative to hg38
       params <- c(params_chr, params_min, params_max)
       where <- sprintf("(Hg38_chr = :%s AND Hg38_pos >= :%s AND Hg38_pos <= :%s)", names(params_chr), names(params_min), names(params_max))
@@ -579,7 +583,7 @@ server <- function(input, output, session) {
 
     ####################################################################################
     # LIMIT
-    if (input$select_by == "contig") {
+    if (input$select_by != "gene") {
       query <- c(query, sprintf("LIMIT %i", max(1, min(10000, input$maxRows))))
     }
 
@@ -646,6 +650,7 @@ server <- function(input, output, session) {
       choices <- list()
       choices[[sprintf("Gene (%i)", length(database$genes))]] <- "genes"
       choices[[sprintf("Contig (%i)", length(visible_chroms))]] <- "contig"
+      choices[["Anywhere"]] = "anywhere"
 
       shiny::updateRadioButtons(session, "select_by", choices = choices, inline = TRUE)
     }

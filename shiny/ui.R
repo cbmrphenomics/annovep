@@ -20,7 +20,7 @@ ui <- pageWithSidebar(
       condition = "output.show_ui && !output.database_errors",
       # View by Genes / Contig
       radioButtons("build", "Build:", c("Hg38" = "hg38", "Hg19 (liftover)" = "hg19"), inline = TRUE),
-      radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Contig" = "contig"), inline = TRUE),
+      radioButtons("select_by", "Select variants by:", c("Gene" = "genes", "Contig" = "contig", "Anywhere" = "anywhere"), inline = TRUE),
       conditionalPanel(
         condition = "input.select_by === 'genes'",
         selectizeInput("genes", NULL, choices = NULL, multiple = TRUE, options = list(maxOptions = 10, maxItems = 10))
