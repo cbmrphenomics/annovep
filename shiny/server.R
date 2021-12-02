@@ -535,7 +535,7 @@ server <- function(input, output, session) {
     if (input$select_by == "anywhere") {
       # No chromosome / position filters
       params <- NULL
-      where <- "TRUE"
+      where <- "1"
     } else if (input$select_by == "genes") {
       # Genic regions are given relative to hg38
       params <- c(params_chr, params_min, params_max)
