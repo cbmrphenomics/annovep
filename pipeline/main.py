@@ -7,6 +7,7 @@ from pathlib import Path
 
 import coloredlogs
 
+from annotation import load_annotations
 from pipeline import main as pipeline_main
 from postprocess import main as postprocess_main
 from preprocess import main as preprocess_main
@@ -36,11 +37,13 @@ def parse_args(argv):
     mainparser.set_defaults(
         main=None,
         root=None,
+        annotations=[],
         data_cache=None,
         data_custom=None,
         data_plugins=None,
         data_liftover=None,
         install=None,
+        install_annovep=None,
         install_plugins=None,
     )
 
@@ -53,7 +56,7 @@ def parse_args(argv):
     parser.add_argument("in_vcf", type=Path)
     parser.add_argument("out_prefix", type=Path)
 
-    parser.add_argument("--annotations", type=Path)
+    parser.add_argument("--annotations", default=[], action="append", type=Path)
 
     group = parser.add_argument_group("Data locations")
     parser.add_argument("--data-cache", type=Path)
@@ -86,6 +89,7 @@ def parse_args(argv):
     parser.add_argument("in_json", type=Path)
     parser.add_argument("out_prefix", type=Path)
 
+    parser.add_argument("--annotations", default=[], action="append", type=Path)
     parser.add_argument("--data-liftover", type=Path)
 
     parser.add_argument(
@@ -134,11 +138,25 @@ def main(argv):
     if args.install_plugins is None:
         args.install_plugins = args.install / "vep-plugins" / "Plugins"
 
+    variables = {
+        # Data folders
+        "data-cache": args.data_cache,
+        "data-custom": args.data_custom,
+        "data-plugins": args.data_plugins,
+        "data-liftover": args.data_liftover,
+        # Installation folders
+        "install": args.install,
+        "install-plugins": args.install_plugins,
+        "install-annovep": args.install_annovep,
+    }
+
+    annotations = tuple(load_annotations(args.annotations, variables))
+
     if args.main is None:
         parser.print_usage()
         return 1
 
-    return args.main(args)
+    return args.main(args, annotations)
 
 
 if __name__ == "__main__":

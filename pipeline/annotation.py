@@ -8,7 +8,45 @@ def _pop_str_list(data, name, key):
     elif not isinstance(values, list):
         raise AnnotationError(f"{key} for plugin {name!r} are not a list")
 
+    if any(not isinstance(value, str) for value in values):
+        raise AnnotationError(f"{key} for plugin {name!r} contains non-strings")
+
     return tuple(values)
+
+
+def _pop_fields(data, name):
+    values = data.pop("Fields", {})
+    if not values:
+        raise AnnotationError(f"No Fields for plugin {name!r}")
+    elif not isinstance(values, dict):
+        raise AnnotationError(f"Fields for plugin {name!r} are not a dict")
+
+    for key, value in values.items():
+        if not isinstance(key, str):
+            raise AnnotationError(f"Fields for plugin {name!r} has non-str key {key!r}")
+        elif not isinstance(value, dict):
+            value = {"Name": value, "Split-by": None}
+
+        name = value.pop("Name", None)
+        if not (isinstance(name, str) or name is None):
+            raise AnnotationError(f"Field {name!r} for plugin {name!r} is not str")
+        elif not (name or name is None):
+            raise AnnotationError(f"No name for Field {key!r} for plugin {name!r}")
+
+        split_by = value.pop("Split-by", None)
+        if not (isinstance(split_by, str) or split_by is None):
+            raise AnnotationError(
+                f"Bad Split-By {split_by} for Field {key!r} for plugin {name!r}"
+            )
+
+        if value:
+            raise AnnotationError(
+                f"Unexpected keys {tuple(value)} for Field {key!r} for plugin {name!r}"
+            )
+
+        values[key] = {"Name": name, "Split-by": split_by}
+
+    return values
 
 
 def _replace_vars(values, variables):
@@ -71,14 +109,10 @@ class Custom:
         elif not isinstance(file_, str):
             raise AnnotationError(f"{name!r} File is not a string: {self._file!r}")
 
-        if type == "vcf":
-            self.fields = _pop_str_list(data, name, "Fields")
-        else:
-            self.fields = ()
-
         self.name = name
         self._type = type
         self._file = file_.format(**variables)
+        self.fields = _pop_fields(data, name) if type == "vcf" else {}
 
         if data:
             raise AnnotationError(f"Unexpected settings in plugin {name!r}: {data!r}")
@@ -103,19 +137,20 @@ def parse_annotation(cls, data, variables, **kwargs):
         yield cls(name, settings, variables, **kwargs)
 
 
-def load_annotations(filepath, variables):
+def load_annotations(filepaths, variables=None):
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
 
-    with filepath.open("rt") as handle:
-        data = yaml.load(handle)
+    for filepath in filepaths:
+        with filepath.open("rt") as handle:
+            data = yaml.load(handle)
 
-    for key, annotations in data.items():
-        if key == "Plugins":
-            yield from parse_annotation(Plugin, annotations, variables)
-        elif key == "VCFs":
-            yield from parse_annotation(Custom, annotations, variables, type="vcf")
-        elif key == "BEDs":
-            yield from parse_annotation(Custom, annotations, variables, type="bed")
-        else:
-            raise AnnotationError("Unexpected annotation type {key!r}")
+        for key, annotations in data.items():
+            if key == "Plugins":
+                yield from parse_annotation(Plugin, annotations, variables)
+            elif key == "VCFs":
+                yield from parse_annotation(Custom, annotations, variables, type="vcf")
+            elif key == "BEDs":
+                yield from parse_annotation(Custom, annotations, variables, type="bed")
+            else:
+                raise AnnotationError("Unexpected annotation type {key!r}")

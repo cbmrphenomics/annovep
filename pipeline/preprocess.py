@@ -30,7 +30,7 @@ def fix_contig_name(line):
     return line, None, None
 
 
-def main(args):
+def main(args, _anotations):
     n_decoys = 0
     n_bad_contigs = 0
     n_bad_contigs_vcf = 0

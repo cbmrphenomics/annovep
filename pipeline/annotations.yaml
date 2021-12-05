@@ -47,20 +47,22 @@ VCFs:
   ClinVar:
     File: "{data-custom}/clinvar_20210821.vcf.gz"
     Fields:
-      - "ALLELEID"
-      - "CLNDN"
-      - "CLNDISDB"
-      - "CLNREVSTAT"
-      - "CLNSIG"
+      "ALLELEID": "ClinVar_ID"
+      "CLNDN":
+          "Name": "ClinVar_disease"
+          "Split-by": "|"
+      "CLNDISDB": null
+      "CLNREVSTAT": null
+      "CLNSIG": ClinVar_significance
 
   1KGenomes:
     File: "{data-custom}/1000Genomes_20200805.vcf.gz"
     Fields:
-      - "AF_AMR_unrel"
-      - "AF_AFR_unrel"
-      - "AF_EAS_unrel"
-      - "AF_EUR_unrel"
-      - "AF_SAS_unrel"
+      "AF_AFR_unrel": "1KG_AFR_AF"
+      "AF_AMR_unrel": "1KG_AMR_AF"
+      "AF_EAS_unrel": "1KG_EAS_AF"
+      "AF_EUR_unrel": "1KG_EUR_AF"
+      "AF_SAS_unrel": "1KG_SAS_AF"
 
   # Custom made gnomAD VCFs containing coverage statistics
   #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
@@ -68,10 +70,10 @@ VCFs:
   gnomAD_coverage:
     File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
     Fields:
-      - "gnomAD_mean"
-      - "gnomAD_median"
-      - "gnomAD_over_15"
-      - "gnomAD_over_50"
+      "mean": "gnomAD_mean"
+      "median_approx": "gnomAD_median"
+      "over_15": "gnomAD_over_15"
+      "over_50": "gnomAD_over_50"
 
   # Custom made gnomAD VCF containing allele frequencies
   #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
@@ -79,24 +81,27 @@ VCFs:
   gnomAD_sites:
     File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
     Fields:
-      - "AF"
-      - "AF_afr"
-      - "AF_ami"
-      - "AF_amr"
-      - "AF_asj"
-      - "AF_eas"
-      - "AF_fin"
-      - "AF_nfe"
-      - "AF_oth"
-      - "AF_sas"
+      "AF": null
+      "AF_afr": "gnomAD_AFR_AF"
+      "AF_ami": "gnomAD_AMI_AF"
+      "AF_amr": "gnomAD_AMR_AF"
+      "AF_asj": "gnomAD_ASJ_AF"
+      "AF_eas": "gnomAD_EAS_AF"
+      "AF_fin": "gnomAD_FIN_AF"
+      "AF_nfe": "gnomAD_NFE_AF"
+      "AF_oth": "gnomAD_OTH_AF"
+      "AF_sas": "gnomAD_SAS_AF"
+      "FILTER":
+        "Name": "gnomAD_filter"
+        "Split-by": ","
 
   # Custom made dbSNP VCF containing aggregated information
   dbSNP:
     File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
     Fields:
-      - "ids"
-      - "alts"
-      - "functions"
+      "ids": "dbSNP_ids"
+      "alts": "dbSNP_alts"
+      "functions": "dbSNP_functions"
 
 
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example

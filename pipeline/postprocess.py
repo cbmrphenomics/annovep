@@ -14,6 +14,8 @@ from typing import Dict
 import coloredlogs
 import liftover
 
+from annotation import Custom
+
 ########################################################################################
 
 
@@ -229,7 +231,8 @@ def parse_vcf_genotypes(genotypes, _re=re.compile(r"[|/]")):
 
 
 class Annotator:
-    def __init__(self, liftover_cache=None) -> None:
+    def __init__(self, annotations, liftover_cache=None) -> None:
+        self._annotations = annotations
         self._consequence_ranks = _build_consequence_ranks()
         self._lifter = liftover.get_lifter("hg38", "hg19", liftover_cache)
 
@@ -491,122 +494,46 @@ class Annotator:
         # as a workaround for bug where "aa" is -nan (converted to None in _read_record)
         dst["Ancestral_allele"] = allele if allele else None
 
-    def _do_add_custom_annotation(
-        self,
-        src,
-        dst,
-        name,
-        fields,
-        default=None,
-        post=lambda it: it,
-    ):
-        data = {}
-
-        alt = dst[":vep:"]["alt"]
-        # annotation = {"fields": ..., "name": "chr:start-end"}
-        annotations = src.get("custom_annotations", {}).get(name, [])
-        for annotation in annotations:
-            if annotation.get("allele", alt) == alt:
-                # data = {"FILTER": ".", field1: value1, ...}
-                data = annotation.get("fields", {})
-                break
-
-        if not isinstance(fields, dict):
-            fields = dict(zip(fields, fields))
-
-        for src_key, dst_key in fields.items():
-            dst[dst_key] = post(data.get(src_key, default))
-
     def _add_custom_annotation(self, src, dst):
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="1KGenomes",
-            fields={
-                "AF_AFR_unrel": "1KG_AFR_AF",
-                "AF_AMR_unrel": "1KG_AMR_AF",
-                "AF_EAS_unrel": "1KG_EAS_AF",
-                "AF_EUR_unrel": "1KG_EUR_AF",
-                "AF_SAS_unrel": "1KG_SAS_AF",
-            },
-        )
+        for annotation in self._annotations:
+            if isinstance(annotation, Custom):
+                data = {}
 
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="dbSNP",
-            fields={
-                "ids": "dbSNP_ids",
-                "alts": "dbSNP_alts",
-                "functions": "dbSNP_functions",
-            },
-            post=lambda it: [] if it is None else it.split(","),
-        )
+                alt = dst[":vep:"]["alt"]
+                # annotation = {"fields": ..., "name": "chr:start-end"}
+                results = src.get("custom_annotations", {}).get(annotation.name, [])
+                for result in results:
+                    if result.get("allele", alt) == alt:
+                        # data = {"FILTER": ".", field1: value1, ...}
+                        data = result.get("fields", {})
+                        break
 
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="gnomAD_coverage",
-            fields=(
-                "gnomAD_mean",
-                "gnomAD_median",
-                "gnomAD_over_15",
-                "gnomAD_over_50",
-            ),
-        )
+                for key, info in annotation.fields.items():
+                    name = info["Name"]
+                    if name is not None:
+                        split_by = info["Split-by"]
+                        value = data.get(key)
 
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="gnomAD_sites",
-            fields={
-                "FILTER": "gnomAD_filter",
-            },
-            post=lambda it: [] if it is None else it.split(","),
-        )
+                        if split_by is not None:
+                            value = [] if value is None else value.split(split_by)
 
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="ClinVar",
-            fields={
-                "ALLELEID": "ClinVar_ID",
-                "CLNSIG": "ClinVar_significance",
-            },
-        )
-
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="ClinVar",
-            fields={
-                "CLNDN": "ClinVar_disease",
-            },
-            post=lambda it: [] if it is None else it.split("|"),
-        )
+                        dst[name] = value
 
     def _add_gnomad_annotation(self, src, dst):
-        gnomAD_populations = {
-            "AF_afr": "gnomAD_AFR_AF",
-            "AF_ami": "gnomAD_AMI_AF",
-            "AF_amr": "gnomAD_AMR_AF",
-            "AF_asj": "gnomAD_ASJ_AF",
-            "AF_eas": "gnomAD_EAS_AF",
-            "AF_fin": "gnomAD_FIN_AF",
-            "AF_nfe": "gnomAD_NFE_AF",
-            "AF_oth": "gnomAD_OTH_AF",
-            "AF_sas": "gnomAD_SAS_AF",
-        }
-
-        self._do_add_custom_annotation(
-            src=src,
-            dst=dst,
-            name="gnomAD_sites",
-            fields=gnomAD_populations,
+        gnomAD_populations = (
+            "gnomAD_AFR_AF",
+            "gnomAD_AMI_AF",
+            "gnomAD_AMR_AF",
+            "gnomAD_ASJ_AF",
+            "gnomAD_EAS_AF",
+            "gnomAD_FIN_AF",
+            "gnomAD_NFE_AF",
+            "gnomAD_OTH_AF",
+            "gnomAD_SAS_AF",
         )
 
         gnomAD_values = []
-        for key in gnomAD_populations.values():
+        for key in gnomAD_populations:
             value = dst.get(key)
             if value is not None:
                 gnomAD_values.append(value)
@@ -1071,7 +998,7 @@ def read_vep_json(filepath):
         yield json.loads(line)
 
 
-def main(args):
+def main(args, annotations):
     args.include_json = args.include_json and "sql" in (args.output_format or ())
 
     coloredlogs.install(
@@ -1082,7 +1009,10 @@ def main(args):
     log.info("reading VEP annotations from '%s'", args.in_json)
 
     header = _build_columns()
-    annotator = Annotator(liftover_cache=args.data_liftover)
+    annotator = Annotator(
+        annotations=annotations,
+        liftover_cache=args.data_liftover,
+    )
 
     output_formats = set(args.output_format) if args.output_format else ["tsv"]
     if args.out_prefix is None and len(output_formats) > 1:

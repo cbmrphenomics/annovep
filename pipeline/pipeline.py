@@ -5,7 +5,6 @@ import os
 import subprocess
 import sys
 
-from annotation import load_annotations
 from utils import cmd_to_str, join_procs, update_required
 
 
@@ -79,40 +78,26 @@ def run_vep(args, log, annotations):
 
 
 def run_post_proc(args, log):
-    proc = exec_self(
-        log=log,
-        command=[
-            "post-process",
-            args.out_vep_json,
-            args.out_prefix,
-            "--data-liftover",
-            args.data_liftover,
-        ],
-    )
+    command = [
+        "post-process",
+        args.out_vep_json,
+        args.out_prefix,
+        "--data-liftover",
+        args.data_liftover,
+    ]
+
+    for annotation in args.annotations:
+        command += ["--annotations", annotation]
+
+    proc = exec_self(log=log, command=command)
 
     return join_procs(log, [proc])
 
 
-def main(args):
+def main(args, annotations):
     log = logging.getLogger("annovep")
-    if not args.annotations:
-        log.warning("No --annotations specified!")
-        return 1
-
-    variables = {
-        # Data folders
-        "data-cache": args.data_cache,
-        "data-custom": args.data_custom,
-        "data-plugins": args.data_plugins,
-        "data-liftover": args.data_liftover,
-        # Installation folders
-        "install": args.install,
-        "install-plugins": args.install_plugins,
-        "install-annovep": args.install_annovep,
-    }
 
     any_errors = False
-    annotations = tuple(load_annotations(args.annotations, variables))
     for annotation in annotations:
         log.info("Checking files for annotation %s", annotation.name)
         for filename in annotation.files:
@@ -128,7 +113,7 @@ def main(args):
 
     if update_required(
         output=args.out_vep_json,
-        inputs=[args.in_vcf, args.annotations],
+        inputs=[args.in_vcf] + args.annotations,
     ):
         log.info("Running VEP")
         if not run_vep(args, log, annotations):
