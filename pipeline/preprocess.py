@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-import argparse
 import logging
 import re
-import sys
-from pathlib import Path
 
 from utils import open_ro
 
@@ -83,7 +80,3 @@ def main(args, _anotations):
     log.info("Removed %s variants on decoy contigs", _fmt(n_decoys))
 
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
