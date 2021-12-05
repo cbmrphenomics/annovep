@@ -16,14 +16,10 @@ ERR = "[☓]"
 
 MARKER = "not_mounted"
 
-DATA_ROOT = Path("/data")
-USER_ROOT = DATA_ROOT / "user"
-CACHE_ROOT = DATA_ROOT / "cache"
-
+USER_ROOT = Path("/") / "data" / "user"
+CACHE_ROOT = Path("/") / "data" / "cache"
 ANNOVEP_ROOT = Path("/opt/annovep")
-
 VEP_ROOT = Path("/opt/vep/src/ensembl-vep")
-VEP_PLUGINS = Path("/opt/vep-plugins/Plugins/")
 
 
 COMMANDS: Dict[str, List[Union[Path, str]]] = {
@@ -32,7 +28,15 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
     "vep": ["perl", VEP_ROOT / "vep"],
     "setup": ["bash", ANNOVEP_ROOT / "setup_vep.sh"],
     # Main pipeline
-    "pipeline": ["bash", ANNOVEP_ROOT / "pipeline.sh"],
+    "pipeline": [
+        "python3",
+        ANNOVEP_ROOT / "pipeline" / "main.py",
+        "run",
+        "--root",
+        CACHE_ROOT,
+        "--annotations",
+        ANNOVEP_ROOT / "pipeline" / "annotations.yaml",
+    ],
 }
 
 
@@ -118,7 +122,6 @@ def main(argv):
     env["ANNOVEP_CACHE"] = str(CACHE_ROOT)
 
     env["VEP_ROOT"] = str(VEP_ROOT)
-    env["VEP_PLUGINS"] = str(VEP_PLUGINS)
 
     log.info("Running %s", " ".join(quote_command(commandline + argv)))
 

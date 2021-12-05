@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import argparse
-import bz2
-import gzip
-import io
 import logging
 import re
 import sys
-from os import fspath
 from pathlib import Path
 
-import coloredlogs
-
+from utils import open_ro
 
 _RE_CONTIG_ID = re.compile("^(##contig=<.*ID=)([^,]+)(.*>)$", re.I)
 
@@ -35,48 +30,7 @@ def fix_contig_name(line):
     return line, None, None
 
 
-def open_ro(filename):
-    """Opens a file for reading, transparently handling
-    GZip and BZip2 compressed files. Returns a file handle."""
-    handle = open(fspath(filename), "rb")
-    try:
-        header = handle.read(2)
-        handle.seek(0)
-
-        if header == b"\x1f\x8b":
-            handle = gzip.GzipFile(mode="rb", fileobj=handle)
-        elif header == b"BZ":
-            handle = bz2.BZ2File(handle, "rb")
-
-        return io.TextIOWrapper(handle)
-    except:
-        handle.close()
-        raise
-
-
-class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault("width", 79)
-
-        super().__init__(*args, **kwargs)
-
-
-def parse_args(argv):
-    parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
-    parser.add_argument("in_vcf", type=Path)
-
-    return parser.parse_args(argv)
-
-
-def main(argv):
-    args = parse_args(argv)
-
-    coloredlogs.install(
-        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
-        # Workaround for coloredlogs disabling colors in docker containers
-        isatty=sys.stderr.isatty(),
-    )
-
+def main(args):
     n_decoys = 0
     n_bad_contigs = 0
     n_bad_contigs_vcf = 0

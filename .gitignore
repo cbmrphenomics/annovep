@@ -1,2 +1,5 @@
 .vscode/
 binaries/*.gz
+
+__pycache__
+*.pyc

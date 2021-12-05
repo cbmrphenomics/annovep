@@ -1,0 +1,106 @@
+Plugins:
+  # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
+  AncestralAllele:
+    Variables:
+      Fasta: "{data-plugins}/homo_sapiens_ancestor_GRCh38.fa.gz"
+    Parameters:
+      - "{Fasta}"
+    Files:
+      - "{Fasta}"
+      - "{Fasta}.fai"
+      - "{Fasta}.gzi"
+
+  # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
+  Conservation:
+    Variables:
+      Database: "{data-plugins}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
+    Parameters:
+      - "{Database}"
+    Files:
+      - "{Database}"
+
+  # https://github.com/konradjk/loftee
+  LoF:
+    Variables:
+      Fasta: "{data-plugins}/human_ancestor.fa.gz"
+      Database: "{data-plugins}/phylocsf_gerp.sql"
+    Parameters:
+      - "loftee_path:{install-plugins}"
+      - "human_ancestor_fa:{Fasta}"
+      - "conservation_file:{Database}"
+    Files:
+      - "{Fasta}"
+      - "{Fasta}.fai"
+      - "{Fasta}.gzi"
+      - "{Database}"
+
+  ExACpLI:
+    Variables:
+      Values: "{data-plugins}/ExACpLI_values.txt"
+    Parameters:
+      - "{Values}"
+    Files:
+      - "{Values}"
+
+# http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
+VCFs:
+  ClinVar:
+    File: "{data-custom}/clinvar_20210821.vcf.gz"
+    Fields:
+      - "ALLELEID"
+      - "CLNDN"
+      - "CLNDISDB"
+      - "CLNREVSTAT"
+      - "CLNSIG"
+
+  1KGenomes:
+    File: "{data-custom}/1000Genomes_20200805.vcf.gz"
+    Fields:
+      - "AF_AMR_unrel"
+      - "AF_AFR_unrel"
+      - "AF_EAS_unrel"
+      - "AF_EUR_unrel"
+      - "AF_SAS_unrel"
+
+  # Custom made gnomAD VCFs containing coverage statistics
+  #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
+  #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
+  gnomAD_coverage:
+    File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
+    Fields:
+      - "gnomAD_mean"
+      - "gnomAD_median"
+      - "gnomAD_over_15"
+      - "gnomAD_over_50"
+
+  # Custom made gnomAD VCF containing allele frequencies
+  #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
+  #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
+  gnomAD_sites:
+    File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
+    Fields:
+      - "AF"
+      - "AF_afr"
+      - "AF_ami"
+      - "AF_amr"
+      - "AF_asj"
+      - "AF_eas"
+      - "AF_fin"
+      - "AF_nfe"
+      - "AF_oth"
+      - "AF_sas"
+
+  # Custom made dbSNP VCF containing aggregated information
+  dbSNP:
+    File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
+    Fields:
+      - "ids"
+      - "alts"
+      - "functions"
+
+
+# http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
+BEDs:
+  # Custom made BED containing overlapping/neighboring genes for every part of hg38
+  neighbours:
+    File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-import argparse
 import collections
 import functools
 import gzip
@@ -10,7 +9,6 @@ import re
 import sys
 import zlib
 from itertools import groupby
-from pathlib import Path
 from typing import Dict
 
 import coloredlogs
@@ -1073,61 +1071,10 @@ def read_vep_json(filepath):
         yield json.loads(line)
 
 
-class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault("width", 79)
-
-        super().__init__(*args, **kwargs)
-
-
-def parse_args(argv):
-    parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
-    parser.add_argument("in_json")
-
-    parser.add_argument(
-        "out_prefix",
-        nargs="?",
-        type=Path,
-    )
-
-    parser.add_argument(
-        "--output-format",
-        action="append",
-        type=str.lower,
-        choices=OUTPUT_FORMATS.keys(),
-        help="Output format for aggregated annotations. Maybe be specified zero or "
-        "more times. Defaults to TSV if not specified",
-    )
-
-    parser.add_argument(
-        "--include-json",
-        action="store_true",
-        help="Include JSON data in SQL output, excluding sample specific information",
-    )
-
-    parser.add_argument(
-        "--liftover-cache",
-        type=Path,
-    )
-
-    parser.add_argument(
-        "--log-level",
-        default="info",
-        choices=("debug", "info", "warning", "error"),
-        type=str.lower,
-        help="Log messages at the specified level. This option applies to the "
-        "`--log-file` option and to log messages printed to the terminal.",
-    )
-
-    return parser.parse_args(argv)
-
-
-def main(argv):
-    args = parse_args(argv)
+def main(args):
     args.include_json = args.include_json and "sql" in (args.output_format or ())
 
     coloredlogs.install(
-        level=args.log_level,
         fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
 
@@ -1135,7 +1082,7 @@ def main(argv):
     log.info("reading VEP annotations from '%s'", args.in_json)
 
     header = _build_columns()
-    annotator = Annotator(liftover_cache=args.liftover_cache)
+    annotator = Annotator(liftover_cache=args.data_liftover)
 
     output_formats = set(args.output_format) if args.output_format else ["tsv"]
     if args.out_prefix is None and len(output_formats) > 1:
