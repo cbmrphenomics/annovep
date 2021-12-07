@@ -72,11 +72,17 @@ class FloatCol(str):
     """Indicates that a column contains floating point values."""
 
 
-def _build_columns():
-    onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
-    gnomad_af = "Frequency of existing variant in gnomAD genomes {} population"
+COL_TYPES = {
+    "str": lambda it: it,
+    "int": IntegerCol,
+    "float": FloatCol,
+}
 
-    return {
+
+def _build_columns(annotations):
+    onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
+
+    columns = {
         "Chr": "Chromosome/Contig recorded in input VCF",
         "Pos": IntegerCol("Position recorded in input VCF"),
         "ID": "ID recorded in input VCF",
@@ -132,34 +138,27 @@ def _build_columns():
         "Func_ExACpLI": FloatCol(
             "Probabililty of a gene being loss-of-function intolerant"
         ),
-        "dbSNP_ids": "dbSNP ids for alleles alleles matching this pos:ref/alt",
-        "dbSNP_alts": "dbSNP allele strings records matching pos:ref/*",
-        "dbSNP_functions": "GO terms recorded in dbSNP",
-        "ClinVar_ID": IntegerCol("The ClinVar Allele ID"),
-        "ClinVar_disease": "ClinVar's preferred disease name",
-        "ClinVar_significance": "Clinical significance for this single variant",
-        "gnomAD_mean": FloatCol("gnomAD genomes mean coverage for this site"),
-        "gnomAD_median": IntegerCol("gnomAD genomes median coverage for this site"),
-        "gnomAD_over_15": FloatCol("gnomAD genomes fraction with coverage over 15x"),
-        "gnomAD_over_50": FloatCol("gnomAD genomes fraction with coverage over 50x"),
-        "gnomAD_filter": "gnomAD genomes FILTER",
+        # dbSNP
+        # ClinVar
+        # gnomAD coverage
+        # gnomAD sites
+        # 1k genomes
         "gnomAD_min": FloatCol("Minimum allele frequency in gnomAD genomes"),
         "gnomAD_max": FloatCol("Maximum allele frequency in gnomAD genomes"),
-        "gnomAD_AFR_AF": FloatCol(gnomad_af.format("African/American")),
-        "gnomAD_AMI_AF": FloatCol(gnomad_af.format("Amish")),
-        "gnomAD_AMR_AF": FloatCol(gnomad_af.format("American")),
-        "gnomAD_ASJ_AF": FloatCol(gnomad_af.format("Ashkenazi Jewish")),
-        "gnomAD_EAS_AF": FloatCol(gnomad_af.format("East Asian")),
-        "gnomAD_FIN_AF": FloatCol(gnomad_af.format("Finnish")),
-        "gnomAD_NFE_AF": FloatCol(gnomad_af.format("Non-Finnish European")),
-        "gnomAD_OTH_AF": FloatCol(gnomad_af.format("other combined")),
-        "gnomAD_SAS_AF": FloatCol(gnomad_af.format("South Asian")),
-        "1KG_AFR_AF": FloatCol(onek_af.format("African")),
-        "1KG_AMR_AF": FloatCol(onek_af.format("American")),
-        "1KG_EAS_AF": FloatCol(onek_af.format("East Asian")),
-        "1KG_EUR_AF": FloatCol(onek_af.format("European")),
-        "1KG_SAS_AF": FloatCol(onek_af.format("South Asian")),
     }
+
+    for annotation in annotations:
+        if isinstance(annotation, Custom):
+            for info in annotation.fields.values():
+                column_type = info["Type"]
+                column_name = info["Name"]
+                column_help = info["Help"]
+
+                if column_name is not None:
+                    wrapper = COL_TYPES[column_type]
+                    columns[column_name] = wrapper(column_help)
+
+    return columns
 
 
 # Columns that contain consequence terms (see `_build_consequence_ranks()`)
@@ -1008,7 +1007,7 @@ def main(args, annotations):
     log = logging.getLogger("convert_vep")
     log.info("reading VEP annotations from '%s'", args.in_json)
 
-    header = _build_columns()
+    header = _build_columns(annotations)
     annotator = Annotator(
         annotations=annotations,
         liftover_cache=args.data_liftover,

@@ -14,7 +14,7 @@ def _pop_str_list(data, name, key):
     return tuple(values)
 
 
-def _pop_fields(data, name):
+def _pop_fields(data, name, default_type):
     values = data.pop("Fields", {})
     if not values:
         raise AnnotationError(f"No Fields for plugin {name!r}")
@@ -39,12 +39,32 @@ def _pop_fields(data, name):
                 f"Bad Split-By {split_by} for Field {key!r} for plugin {name!r}"
             )
 
+        help = value.pop("Help", None)
+        if help is None:
+            help = ""
+        elif not isinstance(help, str):
+            raise AnnotationError(f"Help {name!r} for plugin {name!r} is not str")
+
+        type = value.pop("Type", default_type)
+        if isinstance(type, str):
+            type = type.lower()
+
+        if type not in ("str", "int", "float"):
+            raise AnnotationError(
+                f"Bad Type {type} for Field {key!r} for plugin {name!r}"
+            )
+
         if value:
             raise AnnotationError(
                 f"Unexpected keys {tuple(value)} for Field {key!r} for plugin {name!r}"
             )
 
-        values[key] = {"Name": name, "Split-by": split_by}
+        values[key] = {
+            "Name": name,
+            "Type": type,
+            "Help": help,
+            "Split-by": split_by,
+        }
 
     return values
 
@@ -112,7 +132,9 @@ class Custom:
         self.name = name
         self._type = type
         self._file = file_.format(**variables)
-        self.fields = _pop_fields(data, name) if type == "vcf" else {}
+
+        default_type = data.pop("Type", "str")
+        self.fields = _pop_fields(data, name, default_type) if type == "vcf" else {}
 
         if data:
             raise AnnotationError(f"Unexpected settings in plugin {name!r}: {data!r}")
