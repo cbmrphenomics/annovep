@@ -35,7 +35,7 @@ def parse_args(argv):
     mainparser = argparse.ArgumentParser(formatter_class=HelpFormatter)
     mainparser.set_defaults(
         main=None,
-        root=None,
+        root=Path("~/annovep").expanduser(),
         annotations=[],
         data_cache=None,
         data_custom=None,
