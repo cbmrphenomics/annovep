@@ -55,7 +55,7 @@ def _pop_fields(data, name, default_type) -> Dict[str, _Field]:
         elif not isinstance(help, str):
             raise AnnotationError(f"Help {name!r} for plugin {name!r} is not str")
 
-        type = value.pop("Type", default_type)
+        type = value.pop("FieldType", default_type)
         if isinstance(type, str):
             type = type.lower()
 
@@ -143,7 +143,7 @@ class Custom:
         self._type = type
         self._file = file_.format(**variables)
 
-        default_type = data.pop("Type", "str")
+        default_type = data.pop("FieldType", "str")
         self.fields = _pop_fields(data, name, default_type) if type == "vcf" else {}
 
         if data:

@@ -49,7 +49,7 @@ VCFs:
     Fields:
       "ALLELEID":
         Name: "ClinVar_ID"
-        Type: int
+        FieldType: int
         Help: "The ClinVar Allele ID"
       "CLNDN":
           Name: "ClinVar_disease"
@@ -63,7 +63,7 @@ VCFs:
 
   1KGenomes:
     File: "{data-custom}/1000Genomes_20200805.vcf.gz"
-    Type: float
+    FieldType: float
     Fields:
       "AF_AFR_unrel":
         Name: "1KG_AFR_AF"
@@ -86,14 +86,14 @@ VCFs:
   #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
   gnomAD_coverage:
     File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
-    Type: float
+    FieldType: float
     Fields:
       "mean":
         Name: "gnomAD_mean"
         Help: "gnomAD genomes mean coverage for this site"
       "median_approx":
         Name: "gnomAD_median"
-        Type: int
+        FieldType: int
         Help: "gnomAD genomes median coverage for this site"
       "over_15":
         Name: "gnomAD_over_15"
@@ -107,11 +107,11 @@ VCFs:
   #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
   gnomAD_sites:
     File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
-    Type: float
+    FieldType: float
     Fields:
       "FILTER":
         Name: "gnomAD_filter"
-        Type: str
+        FieldType: str
         Help: "gnomAD genomes FILTER"
         Split-by: ","
       ":min:":
