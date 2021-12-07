@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import argparse
-import logging
 import sys
 from pathlib import Path
 
