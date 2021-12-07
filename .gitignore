@@ -1,5 +1,6 @@
 .vscode/
 binaries/*.gz
 
+venv
 __pycache__
 *.pyc
