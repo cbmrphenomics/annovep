@@ -44,6 +44,7 @@ def parse_args(argv):
         install=None,
         install_annovep=None,
         install_plugins=None,
+        log_level="info",
     )
 
     subparsers = mainparser.add_subparsers()
@@ -112,16 +113,16 @@ def parse_args(argv):
 
 
 def main(argv):
+    parser = parse_args(argv)
+    args = parser.parse_args(argv)
+
     coloredlogs.install(
-        level="INFO",
+        level=args.log_level,
         datefmt="%Y-%m-%d %H:%M:%S",
         fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
         # Workaround for coloredlogs disabling colors in docker containers
         isatty=sys.stderr.isatty(),
     )
-
-    parser = parse_args(argv)
-    args = parser.parse_args(argv)
 
     if args.data_cache is None:
         args.data_cache = args.root / "cache"

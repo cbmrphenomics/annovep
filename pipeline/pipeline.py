@@ -68,7 +68,12 @@ def run_vep(args, log, annotations):
 
     preproc = exec_self(
         log=log,
-        command=["pre-process", args.in_vcf],
+        command=[
+            "pre-process",
+            args.in_vcf,
+            "--log-level",
+            args.log_leve,
+        ],
         stdout=subprocess.PIPE,
     )
 
@@ -82,6 +87,8 @@ def run_post_proc(args, log):
         "post-process",
         args.out_vep_json,
         args.out_prefix,
+        "--log-level",
+        args.log_leve,
         "--data-liftover",
         args.data_liftover,
     ]

@@ -11,7 +11,6 @@ import zlib
 from itertools import groupby
 from typing import Dict
 
-import coloredlogs
 import liftover
 
 from annotation import Custom
@@ -993,10 +992,6 @@ def read_vep_json(filepath):
 
 def main(args, annotations):
     args.include_json = args.include_json and "sql" in (args.output_format or ())
-
-    coloredlogs.install(
-        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
 
     log = logging.getLogger("convert_vep")
     log.info("reading VEP annotations from '%s'", args.in_json)
