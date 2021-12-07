@@ -114,6 +114,12 @@ VCFs:
         Type: str
         Help: "gnomAD genomes FILTER"
         Split-by: ","
+      ":min:":
+        Name: "gnomAD_min"
+        Help: "Minimum allele frequency in gnomAD genomes"
+      ":max:":
+        Name: "gnomAD_max"
+        Help: "Maximum allele frequency in gnomAD genomes"
       "AF": null
       "AF_afr":
         Name: "gnomAD_AFR_AF"

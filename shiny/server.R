@@ -561,8 +561,15 @@ server <- function(input, output, session) {
     }
 
     # gnomAD min/max minor allele frequencies
-    where <- c(where, "  AND gnomAD_min >= :gmin AND gnomAD_max <= :gmax")
-    params <- c(params, list(gmin = input$min_maf, gmax = input$max_maf))
+    if (length(input$min_maf) == 1 && input$min_maf > 0) {
+      where <- c(where, "  AND gnomAD_min >= :gmin")
+      params <- c(params, list(gmin = input$min_maf))
+    }
+
+    if (length(input$max_maf) == 1 && input$max_maf < 1) {
+      where <- c(where, "  AND gnomAD_max <= :gmax")
+      params <- c(params, list(gmax = input$max_maf))
+    }
 
     # Optional user-provided filter
     user_query <- user_filter$query

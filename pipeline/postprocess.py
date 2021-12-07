@@ -142,8 +142,6 @@ def _build_columns(annotations):
         # gnomAD coverage
         # gnomAD sites
         # 1k genomes
-        "gnomAD_min": FloatCol("Minimum allele frequency in gnomAD genomes"),
-        "gnomAD_max": FloatCol("Maximum allele frequency in gnomAD genomes"),
     }
 
     for annotation in annotations:
@@ -289,7 +287,6 @@ class Annotator:
 
             # add custom annotation
             self._add_custom_annotation(vep, copy)
-            self._add_gnomad_annotation(vep, copy)
             self._add_neighbouring_genes(vep, copy)
             self._add_liftover_annotations(vep, copy)
 
@@ -502,36 +499,31 @@ class Annotator:
                         data = result.get("fields", {})
                         break
 
+                numeric_values = []
+                derived_values = []
+
                 for key, field in annotation.fields.items():
-                    if field.name is not None:
+                    if key in (":min:", ":max:"):
+                        derived_values.append((key, field))
+                    elif field.name is not None:
                         value = data.get(key)
 
                         if field.split_by is not None:
                             value = [] if value is None else value.split(field.split_by)
 
                         dst[field.name] = value
+                        if value is not None and field.type in ("int", "float"):
+                            numeric_values.append(value)
 
-    def _add_gnomad_annotation(self, src, dst):
-        gnomAD_populations = (
-            "gnomAD_AFR_AF",
-            "gnomAD_AMI_AF",
-            "gnomAD_AMR_AF",
-            "gnomAD_ASJ_AF",
-            "gnomAD_EAS_AF",
-            "gnomAD_FIN_AF",
-            "gnomAD_NFE_AF",
-            "gnomAD_OTH_AF",
-            "gnomAD_SAS_AF",
-        )
+                for key, field in derived_values:
+                    if key == ":min:":
+                        value = min(numeric_values, default=None)
+                    elif key == ":max:":
+                        value = max(numeric_values, default=None)
+                    else:
+                        raise NotImplementedError(key)
 
-        gnomAD_values = []
-        for key in gnomAD_populations:
-            value = dst.get(key)
-            if value is not None:
-                gnomAD_values.append(value)
-
-        dst["gnomAD_min"] = min(gnomAD_values, default=0)
-        dst["gnomAD_max"] = max(gnomAD_values, default=0)
+                    dst[field.name] = value
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
         # Start coordinate of VEP allele
