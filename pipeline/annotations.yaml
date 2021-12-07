@@ -1,171 +1,176 @@
-Plugins:
-  # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
-  AncestralAllele:
-    Variables:
-      Fasta: "{data-plugins}/homo_sapiens_ancestor_GRCh38.fa.gz"
-    Parameters:
-      - "{Fasta}"
-    Files:
-      - "{Fasta}"
-      - "{Fasta}.fai"
-      - "{Fasta}.gzi"
+# http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
+AncestralAllele:
+  Type: Plugin
+  Variables:
+    Fasta: "{data-plugins}/homo_sapiens_ancestor_GRCh38.fa.gz"
+  Parameters:
+    - "{Fasta}"
+  Files:
+    - "{Fasta}"
+    - "{Fasta}.fai"
+    - "{Fasta}.gzi"
 
-  # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
-  Conservation:
-    Variables:
-      Database: "{data-plugins}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
-    Parameters:
-      - "{Database}"
-    Files:
-      - "{Database}"
+# https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
+Conservation:
+  Type: Plugin
+  Variables:
+    Database: "{data-plugins}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
+  Parameters:
+    - "{Database}"
+  Files:
+    - "{Database}"
 
-  # https://github.com/konradjk/loftee
-  LoF:
-    Variables:
-      Fasta: "{data-plugins}/human_ancestor.fa.gz"
-      Database: "{data-plugins}/phylocsf_gerp.sql"
-    Parameters:
-      - "loftee_path:{install-plugins}"
-      - "human_ancestor_fa:{Fasta}"
-      - "conservation_file:{Database}"
-    Files:
-      - "{Fasta}"
-      - "{Fasta}.fai"
-      - "{Fasta}.gzi"
-      - "{Database}"
+# https://github.com/konradjk/loftee
+LoF:
+  Type: Plugin
+  Variables:
+    Fasta: "{data-plugins}/human_ancestor.fa.gz"
+    Database: "{data-plugins}/phylocsf_gerp.sql"
+  Parameters:
+    - "loftee_path:{install-plugins}"
+    - "human_ancestor_fa:{Fasta}"
+    - "conservation_file:{Database}"
+  Files:
+    - "{Fasta}"
+    - "{Fasta}.fai"
+    - "{Fasta}.gzi"
+    - "{Database}"
 
-  ExACpLI:
-    Variables:
-      Values: "{data-plugins}/ExACpLI_values.txt"
-    Parameters:
-      - "{Values}"
-    Files:
-      - "{Values}"
-
-# http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
-VCFs:
-  ClinVar:
-    File: "{data-custom}/clinvar_20210821.vcf.gz"
-    Fields:
-      "ALLELEID":
-        Name: "ClinVar_ID"
-        FieldType: int
-        Help: "The ClinVar Allele ID"
-      "CLNDN":
-          Name: "ClinVar_disease"
-          Help: "ClinVar's preferred disease name"
-          Split-by: "|"
-      "CLNDISDB": null
-      "CLNREVSTAT": null
-      "CLNSIG": 
-        Name: ClinVar_significance
-        Help: "Clinical significance for this single variant"
-
-  1KGenomes:
-    File: "{data-custom}/1000Genomes_20200805.vcf.gz"
-    FieldType: float
-    Fields:
-      "AF_AFR_unrel":
-        Name: "1KG_AFR_AF"
-        Help: "Frequency of existing variant in 1000 Genomes combined African population"
-      "AF_AMR_unrel":
-        Name: "1KG_AMR_AF"
-        Help: "Frequency of existing variant in 1000 Genomes combined American population"
-      "AF_EAS_unrel":
-        Name: "1KG_EAS_AF"
-        Help: "Frequency of existing variant in 1000 Genomes combined East Asian population"
-      "AF_EUR_unrel":
-        Name: "1KG_EUR_AF"
-        Help: "Frequency of existing variant in 1000 Genomes combined European population"
-      "AF_SAS_unrel":
-        Name: "1KG_SAS_AF"
-        Help: "Frequency of existing variant in 1000 Genomes combined South Asian population"
-
-  # Custom made gnomAD VCFs containing coverage statistics
-  #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
-  #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
-  gnomAD_coverage:
-    File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
-    FieldType: float
-    Fields:
-      "mean":
-        Name: "gnomAD_mean"
-        Help: "gnomAD genomes mean coverage for this site"
-      "median_approx":
-        Name: "gnomAD_median"
-        FieldType: int
-        Help: "gnomAD genomes median coverage for this site"
-      "over_15":
-        Name: "gnomAD_over_15"
-        Help: "gnomAD genomes fraction with coverage over 15x"
-      "over_50":
-        Name: "gnomAD_over_50"
-        Help: "gnomAD genomes fraction with coverage over 50x"
-
-  # Custom made gnomAD VCF containing allele frequencies
-  #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
-  #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
-  gnomAD_sites:
-    File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
-    FieldType: float
-    Fields:
-      "FILTER":
-        Name: "gnomAD_filter"
-        FieldType: str
-        Help: "gnomAD genomes FILTER"
-        Split-by: ","
-      ":min:":
-        Name: "gnomAD_min"
-        Help: "Minimum allele frequency in gnomAD genomes"
-      ":max:":
-        Name: "gnomAD_max"
-        Help: "Maximum allele frequency in gnomAD genomes"
-      "AF": null
-      "AF_afr":
-        Name: "gnomAD_AFR_AF"
-        Help: "Frequency of existing variant in gnomAD genomes African/American population"
-      "AF_ami":
-        Name: "gnomAD_AMI_AF"
-        Help: "Frequency of existing variant in gnomAD genomes Amish population"
-      "AF_amr":
-        Name: "gnomAD_AMR_AF"
-        Help: "Frequency of existing variant in gnomAD genomes American population"
-      "AF_asj":
-        Name: "gnomAD_ASJ_AF"
-        Help: "Frequency of existing variant in gnomAD genomes Ashkenazi Jewish population"
-      "AF_eas":
-        Name: "gnomAD_EAS_AF"
-        Help: "Frequency of existing variant in gnomAD genomes East Asian population"
-      "AF_fin":
-        Name: "gnomAD_FIN_AF"
-        Help: "Frequency of existing variant in gnomAD genomes Finnish population"
-      "AF_nfe":
-        Name: "gnomAD_NFE_AF"
-        Help: "Frequency of existing variant in gnomAD genomes Non-Finnish European population"
-      "AF_oth":
-        Name: "gnomAD_OTH_AF"
-        Help: "Frequency of existing variant in gnomAD genomes other combined population"
-      "AF_sas":
-        Name: "gnomAD_SAS_AF"
-        Help: "Frequency of existing variant in gnomAD genomes South Asian population"
-
-  # Custom made dbSNP VCF containing aggregated information
-  dbSNP:
-    File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
-    Fields:
-      "ids":
-        Name: "dbSNP_ids"
-        Help: "dbSNP ids for alleles alleles matching this pos:ref/alt"
-      "alts":
-        Name: "dbSNP_alts"
-        Help: "dbSNP allele strings records matching pos:ref/*"
-      "functions":
-        Name: "dbSNP_functions"
-        Help: "GO terms recorded in dbSNP"
-
+ExACpLI:
+  Type: Plugin
+  Variables:
+    Values: "{data-plugins}/ExACpLI_values.txt"
+  Parameters:
+    - "{Values}"
+  Files:
+    - "{Values}"
 
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
-BEDs:
-  # Custom made BED containing overlapping/neighboring genes for every part of hg38
-  neighbours:
-    File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
+ClinVar:
+  Type: VCF
+  File: "{data-custom}/clinvar_20210821.vcf.gz"
+  Fields:
+    "ALLELEID":
+      Name: "ClinVar_ID"
+      FieldType: int
+      Help: "The ClinVar Allele ID"
+    "CLNDN":
+        Name: "ClinVar_disease"
+        Help: "ClinVar's preferred disease name"
+        Split-by: "|"
+    "CLNDISDB": null
+    "CLNREVSTAT": null
+    "CLNSIG": 
+      Name: ClinVar_significance
+      Help: "Clinical significance for this single variant"
+
+1KGenomes:
+  Type: VCF
+  File: "{data-custom}/1000Genomes_20200805.vcf.gz"
+  FieldType: float
+  Fields:
+    "AF_AFR_unrel":
+      Name: "1KG_AFR_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined African population"
+    "AF_AMR_unrel":
+      Name: "1KG_AMR_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined American population"
+    "AF_EAS_unrel":
+      Name: "1KG_EAS_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined East Asian population"
+    "AF_EUR_unrel":
+      Name: "1KG_EUR_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined European population"
+    "AF_SAS_unrel":
+      Name: "1KG_SAS_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined South Asian population"
+
+# Custom made gnomAD VCFs containing coverage statistics
+#   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
+#   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
+gnomAD_coverage:
+  Type: VCF
+  File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
+  FieldType: float
+  Fields:
+    "mean":
+      Name: "gnomAD_mean"
+      Help: "gnomAD genomes mean coverage for this site"
+    "median_approx":
+      Name: "gnomAD_median"
+      FieldType: int
+      Help: "gnomAD genomes median coverage for this site"
+    "over_15":
+      Name: "gnomAD_over_15"
+      Help: "gnomAD genomes fraction with coverage over 15x"
+    "over_50":
+      Name: "gnomAD_over_50"
+      Help: "gnomAD genomes fraction with coverage over 50x"
+
+# Custom made gnomAD VCF containing allele frequencies
+#   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
+#   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
+gnomAD_sites:
+  Type: VCF
+  File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
+  FieldType: float
+  Fields:
+    "FILTER":
+      Name: "gnomAD_filter"
+      FieldType: str
+      Help: "gnomAD genomes FILTER"
+      Split-by: ","
+    ":min:":
+      Name: "gnomAD_min"
+      Help: "Minimum allele frequency in gnomAD genomes"
+    ":max:":
+      Name: "gnomAD_max"
+      Help: "Maximum allele frequency in gnomAD genomes"
+    "AF": null
+    "AF_afr":
+      Name: "gnomAD_AFR_AF"
+      Help: "Frequency of existing variant in gnomAD genomes African/American population"
+    "AF_ami":
+      Name: "gnomAD_AMI_AF"
+      Help: "Frequency of existing variant in gnomAD genomes Amish population"
+    "AF_amr":
+      Name: "gnomAD_AMR_AF"
+      Help: "Frequency of existing variant in gnomAD genomes American population"
+    "AF_asj":
+      Name: "gnomAD_ASJ_AF"
+      Help: "Frequency of existing variant in gnomAD genomes Ashkenazi Jewish population"
+    "AF_eas":
+      Name: "gnomAD_EAS_AF"
+      Help: "Frequency of existing variant in gnomAD genomes East Asian population"
+    "AF_fin":
+      Name: "gnomAD_FIN_AF"
+      Help: "Frequency of existing variant in gnomAD genomes Finnish population"
+    "AF_nfe":
+      Name: "gnomAD_NFE_AF"
+      Help: "Frequency of existing variant in gnomAD genomes Non-Finnish European population"
+    "AF_oth":
+      Name: "gnomAD_OTH_AF"
+      Help: "Frequency of existing variant in gnomAD genomes other combined population"
+    "AF_sas":
+      Name: "gnomAD_SAS_AF"
+      Help: "Frequency of existing variant in gnomAD genomes South Asian population"
+
+# Custom made dbSNP VCF containing aggregated information
+dbSNP:
+  Type: VCF
+  File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
+  Fields:
+    "ids":
+      Name: "dbSNP_ids"
+      Help: "dbSNP ids for alleles alleles matching this pos:ref/alt"
+    "alts":
+      Name: "dbSNP_alts"
+      Help: "dbSNP allele strings records matching pos:ref/*"
+    "functions":
+      Name: "dbSNP_functions"
+      Help: "GO terms recorded in dbSNP"
+
+# Custom made BED containing overlapping/neighboring genes for every part of hg38
+neighbours:
+  Type: BED
+  File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"

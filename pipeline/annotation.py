@@ -30,7 +30,6 @@ def _pop_fields(data, name, default_type) -> Dict[str, _Field]:
     elif not isinstance(values, dict):
         raise AnnotationError(f"Fields for plugin {name!r} are not a dict")
 
-    fields = {}
     for key, value in values.items():
         if not isinstance(key, str):
             raise AnnotationError(f"Fields for plugin {name!r} has non-str key {key!r}")
@@ -161,14 +160,6 @@ class Custom:
         return ["--custom", ",".join(params)]
 
 
-def parse_annotation(cls, data, variables, **kwargs):
-    if not isinstance(data, dict):
-        raise AnnotationError("Plugins is not a dict")
-
-    for name, settings in data.items():
-        yield cls(name, settings, variables, **kwargs)
-
-
 def load_annotations(filepaths, variables=None):
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
@@ -177,12 +168,18 @@ def load_annotations(filepaths, variables=None):
         with filepath.open("rt") as handle:
             data = yaml.load(handle)
 
-        for key, annotations in data.items():
-            if key == "Plugins":
-                yield from parse_annotation(Plugin, annotations, variables)
-            elif key == "VCFs":
-                yield from parse_annotation(Custom, annotations, variables, type="vcf")
-            elif key == "BEDs":
-                yield from parse_annotation(Custom, annotations, variables, type="bed")
+        for idx, (name, settings) in enumerate(data.items()):
+            if not isinstance(settings, dict):
+                raise AnnotationError(f"{name} is not a dict")
+
+            type = settings.pop("Type")
+            if type == "Plugin":
+                value = Plugin(name, settings, variables)
+            elif type == "VCF":
+                value = Custom(name, settings, variables, type="vcf")
+            elif type == "BED":
+                value = Custom(name, settings, variables, type="bed")
             else:
-                raise AnnotationError("Unexpected annotation type {key!r}")
+                raise AnnotationError(f"Unknown annotation type {type!r} for {name!r}")
+
+            yield value
