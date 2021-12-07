@@ -19,7 +19,9 @@ MARKER = "not_mounted"
 USER_ROOT = Path("/") / "data" / "user"
 CACHE_ROOT = Path("/") / "data" / "cache"
 ANNOVEP_ROOT = Path("/opt/annovep")
+
 VEP_ROOT = Path("/opt/vep/src/ensembl-vep")
+VEP_PLUGINS = Path("/opt/vep-plugins/Plugins")
 
 
 COMMANDS: Dict[str, List[Union[Path, str]]] = {
@@ -34,6 +36,8 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
         "run",
         "--root",
         CACHE_ROOT,
+        "--install-plugins",
+        VEP_PLUGINS,
         "--annotations",
         ANNOVEP_ROOT / "pipeline" / "annotations.yaml",
     ],
