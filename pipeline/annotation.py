@@ -1,4 +1,13 @@
+from typing import Dict, Optional, NamedTuple
+
 import ruamel.yaml
+
+
+class _Field(NamedTuple):
+    name: str
+    type: str
+    help: str
+    split_by: Optional[str]
 
 
 def _pop_str_list(data, name, key):
@@ -14,13 +23,14 @@ def _pop_str_list(data, name, key):
     return tuple(values)
 
 
-def _pop_fields(data, name, default_type):
+def _pop_fields(data, name, default_type) -> Dict[str, _Field]:
     values = data.pop("Fields", {})
     if not values:
         raise AnnotationError(f"No Fields for plugin {name!r}")
     elif not isinstance(values, dict):
         raise AnnotationError(f"Fields for plugin {name!r} are not a dict")
 
+    fields = {}
     for key, value in values.items():
         if not isinstance(key, str):
             raise AnnotationError(f"Fields for plugin {name!r} has non-str key {key!r}")
@@ -59,12 +69,12 @@ def _pop_fields(data, name, default_type):
                 f"Unexpected keys {tuple(value)} for Field {key!r} for plugin {name!r}"
             )
 
-        values[key] = {
-            "Name": name,
-            "Type": type,
-            "Help": help,
-            "Split-by": split_by,
-        }
+        values[key] = _Field(
+            name=name,
+            type=type,
+            help=help,
+            split_by=split_by,
+        )
 
     return values
 

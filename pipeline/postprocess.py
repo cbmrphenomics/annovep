@@ -149,14 +149,10 @@ def _build_columns(annotations):
 
     for annotation in annotations:
         if isinstance(annotation, Custom):
-            for info in annotation.fields.values():
-                column_type = info["Type"]
-                column_name = info["Name"]
-                column_help = info["Help"]
-
-                if column_name is not None:
-                    wrapper = COL_TYPES[column_type]
-                    columns[column_name] = wrapper(column_help)
+            for field in annotation.fields.values():
+                if field.name is not None:
+                    wrapper = COL_TYPES[field.type]
+                    columns[field.name] = wrapper(field.help)
 
     return columns
 
@@ -507,16 +503,14 @@ class Annotator:
                         data = result.get("fields", {})
                         break
 
-                for key, info in annotation.fields.items():
-                    name = info["Name"]
-                    if name is not None:
-                        split_by = info["Split-by"]
+                for key, field in annotation.fields.items():
+                    if field.name is not None:
                         value = data.get(key)
 
-                        if split_by is not None:
-                            value = [] if value is None else value.split(split_by)
+                        if field.split_by is not None:
+                            value = [] if value is None else value.split(field.split_by)
 
-                        dst[name] = value
+                        dst[field.name] = value
 
     def _add_gnomad_annotation(self, src, dst):
         gnomAD_populations = (
