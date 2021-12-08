@@ -70,7 +70,7 @@ def parse_args(argv):
     group.add_argument("--install-annovep", type=Path)
 
     group = parser.add_argument_group("VEP options")
-    group.add_argument("--fork", type=int, default=1)
+    group.add_argument("--fork", type=int)
 
     add_common_args(parser)
 

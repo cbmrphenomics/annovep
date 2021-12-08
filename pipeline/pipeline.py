@@ -63,6 +63,10 @@ def run_vep(args, log, annotations):
         args.out_vep_html,
     ]
 
+    if args.fork is not None:
+        command.append("--fork")
+        command.append(str(args.fork))
+
     for annotation in annotations:
         command.extend(annotation.params)
 
