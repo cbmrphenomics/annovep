@@ -13,7 +13,7 @@ from typing import Dict
 
 import liftover
 
-from annotation import Custom
+from annotation import Custom, Plugin
 
 ########################################################################################
 
@@ -101,10 +101,8 @@ def _build_columns(annotations):
         "Hg19_chr": "Corresponding chromosome/contig in hg19, if any.",
         "Hg19_pos": IntegerCol("Corresponding position in hg19, if any."),
         "VEP_allele": "The pos:ref:alt corresponding to VEP output",
-        "Ancestral_allele": "",
-        "Genes_overlapping": "Genes overlapping allele",
-        "Genes_upstream": "Neighbouring genes upstream of allele",
-        "Genes_downstream": "Neighbouring genes downstream of allele",
+        # Ancestral_allele
+        # Genes_overlapping
         "Func_n_most_significant": IntegerCol(
             "Number of consequences ranked as most significant in terms of impact"
         ),
@@ -129,14 +127,9 @@ def _build_columns(annotations):
         "Func_strand": IntegerCol("Strand of the feature (1/-1)"),
         "Func_polyphen": "PolyPhen prediction",
         "Func_polyphen_score": FloatCol("PolyPhen score"),
-        "Func_conservation_score": FloatCol("The conservation score for this site"),
-        "Func_lof": "Loss-of-function annotation (HC/LC = High/Low Confidence)",
-        "Func_lof_filter": "Reason for LoF not being HC",
-        "Func_lof_flags": "Possible warning flags for LoF",
-        "Func_lof_info": "Info used for LoF annotation",
-        "Func_ExACpLI": FloatCol(
-            "Probabililty of a gene being loss-of-function intolerant"
-        ),
+        # Func_conservation_score
+        # Func_lof
+        # Func_ExACpLI
         # dbSNP
         # ClinVar
         # gnomAD coverage
@@ -145,11 +138,10 @@ def _build_columns(annotations):
     }
 
     for annotation in annotations:
-        if isinstance(annotation, Custom):
-            for field in annotation.fields.values():
-                if field.name is not None:
-                    wrapper = COL_TYPES[field.type]
-                    columns[field.name] = wrapper(field.help)
+        for field in annotation.fields.values():
+            if field.name is not None:
+                wrapper = COL_TYPES[field.type]
+                columns[field.name] = wrapper(field.help)
 
     return columns
 
@@ -278,16 +270,16 @@ class Annotator:
             # Add functional annotation
             consequence = self._get_allele_consequence(vep, vep_allele["alt"])
             self._add_gene_info(consequence, copy)
-            self._add_ancestral_allele(consequence, copy)
-
-            copy["Func_conservation_score"] = consequence.get("conservation")
-            copy["Func_polyphen"] = consequence.get("polyphen_prediction")
-            copy["Func_polyphen_score"] = consequence.get("polyphen_score")
-            copy["Func_ExACpLI"] = consequence.get("exacpli")
 
             # add custom annotation
+            self._add_plugin_annotation(consequence, copy)
             self._add_custom_annotation(vep, copy)
+
+            # Special handling of certain (optinal) annotation
+            self._fix_ancestral_allele(consequence, copy)
             self._add_neighbouring_genes(vep, copy)
+
+            # Other computed annotations
             self._add_liftover_annotations(vep, copy)
 
             yield copy
@@ -448,13 +440,8 @@ class Annotator:
             "most_significant",
             "n_most_significant",
             "most_significant_canonical",
-            "lof",
         ):
             dst[f"Func_{key}"] = consequence.get(key)
-
-        for key in ("lof_filter", "lof_flags", "lof_info"):
-            value = consequence.get(key)
-            dst[f"Func_{key}"] = value if value is None else value.split(",")
 
         for key in (
             "cdna",
@@ -462,6 +449,9 @@ class Annotator:
             "protein",
         ):
             dst[f"Func_{key}_position"] = self._format_coordinates(consequence, key)
+
+        dst["Func_polyphen"] = consequence.get("polyphen_prediction")
+        dst["Func_polyphen_score"] = consequence.get("polyphen_score")
 
     def _format_coordinates(self, consequence, key):
         start = consequence.get(f"{key}_start")
@@ -479,11 +469,18 @@ class Annotator:
 
         return f"{start}-{end}"
 
-    def _add_ancestral_allele(self, consequence, dst):
-        allele = consequence.get("aa")
+    def _fix_ancestral_allele(self, consequence, dst):
         # The explicty check for falsey values is used to catch both missing values and
         # as a workaround for bug where "aa" is -nan (converted to None in _read_record)
-        dst["Ancestral_allele"] = allele if allele else None
+        if "Ancestral_allele" in dst and not dst["Ancestral_allele"]:
+            dst["Ancestral_allele"] = None
+
+    def _add_plugin_annotation(self, consequence, copy):
+        for annotation in self._annotations:
+            if isinstance(annotation, Plugin):
+                for key, field in annotation.fields.items():
+                    if field.name is not None:
+                        copy[field.name] = consequence.get(key)
 
     def _add_custom_annotation(self, src, dst):
         for annotation in self._annotations:
@@ -526,6 +523,10 @@ class Annotator:
                     dst[field.name] = value
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
+        # Check if pipeline was run with the 'overlapping' BED file
+        if "Genes_overlapping" not in dst:
+            return
+
         # Start coordinate of VEP allele
         astart = src["start"]
         # End coordinate of the allele. This is shared between all ALTs

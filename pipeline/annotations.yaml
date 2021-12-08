@@ -9,6 +9,9 @@ AncestralAllele:
     - "{Fasta}"
     - "{Fasta}.fai"
     - "{Fasta}.gzi"
+  Fields:
+    "aa":
+      Name: Ancestral_allele
 
 # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
 Conservation:
@@ -19,6 +22,11 @@ Conservation:
     - "{Database}"
   Files:
     - "{Database}"
+  Fields:
+    "conservation":
+      Name: "Func_conservation_score"
+      FieldType: float
+      Help: "The conservation score for this site"
 
 # https://github.com/konradjk/loftee
 LoF:
@@ -35,6 +43,22 @@ LoF:
     - "{Fasta}.fai"
     - "{Fasta}.gzi"
     - "{Database}"
+  Fields:
+    "lof":
+      Name: "Func_lof"
+      Help: "Loss-of-function annotation (HC/LC = High/Low Confidence)"
+    "lof_filter":
+      Name: "Func_lof_filter"
+      Help: "Reason for LoF not being HC"
+      Split-by: ","
+    "lof_flags":
+      Name: "Func_lof_flags"
+      Help: "Possible warning flags for LoF"
+      Split-by: ","
+    "lof_info":
+      Name: "Func_lof_info"
+      Help: "Info used for LoF annotation"
+      Split-by: ","
 
 ExACpLI:
   Type: Plugin
@@ -44,6 +68,11 @@ ExACpLI:
     - "{Values}"
   Files:
     - "{Values}"
+  Fields:
+    "exacpli":
+      Name: "Func_ExACpLI"
+      FieldType: float
+      Help: "Probabililty of a gene being loss-of-function intolerant"
 
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
 ClinVar:
@@ -55,9 +84,9 @@ ClinVar:
       FieldType: int
       Help: "The ClinVar Allele ID"
     "CLNDN":
-        Name: "ClinVar_disease"
-        Help: "ClinVar's preferred disease name"
-        Split-by: "|"
+      Name: "ClinVar_disease"
+      Help: "ClinVar's preferred disease name"
+      Split-by: "|"
     "CLNDISDB": null
     "CLNREVSTAT": null
     "CLNSIG": 
@@ -174,3 +203,14 @@ dbSNP:
 neighbours:
   Type: BED
   File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
+  Fields:
+    # Special handling is needed for these values; see postprocess.py
+    ":dummy_1:":
+      Name: "Genes_overlapping"
+      Help: "Genes overlapping allele"
+    ":dummy_2:":
+      Name: "Genes_upstream"
+      Help: "Neighbouring genes upstream of allele"
+    ":dummy_3:":
+      Name: "Genes_downstream"
+      Help: "Neighbouring genes downstream of allele"
