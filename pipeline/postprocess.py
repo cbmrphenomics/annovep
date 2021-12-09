@@ -77,65 +77,72 @@ COL_TYPES = {
     "float": FloatCol,
 }
 
+COLUMNS_MAIN = {
+    "Chr": "Chromosome/Contig recorded in input VCF",
+    "Pos": IntegerCol("Position recorded in input VCF"),
+    "ID": "ID recorded in input VCF",
+    "Ref": "Reference allele recorded in input VCF",
+    "Alt": "The single ALT allele described by this row",
+    "Alts": "The full ALT string from the input VCF",
+    "Quality": "Quality score recorded in VCF",
+    "Filters": "Filters recorded in input VCF",
+    "DP": IntegerCol("Sum of read depth for this position"),
+    "Freq": FloatCol("Frequency of alternative allele in samples"),
+    "GT_00": IntegerCol("Number of samples with ref/ref genotype"),
+    "GT_01": IntegerCol("Number of samples with ref/alt genotype"),
+    "GT_11": IntegerCol("Number of samples with alt/alt genotype"),
+    "GT_NA": IntegerCol("Number of samples with missing genotypes"),
+    "GT_other": IntegerCol("Number of samples with other genotypes"),
+    "Info": "INFO string from input VCF",
+    "Hg19_chr": "Corresponding chromosome/contig in hg19, if any.",
+    "Hg19_pos": IntegerCol("Corresponding position in hg19, if any."),
+    "VEP_allele": "The pos:ref:alt corresponding to VEP output",
+}
+
+COLUMNS_FUNC = {
+    "Func_n_most_significant": IntegerCol(
+        "Number of consequences ranked as most significant in terms of impact"
+    ),
+    "Func_most_significant": IntegerCol("The most significant consequence"),
+    "Func_least_significant": IntegerCol(
+        "The last significant consequence for the same gene as the most "
+        "significant consequence"
+    ),
+    "Func_most_significant_canonical": IntegerCol(
+        "The most significant consequence for canonical transcripts only"
+    ),
+    "Func_gene_id": "Gene with the most significant consequence",
+    "Func_transcript_id": "Transcript with the most significant consequence",
+    "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
+    "Func_gene_symbol_source": "Source of gene symbol",
+    "Func_cdna_position": "Relative position of base pair in cDNA sequence",
+    "Func_cds_position": "Relative position of base pair in coding sequence",
+    "Func_protein_position": "Relative position of amino acid in protein",
+    "Func_amino_acids": "Reference and variant amino acids",
+    "Func_codons": "Reference and variant codon sequence",
+    "Func_impact": "Subjective impact classification of consequence type",
+    "Func_strand": IntegerCol("Strand of the feature (1/-1)"),
+    "Func_polyphen": "PolyPhen prediction",
+    "Func_polyphen_score": FloatCol("PolyPhen score"),
+}
+
 
 def _build_columns(annotations):
-    onek_af = "Frequency of existing variant in 1000 Genomes combined {} population"
+    def _collect_columns(filter):
+        for annotation in annotations:
+            if filter(annotation):
+                for field in annotation.fields.values():
+                    if field.name is not None:
+                        wrapper = COL_TYPES[field.type]
+                        yield (field.name, wrapper(field.help))
 
-    columns = {
-        "Chr": "Chromosome/Contig recorded in input VCF",
-        "Pos": IntegerCol("Position recorded in input VCF"),
-        "ID": "ID recorded in input VCF",
-        "Ref": "Reference allele recorded in input VCF",
-        "Alt": "The single ALT allele described by this row",
-        "Alts": "The full ALT string from the input VCF",
-        "Quality": "Quality score recorded in VCF",
-        "Filters": "Filters recorded in input VCF",
-        "DP": IntegerCol("Sum of read depth for this position"),
-        "Freq": FloatCol("Frequency of alternative allele in samples"),
-        "GT_00": IntegerCol("Number of samples with ref/ref genotype"),
-        "GT_01": IntegerCol("Number of samples with ref/alt genotype"),
-        "GT_11": IntegerCol("Number of samples with alt/alt genotype"),
-        "GT_NA": IntegerCol("Number of samples with missing genotypes"),
-        "GT_other": IntegerCol("Number of samples with other genotypes"),
-        "Info": "INFO string from input VCF",
-        "Hg19_chr": "Corresponding chromosome/contig in hg19, if any.",
-        "Hg19_pos": IntegerCol("Corresponding position in hg19, if any."),
-        "VEP_allele": "The pos:ref:alt corresponding to VEP output",
-        # Ancestral_allele
-        # Genes_overlapping
-        "Func_n_most_significant": IntegerCol(
-            "Number of consequences ranked as most significant in terms of impact"
-        ),
-        "Func_most_significant": IntegerCol("The most significant consequence"),
-        "Func_least_significant": IntegerCol(
-            "The last significant consequence for the same gene as the most "
-            "significant consequence"
-        ),
-        "Func_most_significant_canonical": IntegerCol(
-            "The most significant consequence for canonical transcripts only"
-        ),
-        "Func_gene_id": "Gene with the most significant consequence",
-        "Func_transcript_id": "Transcript with the most significant consequence",
-        "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
-        "Func_gene_symbol_source": "Source of gene symbol",
-        "Func_cdna_position": "Relative position of base pair in cDNA sequence",
-        "Func_cds_position": "Relative position of base pair in coding sequence",
-        "Func_protein_position": "Relative position of amino acid in protein",
-        "Func_amino_acids": "Reference and variant amino acids",
-        "Func_codons": "Reference and variant codon sequence",
-        "Func_impact": "Subjective impact classification of consequence type",
-        "Func_strand": IntegerCol("Strand of the feature (1/-1)"),
-        "Func_polyphen": "PolyPhen prediction",
-        "Func_polyphen_score": FloatCol("PolyPhen score"),
-        # Func_conservation_score
-        # Func_lof
-        # Func_ExACpLI
-        # dbSNP
-        # ClinVar
-        # gnomAD coverage
-        # gnomAD sites
-        # 1k genomes
-    }
+    columns = dict(COLUMNS_MAIN)
+    # User annotations placed before functional annotations
+    columns.update(_collect_columns(lambda it: it.rank < 0))
+    # Functional annotations
+    columns.update(COLUMNS_FUNC)
+    # User annotations placed after functional annotations
+    columns.update(_collect_columns(lambda it: it.rank >= 0))
 
     for annotation in annotations:
         for field in annotation.fields.values():

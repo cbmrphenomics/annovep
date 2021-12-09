@@ -150,7 +150,7 @@ def main(argv):
         "install-annovep": args.install_annovep,
     }
 
-    annotations = tuple(load_annotations(args.annotations, variables))
+    annotations = load_annotations(args.annotations, variables)
 
     if args.main is None:
         parser.print_usage()

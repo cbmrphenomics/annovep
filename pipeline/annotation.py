@@ -209,11 +209,12 @@ def load_annotations(filepaths, variables=None):
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
 
+    annotations = []
     for filepath in filepaths:
         with filepath.open("rt") as handle:
             data = yaml.load(handle)
 
-        for idx, (name, settings) in enumerate(data.items()):
+        for name, settings in data.items():
             if not isinstance(settings, dict):
                 raise AnnotationError(f"{name} is not a dict")
 
@@ -227,7 +228,6 @@ def load_annotations(filepaths, variables=None):
             else:
                 raise AnnotationError(f"Unknown annotation type {type!r} for {name!r}")
 
-            # Ensure that ordering is stable in relation to annotation files
-            value.rank = (value.rank, idx)
+            annotations.append(value)
 
-            yield value
+    return sorted(annotations, key=lambda it: it.rank)

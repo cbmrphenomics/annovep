@@ -1,5 +1,6 @@
 # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
 AncestralAllele:
+  Rank: -20
   Type: Plugin
   Variables:
     Fasta: "{data-plugins}/homo_sapiens_ancestor_GRCh38.fa.gz"
@@ -13,8 +14,26 @@ AncestralAllele:
     "aa":
       Name: Ancestral_allele
 
+# Custom made BED containing overlapping/neighboring genes for every part of hg38
+neighbours:
+  Rank: -10
+  Type: BED
+  File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
+  Fields:
+    # Special handling is needed for these values; see postprocess.py
+    ":dummy_1:":
+      Name: "Genes_overlapping"
+      Help: "Genes overlapping allele"
+    ":dummy_2:":
+      Name: "Genes_upstream"
+      Help: "Neighbouring genes upstream of allele"
+    ":dummy_3:":
+      Name: "Genes_downstream"
+      Help: "Neighbouring genes downstream of allele"
+
 # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
 Conservation:
+  Rank: 10
   Type: Plugin
   Variables:
     Database: "{data-plugins}/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
@@ -30,6 +49,7 @@ Conservation:
 
 # https://github.com/konradjk/loftee
 LoF:
+  Rank: 20
   Type: Plugin
   Variables:
     Fasta: "{data-plugins}/human_ancestor.fa.gz"
@@ -61,6 +81,7 @@ LoF:
       Split-by: ","
 
 ExACpLI:
+  Rank: 30
   Type: Plugin
   Variables:
     Values: "{data-plugins}/ExACpLI_values.txt"
@@ -74,8 +95,25 @@ ExACpLI:
       FieldType: float
       Help: "Probabililty of a gene being loss-of-function intolerant"
 
+# Custom made dbSNP VCF containing aggregated information
+dbSNP:
+  Rank: 40
+  Type: VCF
+  File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
+  Fields:
+    "ids":
+      Name: "dbSNP_ids"
+      Help: "dbSNP ids for alleles alleles matching this pos:ref/alt"
+    "alts":
+      Name: "dbSNP_alts"
+      Help: "dbSNP allele strings records matching pos:ref/*"
+    "functions":
+      Name: "dbSNP_functions"
+      Help: "GO terms recorded in dbSNP"
+
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
 ClinVar:
+  Rank: 50
   Type: VCF
   File: "{data-custom}/clinvar_20210821.vcf.gz"
   Fields:
@@ -93,31 +131,11 @@ ClinVar:
       Name: ClinVar_significance
       Help: "Clinical significance for this single variant"
 
-1KGenomes:
-  Type: VCF
-  File: "{data-custom}/1000Genomes_20200805.vcf.gz"
-  FieldType: float
-  Fields:
-    "AF_AFR_unrel":
-      Name: "1KG_AFR_AF"
-      Help: "Frequency of existing variant in 1000 Genomes combined African population"
-    "AF_AMR_unrel":
-      Name: "1KG_AMR_AF"
-      Help: "Frequency of existing variant in 1000 Genomes combined American population"
-    "AF_EAS_unrel":
-      Name: "1KG_EAS_AF"
-      Help: "Frequency of existing variant in 1000 Genomes combined East Asian population"
-    "AF_EUR_unrel":
-      Name: "1KG_EUR_AF"
-      Help: "Frequency of existing variant in 1000 Genomes combined European population"
-    "AF_SAS_unrel":
-      Name: "1KG_SAS_AF"
-      Help: "Frequency of existing variant in 1000 Genomes combined South Asian population"
-
 # Custom made gnomAD VCFs containing coverage statistics
 #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
 #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
 gnomAD_coverage:
+  Rank: 60
   Type: VCF
   File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
   FieldType: float
@@ -140,6 +158,7 @@ gnomAD_coverage:
 #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
 #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
 gnomAD_sites:
+  Rank: 70
   Type: VCF
   File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
   FieldType: float
@@ -184,33 +203,24 @@ gnomAD_sites:
       Name: "gnomAD_SAS_AF"
       Help: "Frequency of existing variant in gnomAD genomes South Asian population"
 
-# Custom made dbSNP VCF containing aggregated information
-dbSNP:
+1KGenomes:
+  Rank: 80
   Type: VCF
-  File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
+  File: "{data-custom}/1000Genomes_20200805.vcf.gz"
+  FieldType: float
   Fields:
-    "ids":
-      Name: "dbSNP_ids"
-      Help: "dbSNP ids for alleles alleles matching this pos:ref/alt"
-    "alts":
-      Name: "dbSNP_alts"
-      Help: "dbSNP allele strings records matching pos:ref/*"
-    "functions":
-      Name: "dbSNP_functions"
-      Help: "GO terms recorded in dbSNP"
-
-# Custom made BED containing overlapping/neighboring genes for every part of hg38
-neighbours:
-  Type: BED
-  File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
-  Fields:
-    # Special handling is needed for these values; see postprocess.py
-    ":dummy_1:":
-      Name: "Genes_overlapping"
-      Help: "Genes overlapping allele"
-    ":dummy_2:":
-      Name: "Genes_upstream"
-      Help: "Neighbouring genes upstream of allele"
-    ":dummy_3:":
-      Name: "Genes_downstream"
-      Help: "Neighbouring genes downstream of allele"
+    "AF_AFR_unrel":
+      Name: "1KG_AFR_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined African population"
+    "AF_AMR_unrel":
+      Name: "1KG_AMR_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined American population"
+    "AF_EAS_unrel":
+      Name: "1KG_EAS_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined East Asian population"
+    "AF_EUR_unrel":
+      Name: "1KG_EUR_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined European population"
+    "AF_SAS_unrel":
+      Name: "1KG_SAS_AF"
+      Help: "Frequency of existing variant in 1000 Genomes combined South Asian population"
