@@ -315,10 +315,10 @@ def gnomad_coverage_to_vcf(log, counter, args):
             row = dict(zip(header, fields))
 
             info = [
-                "gnomAD_mean={}".format(row["mean"]),
-                "gnomAD_median={}".format(row["median_approx"]),
-                "gnomAD_over_15={}".format(row["over_15"]),
-                "gnomAD_over_50={}".format(row["over_50"]),
+                "mean={}".format(row["mean"]),
+                "median={}".format(row["median_approx"]),
+                "over_15={}".format(row["over_15"]),
+                "over_50={}".format(row["over_50"]),
             ]
 
             print(
