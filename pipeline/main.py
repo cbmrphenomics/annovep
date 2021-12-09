@@ -87,7 +87,7 @@ def parse_args(argv):
     parser.set_defaults(main=postprocess_main)
 
     parser.add_argument("in_json", type=Path)
-    parser.add_argument("out_prefix", type=Path)
+    parser.add_argument("out_prefix", nargs="?", type=Path)
 
     parser.add_argument("--annotations", default=[], action="append", type=Path)
     parser.add_argument("--data-liftover", type=Path)
