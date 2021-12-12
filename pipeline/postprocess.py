@@ -792,7 +792,7 @@ class SQLOutput(Output):
 
         self._print("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
 
-        for gene in data["Genes_overlapping"]:
+        for gene in data.get("Genes_overlapping", ()):
             gene_info = self._genes.get(gene)
             if gene_info is None:
                 self._genes[gene] = {
