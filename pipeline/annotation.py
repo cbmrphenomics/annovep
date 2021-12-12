@@ -205,12 +205,13 @@ class Custom:
         return ["--custom", ",".join(params)]
 
 
-def load_annotations(filepaths, variables=None):
+def load_annotations(log, filepaths, variables=None):
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
 
-    annotations = []
+    annotations = {}
     for filepath in filepaths:
+        log.info("reading annotation settings from %s", filepath)
         with filepath.open("rt") as handle:
             data = yaml.load(handle)
 
@@ -228,6 +229,9 @@ def load_annotations(filepaths, variables=None):
             else:
                 raise AnnotationError(f"Unknown annotation type {type!r} for {name!r}")
 
-            annotations.append(value)
+            if name in annotations:
+                log.warning("Overriding settings for annotations %r", name)
 
-    return sorted(annotations, key=lambda it: it.rank)
+            annotations[name] = value
+
+    return sorted(annotations.values(), key=lambda it: it.rank)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -150,7 +151,8 @@ def main(argv):
         "install-annovep": args.install_annovep,
     }
 
-    annotations = load_annotations(args.annotations, variables)
+    log = logging.getLogger("annovep")
+    annotations = load_annotations(log, args.annotations, variables)
 
     if args.main is None:
         parser.print_usage()
