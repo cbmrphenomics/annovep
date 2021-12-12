@@ -1,3 +1,14 @@
+#
+# Default AnnoVEP annotations
+#
+# Note that while most annotations are defined purely in terms of this YAML file, a
+# couple of do rely on post processing in postprocess.py to produce the final output.
+#
+# Runtimes with annoations are estimated by running AnnoVEP and comparing the runtime
+# without any custom annotations with the runtime when just that annotation is enabled.
+#
+
+# Runtime ~= 1.3x
 # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
 AncestralAllele:
   Rank: -20
@@ -14,6 +25,7 @@ AncestralAllele:
     "aa":
       Name: Ancestral_allele
 
+# Runtime ~= 1.6x
 # Custom made BED containing overlapping/neighboring genes for every part of hg38
 neighbours:
   Rank: -10
@@ -31,6 +43,7 @@ neighbours:
       Name: "Genes_downstream"
       Help: "Neighbouring genes downstream of allele"
 
+# Runtime ~= 2.4x
 # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
 Conservation:
   Rank: 10
@@ -47,6 +60,7 @@ Conservation:
       FieldType: float
       Help: "The conservation score for this site"
 
+# Runtime ~= 1.9x
 # https://github.com/konradjk/loftee
 LoF:
   Rank: 20
@@ -80,6 +94,7 @@ LoF:
       Help: "Info used for LoF annotation"
       Split-by: ","
 
+# Runtime ~= 1.0x
 ExACpLI:
   Rank: 30
   Type: Plugin
@@ -95,6 +110,7 @@ ExACpLI:
       FieldType: float
       Help: "Probabililty of a gene being loss-of-function intolerant"
 
+# Runtime ~= 2.8x
 # Custom made dbSNP VCF containing aggregated information
 dbSNP:
   Rank: 40
@@ -111,6 +127,7 @@ dbSNP:
       Name: "dbSNP_functions"
       Help: "GO terms recorded in dbSNP"
 
+# Runtime ~= 1.0x
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
 ClinVar:
   Rank: 50
@@ -127,10 +144,11 @@ ClinVar:
       Split-by: "|"
     "CLNDISDB": null
     "CLNREVSTAT": null
-    "CLNSIG": 
+    "CLNSIG":
       Name: ClinVar_significance
       Help: "Clinical significance for this single variant"
 
+# Runtime ~= 3.7x
 # Custom made gnomAD VCFs containing coverage statistics
 #   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
 #   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
@@ -154,6 +172,7 @@ gnomAD_coverage:
       Name: "gnomAD_over_50"
       Help: "gnomAD genomes fraction with coverage over 50x"
 
+# Runtime ~= 4.0x
 # Custom made gnomAD VCF containing allele frequencies
 #   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
 #   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
@@ -203,6 +222,7 @@ gnomAD_sites:
       Name: "gnomAD_SAS_AF"
       Help: "Frequency of existing variant in gnomAD genomes South Asian population"
 
+# Runtime ~= 1.4x
 1KGenomes:
   Rank: 80
   Type: VCF
