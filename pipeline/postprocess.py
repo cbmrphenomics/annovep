@@ -745,6 +745,11 @@ class SQLOutput(Output):
         self._print("CREATE INDEX IPositions_hg19 ON Annotations (Hg19_chr, Hg19_pos);")
         self._print("CREATE INDEX IPositions_json ON JSON (Hg38_chr, Hg38_pos);")
         self._print("END;")
+        self._print()
+
+        # Collect information for the query planner
+        self._print("ANALYZE;")
+
         self._handle.close()
 
     def process_json(self, data):
