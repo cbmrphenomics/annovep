@@ -161,7 +161,7 @@ gnomAD_coverage:
     "mean":
       Name: "gnomAD_mean"
       Help: "gnomAD genomes mean coverage for this site"
-    "median_approx":
+    "median":
       Name: "gnomAD_median"
       FieldType: int
       Help: "gnomAD genomes median coverage for this site"
