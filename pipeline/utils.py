@@ -5,6 +5,7 @@ import os
 import shlex
 import signal
 import subprocess
+import time
 from os import fspath
 
 
@@ -48,6 +49,7 @@ def open_ro(filename):
 
 
 def join_procs(log, procs):
+    start_time = time.time()
     sleep_time = 0.05
     commands = list(enumerate(procs))
     return_codes = [None] * len(commands)
@@ -72,6 +74,7 @@ def join_procs(log, procs):
                     return_code = signal.Signals(-return_code).name
 
                 log.info("Command finished: %s", cmd_to_str(command.args, 80))
+                log.info("  Runtime:        %.1fs", time.time() - start_time)
                 log.info("  Return-code:    %s", return_code)
 
     if any(return_codes):
