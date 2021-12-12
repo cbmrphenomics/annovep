@@ -28,7 +28,7 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
     "bash": ["/bin/bash"],
     # VEP setup and direct execution
     "vep": ["perl", VEP_ROOT / "vep"],
-    "setup": ["bash", ANNOVEP_ROOT / "setup_vep.sh"],
+    "setup": ["bash", ANNOVEP_ROOT / "scripts" / "setup_vep.sh"],
     # Main pipeline
     "pipeline": [
         "python3",
