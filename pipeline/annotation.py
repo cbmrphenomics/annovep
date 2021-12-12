@@ -215,6 +215,12 @@ def load_annotations(log, filepaths, variables=None):
         with filepath.open("rt") as handle:
             data = yaml.load(handle)
 
+        if data is None:
+            log.warning("file is empty")
+            continue
+        elif not isinstance(data, dict):
+            raise AnnotationError(f"root is not a dict")
+
         for name, settings in data.items():
             if not isinstance(settings, dict):
                 raise AnnotationError(f"{name} is not a dict")
