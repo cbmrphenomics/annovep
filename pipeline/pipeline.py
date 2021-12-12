@@ -67,6 +67,10 @@ def run_vep(args, log, annotations):
         command.append("--fork")
         command.append(str(args.fork))
 
+    if args.buffer_size is not None:
+        command.append("--buffer_size")
+        command.append(str(args.buffer_size))
+
     for annotation in annotations:
         command.extend(annotation.params)
 

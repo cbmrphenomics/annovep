@@ -72,6 +72,7 @@ def parse_args(argv):
 
     group = parser.add_argument_group("VEP options")
     group.add_argument("--fork", type=int)
+    group.add_argument("--buffer_size", default=100_000, type=int)
 
     add_common_args(parser)
 
