@@ -8,7 +8,8 @@ COPY ./scripts/install_dependencies.sh /opt/
 RUN bash /opt/install_dependencies.sh
 
 # Install VEP plugins
-RUN ./INSTALL.pl --AUTO p --PLUGINS all --CACHEDIR /opt/vep-plugins/
+# --NO_UPDATE since VEP will otherwise abort when a new VEP release is available
+RUN ./INSTALL.pl --AUTO p --PLUGINS all --CACHEDIR /opt/vep-plugins/ --NO_UPDATE
 
 # Install VEP plugin LOFTEE (https://github.com/konradjk/loftee)
 COPY ./binaries/loftee-v1.0.3.tar.gz /opt/vep-plugins
