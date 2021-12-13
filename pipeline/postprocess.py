@@ -936,7 +936,7 @@ class SQLOutput(Output):
         consequences = _build_consequence_ranks()
 
         human_friendly_ranks = {}
-        for rank, (name, _) in enumerate(reversed(consequences.items())):
+        for rank, (name, _) in enumerate(reversed(list(consequences.items()))):
             human_friendly_ranks[name] = rank
 
         return human_friendly_ranks
