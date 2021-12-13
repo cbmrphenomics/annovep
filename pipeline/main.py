@@ -66,9 +66,10 @@ def parse_args(argv):
     group = parser.add_argument_group("Output")
     group.add_argument(
         "--output-format",
+        default=[],
         action="append",
         type=str.lower,
-        choices=("tsv", "json", "sql"),
+        choices=("tsv", "json", "sql", "sqlite3"),
         help="Output format for aggregated annotations. Maybe be specified zero or "
         "more times. Defaults to TSV if not specified",
     )

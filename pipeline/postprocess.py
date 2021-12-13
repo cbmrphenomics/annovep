@@ -3,9 +3,11 @@
 import collections
 import functools
 import gzip
+import io
 import json
 import logging
 import re
+import sqlite3
 import sys
 import zlib
 from itertools import groupby
@@ -605,7 +607,8 @@ class Output:
             self._handle = open(f"{out_prefix}{extension}", "wt")
 
     def finalize(self):
-        self._handle.close()
+        if self._handle is not sys.stdout:
+            self._handle.close()
 
     def process_json(self, data):
         pass
@@ -695,8 +698,11 @@ class SQLOutput(Output):
             self._print("DROP TABLE IF EXISTS [{}];", table)
         self._print()
 
-        self._print("CREATE TABLE [Annotations] (")
-        self._print("    [pk] INTEGER PRIMARY KEY ASC", end="")
+        query = [
+            "CREATE TABLE [Annotations] (\n",
+            "    [pk] INTEGER PRIMARY KEY ASC",
+        ]
+
         for key, description in self.keys.items():
             datatype = "TEXT"
             if key in CONSEQUENCE_COLUMNS:
@@ -711,8 +717,10 @@ class SQLOutput(Output):
             elif isinstance(description, FloatCol):
                 datatype = "REAL"
 
-            self._print(f",\n    [{key}] {datatype}", end="")
-        self._print("\n);")
+            query.append(f",\n    [{key}] {datatype}")
+        query.append("\n);")
+        self._print("".join(query))
+
         self._print()
         self._print_json_table()
         self._print()
@@ -828,14 +836,17 @@ class SQLOutput(Output):
 
     def _print_descriptions(self):
         self._print("DROP TABLE IF EXISTS [Columns];")
-        self._print("CREATE TABLE [Columns] (")
-        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Name] TEXT,")
-        self._print("    [Table] TEXT,")
-        self._print("    [Column] TEXT,")
-        self._print("    [Description] TEXT")
-        self._print(");")
-        self._print()
+        self._print(
+            """
+            CREATE TABLE [Columns] (
+              [pk] INTEGER PRIMARY KEY ASC,
+              [Name] TEXT,
+              [Table] TEXT,
+              [Column] TEXT,
+              [Description] TEXT
+            );
+            """
+        )
 
         for pk, (key, description) in enumerate(self.keys.items()):
             # Rename columns for SQL output only
@@ -859,11 +870,14 @@ class SQLOutput(Output):
 
     def _print_consequence_terms(self):
         self._print("DROP TABLE IF EXISTS [Consequences];")
-        self._print("CREATE TABLE [Consequences] (")
-        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Name] TEXT")
-        self._print(");")
-        self._print()
+        self._print(
+            """
+            CREATE TABLE [Consequences] (
+              [pk] INTEGER PRIMARY KEY ASC,
+              [Name] TEXT
+            );
+            """
+        )
 
         for name, pk in self._consequence_ranks.items():
             self._print(
@@ -874,39 +888,47 @@ class SQLOutput(Output):
 
     def _print_gene_tables(self):
         self._print("DROP TABLE IF EXISTS [Genes];")
-        self._print("CREATE TABLE [Genes] (")
-        self._print("  [pk] INTEGER PRIMARY KEY ASC,")
-        self._print("  [Name] TEXT,")
-        self._print("  [Hg38_chr] TEXT,")
-        self._print("  [Hg38_start] INTEGER,")
-        self._print("  [Hg38_end] INTEGER,")
-        self._print("  [Variants] INTEGER,")
-        self._print("  [Most_significant] INTEGER REFERENCES [Consequenes]([pk]),")
         self._print(
-            "  [Most_significant_canonical] INTEGER REFERENCES [Consequenes]([pk])"
+            """
+            CREATE TABLE [Genes] (
+              [pk] INTEGER PRIMARY KEY ASC,
+              [Name] TEXT,
+              [Hg38_chr] TEXT,
+              [Hg38_start] INTEGER,
+              [Hg38_end] INTEGER,
+              [Variants] INTEGER,
+              [Most_significant] INTEGER REFERENCES [Consequenes]([pk]),
+              [Most_significant_canonical] INTEGER REFERENCES [Consequenes]([pk])
+            );
+            """
         )
-        self._print(");")
-        self._print()
 
     def _print_json_table(self):
         self._print("DROP TABLE IF EXISTS [JSON];")
-        self._print("CREATE TABLE [JSON] (")
-        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Hg38_chr] TEXT,")
-        self._print("    [Hg38_pos] INTEGER,")
-        self._print("    [Data] BINARY")
-        self._print(");")
+        self._print(
+            """
+            CREATE TABLE [JSON] (
+              [pk] INTEGER PRIMARY KEY ASC,
+              [Hg38_chr] TEXT,
+              [Hg38_pos] INTEGER,
+              [Data] BINARY
+            );
+            """
+        )
         self._print()
 
     def _print_contig_names(self):
         self._print("DROP TABLE IF EXISTS [Contigs];")
-        self._print("CREATE TABLE [Contigs] (")
-        self._print("    [pk] INTEGER PRIMARY KEY ASC,")
-        self._print("    [Build] TEXT,")
-        self._print("    [Name] TEXT,")
-        self._print("    [Variants] INTEGER")
-        self._print(");")
-        self._print()
+        self._print(
+            """
+            CREATE TABLE [Contigs] (
+              [pk] INTEGER PRIMARY KEY ASC,
+              [Build] TEXT,
+              [Name] TEXT,
+              [Variants] INTEGER
+            );
+            """
+        )
 
         contigs = []
         overlap = self._contigs["hg19"].keys() & self._contigs["hg38"].keys()
@@ -958,10 +980,33 @@ class SQLOutput(Output):
         return "'{}'".format(value.replace("'", "''"))
 
 
+class SQLite3Output(SQLOutput):
+    def __init__(self, keys, out_prefix):
+        self._conn = sqlite3.connect(f"{out_prefix}.sqlite3")
+        self._curs = self._conn.cursor()
+
+        super().__init__(keys, None)
+
+    def finalize(self):
+        super().finalize()
+
+        self._conn.commit()
+        self._conn.close()
+
+    def _print(self, line="", *args, **kwargs):
+        if args:
+            line = line.format(*args)
+
+        query = line.strip()
+        if query:
+            self._curs.execute(query)
+
+
 OUTPUT_FORMATS = {
     "json": JSONOutput,
     "tsv": TSVOutput,
     "sql": SQLOutput,
+    "sqlite3": SQLite3Output,
 }
 
 
@@ -1007,7 +1052,10 @@ def main(args, annotations):
         liftover_cache=args.data_liftover,
     )
 
-    output_formats = set(args.output_format) if args.output_format else ["tsv"]
+    output_formats = set(args.output_format)
+    if not output_formats:
+        output_formats = ["tsv"]
+
     if args.out_prefix is None and len(output_formats) > 1:
         log.error("[out_prefix] must be set when writing more than one format")
         return 1
