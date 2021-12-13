@@ -106,6 +106,9 @@ def run_post_proc(args, log):
     for annotation in args.annotations:
         command += ["--annotations", annotation]
 
+    for fmt in args.output_format:
+        command += ["--output-format", fmt]
+
     proc = exec_self(log=log, command=command)
 
     return join_procs(log, [proc])
