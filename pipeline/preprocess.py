@@ -35,8 +35,8 @@ def main(args, _anotations):
     n_records = 0
 
     log = logging.getLogger("preprocess_vcf")
-    log.info("Reading VCF at %s", args.in_vcf)
-    with open_ro(args.in_vcf) as handle:
+    log.info("Reading VCF at %s", args.in_file)
+    with open_ro(args.in_file) as handle:
         for line in handle:
             if line.startswith("#"):
                 line, old_name, new_name = fix_contig_name(line)

@@ -20,81 +20,51 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super().__init__(*args, **kwargs)
 
 
-def add_common_args(parser):
-    parser.add_argument("--root", type=Path, default=Path("~/annovep").expanduser())
-    parser.add_argument(
-        "--log-level",
-        default="info",
-        choices=("debug", "info", "warning", "error"),
-        type=str.lower,
-        help="Log messages at the specified level. This option applies to the "
-        "`--log-file` option and to log messages printed to the terminal.",
-    )
-
-
 def parse_args(argv):
-    mainparser = argparse.ArgumentParser(formatter_class=HelpFormatter)
-    mainparser.set_defaults(
-        main=None,
-        root=Path("~/annovep").expanduser(),
-        annotations=[],
-        data_cache=None,
-        data_custom=None,
-        data_plugins=None,
-        data_liftover=None,
-        install=None,
-        install_annovep=None,
-        install_plugins=None,
-        log_level="info",
-    )
-
-    subparsers = mainparser.add_subparsers()
+    parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
 
     # Pipeline
-    parser = subparsers.add_parser("run")
-    parser.set_defaults(main=pipeline_main)
-
-    parser.add_argument("in_vcf", type=Path)
-    parser.add_argument("out_prefix", type=Path)
-
-    parser.add_argument("--annotations", default=[], action="append", type=Path)
-
-    group = parser.add_argument_group("Data locations")
-    parser.add_argument("--data-cache", type=Path)
-    parser.add_argument("--data-custom", type=Path)
-    parser.add_argument("--data-plugins", type=Path)
-    parser.add_argument("--data-liftover", type=Path)
-
-    group = parser.add_argument_group("Installation locations")
-    group.add_argument("--install", type=Path)
-    group.add_argument("--install-plugins", type=Path)
-    group.add_argument("--install-annovep", type=Path)
-
-    group = parser.add_argument_group("VEP options")
-    group.add_argument("--fork", type=int)
-    group.add_argument("--buffer_size", default=100_000, type=int)
-
-    add_common_args(parser)
-
-    # Pre-processing
-    parser = subparsers.add_parser("pre-process")
-    parser.set_defaults(main=preprocess_main)
-
-    parser.add_argument("in_vcf", type=Path)
-
-    add_common_args(parser)
-
-    # Post-processing
-    parser = subparsers.add_parser("post-process")
-    parser.set_defaults(main=postprocess_main)
-
-    parser.add_argument("in_json", type=Path)
-    parser.add_argument("out_prefix", nargs="?", type=Path)
-
-    parser.add_argument("--annotations", default=[], action="append", type=Path)
-    parser.add_argument("--data-liftover", type=Path)
+    parser.add_argument("in_file", type=Path)
+    parser.add_argument("out_prefix", type=Path, nargs="?")
 
     parser.add_argument(
+        "--annotations",
+        metavar="FILE",
+        type=Path,
+        default=[],
+        action="append",
+        help="Optional files containing additional annotations",
+    )
+
+    parser.add_argument(
+        "--do",
+        type=str.lower,
+        choices=("run", "pre-process", "post-process"),
+        default="run",
+        help=argparse.SUPPRESS,
+    )
+
+    parser.add_argument(
+        "--root",
+        metavar="DIR",
+        type=Path,
+        default=Path("~/annovep").expanduser(),
+        help="The root location of the AnnoVEP install",
+    )
+
+    group = parser.add_argument_group("Data locations")
+    parser.add_argument("--data-cache", metavar="DIR", type=Path)
+    parser.add_argument("--data-custom", metavar="DIR", type=Path)
+    parser.add_argument("--data-plugins", metavar="DIR", type=Path)
+    parser.add_argument("--data-liftover", metavar="DIR", type=Path)
+
+    group = parser.add_argument_group("Installation locations")
+    group.add_argument("--install", metavar="DIR", type=Path)
+    group.add_argument("--install-plugins", metavar="DIR", type=Path)
+    group.add_argument("--install-annovep", metavar="DIR", type=Path)
+
+    group = parser.add_argument_group("Output")
+    group.add_argument(
         "--output-format",
         action="append",
         type=str.lower,
@@ -103,15 +73,27 @@ def parse_args(argv):
         "more times. Defaults to TSV if not specified",
     )
 
-    parser.add_argument(
+    group.add_argument(
         "--include-json",
         action="store_true",
         help="Include JSON data in SQL output, excluding sample specific information",
     )
 
-    add_common_args(parser)
+    group = parser.add_argument_group("VEP options")
+    group.add_argument("--fork", metavar="N", type=int)
+    group.add_argument("--buffer_size", metavar="N", default=100_000, type=int)
 
-    return mainparser
+    group = parser.add_argument_group("Logging")
+    group.add_argument(
+        "--log-level",
+        default="info",
+        choices=("debug", "info", "warning", "error"),
+        type=str.lower,
+        help="Log messages at the specified level. This option applies to the "
+        "`--log-file` option and to log messages printed to the terminal.",
+    )
+
+    return parser
 
 
 def main(argv):
@@ -125,6 +107,9 @@ def main(argv):
         # Workaround for coloredlogs disabling colors in docker containers
         isatty=sys.stderr.isatty(),
     )
+
+    if args.out_prefix is None:
+        args.out_prefix = args.in_file
 
     if args.data_cache is None:
         args.data_cache = args.root / "cache"
@@ -155,11 +140,14 @@ def main(argv):
     log = logging.getLogger("annovep")
     annotations = load_annotations(log, args.annotations, variables)
 
-    if args.main is None:
-        parser.print_usage()
-        return 1
+    if args.do == "run":
+        return pipeline_main(args, annotations)
+    elif args.do == "pre-process":
+        return preprocess_main(args, annotations)
+    elif args.do == "post-process":
+        return postprocess_main(args, annotations)
 
-    return args.main(args, annotations)
+    raise NotImplementedError(args.do)
 
 
 if __name__ == "__main__":

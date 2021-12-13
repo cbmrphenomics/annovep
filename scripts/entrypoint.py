@@ -33,7 +33,6 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
     "pipeline": [
         "python3",
         ANNOVEP_ROOT / "pipeline" / "main.py",
-        "run",
         "--root",
         CACHE_ROOT,
         "--install-plugins",

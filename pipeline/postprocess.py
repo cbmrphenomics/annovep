@@ -999,7 +999,7 @@ def main(args, annotations):
     args.include_json = args.include_json and "sql" in (args.output_format or ())
 
     log = logging.getLogger("convert_vep")
-    log.info("reading VEP annotations from '%s'", args.in_json)
+    log.info("reading VEP annotations from '%s'", args.in_file)
 
     header = _build_columns(annotations)
     annotator = Annotator(
@@ -1021,7 +1021,7 @@ def main(args, annotations):
         return record["seq_region_name"]
 
     try:
-        for contig, records in groupby(read_vep_json(args.in_json), key=_contig_key):
+        for contig, records in groupby(read_vep_json(args.in_file), key=_contig_key):
             count = 0
             for record in records:
                 if args.include_json:

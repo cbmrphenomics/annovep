@@ -77,8 +77,9 @@ def run_vep(args, log, annotations):
     preproc = exec_self(
         log=log,
         command=[
+            "--do",
             "pre-process",
-            args.in_vcf,
+            args.in_file,
             "--log-level",
             args.log_level,
         ],
@@ -92,6 +93,7 @@ def run_vep(args, log, annotations):
 
 def run_post_proc(args, log):
     command = [
+        "--do",
         "post-process",
         args.out_vep_json,
         args.out_prefix,
@@ -128,7 +130,7 @@ def main(args, annotations):
 
     if update_required(
         output=args.out_vep_json,
-        inputs=[args.in_vcf] + args.annotations,
+        inputs=[args.in_file] + args.annotations,
     ):
         log.info("Running VEP")
         if not run_vep(args, log, annotations):
