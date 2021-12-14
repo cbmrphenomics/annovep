@@ -92,7 +92,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
     download_ancestral_fa "${ancestral_fa}" "${ancestral_fa_url}"
 
     # GERP scores for the Conservation plugin
-    download "${plugins_cache}/gerp_conservation_scores.homo_sapiens.GRCh38.bw" "http://ftp.ensembl.org/pub/current_compara/conservation_scores/90_mammals.gerp_conservation_score/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
+    download "${plugins_cache}/gerp_conservation_scores.homo_sapiens.GRCh38.bw" "http://ftp.ensembl.org/pub/release-98/compara/conservation_scores/90_mammals.gerp_conservation_score/gerp_conservation_scores.homo_sapiens.GRCh38.bw"
 
     # FASTA used by the LOFTEE plugin
     download "${plugins_cache}/human_ancestor.fa.gz" "https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz"
