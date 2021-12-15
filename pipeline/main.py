@@ -7,7 +7,7 @@ from pathlib import Path
 
 import coloredlogs
 
-from annotation import load_annotations
+from annotation import AnnotationError, load_annotations
 from pipeline import main as pipeline_main
 from postprocess import main as postprocess_main
 from preprocess import main as preprocess_main
@@ -139,7 +139,11 @@ def main(argv):
     }
 
     log = logging.getLogger("annovep")
-    annotations = load_annotations(log, args.annotations, variables)
+    try:
+        annotations = load_annotations(log, args.annotations, variables)
+    except AnnotationError as error:
+        log.error("error while loading annotations: %s", error)
+        return 1
 
     if args.do == "run":
         return pipeline_main(args, annotations)
