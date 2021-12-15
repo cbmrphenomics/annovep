@@ -110,7 +110,7 @@ load_settings <- function(settings) {
   require_str("user settings", settings$title)
   require_str("user settings", settings$password)
   require_str("user settings", settings$database)
-  require_str("user settings", settings$genes, optional = TRUE)
+  require_strs("user settings", settings$genes, optional = TRUE)
   require_str("user settings", settings$build, optional = TRUE)
   require_str("user settings", settings$chrom, optional = TRUE)
   require_strs("user settings", settings$columns, optional = TRUE)
