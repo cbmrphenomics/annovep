@@ -30,6 +30,7 @@ AncestralAllele:
 neighbours:
   Rank: -10
   Type: BED
+  Mode: overlap
   File: "{data-custom}/Homo_sapiens.GRCh38.104.neighbours.bed.gz"
   Fields:
     # Special handling is needed for these values; see postprocess.py
@@ -115,6 +116,7 @@ ExACpLI:
 dbSNP:
   Rank: 40
   Type: VCF
+  Mode: exact
   File: "{data-custom}/dbsnp_155_20210513_custom.vcf.gz"
   Fields:
     "ids":
@@ -132,6 +134,7 @@ dbSNP:
 ClinVar:
   Rank: 50
   Type: VCF
+  Mode: exact
   File: "{data-custom}/clinvar_20210821.vcf.gz"
   Fields:
     "ALLELEID":
@@ -155,6 +158,7 @@ ClinVar:
 gnomAD_coverage:
   Rank: 60
   Type: VCF
+  Mode: overlap
   File: "{data-custom}/gnomAD.genomes.r3.0.1.coverage.vcf.gz"
   FieldType: float
   Fields:
@@ -179,6 +183,7 @@ gnomAD_coverage:
 gnomAD_sites:
   Rank: 70
   Type: VCF
+  Mode: exact
   File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
   FieldType: float
   Fields:
@@ -226,6 +231,7 @@ gnomAD_sites:
 1KGenomes:
   Rank: 80
   Type: VCF
+  Mode: exact
   File: "{data-custom}/1000Genomes_20200805.vcf.gz"
   FieldType: float
   Fields:

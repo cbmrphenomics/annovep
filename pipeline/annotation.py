@@ -169,6 +169,7 @@ class Plugin:
 _CUSTOM_LAYOUT = {
     "Rank": {"type": int, "default": 0},
     "File": {"type": str},
+    "Mode": {"type": str},
     "Variables": {"type": _str_dict, "default": {}},
     "FieldType": {"type": str, "default": "str"},
     "Fields": {"type": lambda it: it, "default": {}},
@@ -187,7 +188,11 @@ class Custom:
         self.name = name
         self._type = type
         self._file = data.pop("File").format(**variables)
+        self._mode = data.pop("Mode").lower()
         self.fields = _parse_fields(data, name)
+
+        if self._mode not in ("exact", "overlap"):
+            raise AnnotationError(f"Bad Mode {self._mode!r} for {name!r}")
 
         assert not data, data
 
@@ -197,7 +202,7 @@ class Custom:
 
     @property
     def params(self):
-        params = [self._file, self.name, self._type, "overlap", "0"]
+        params = [self._file, self.name, self._type, self._mode, "0"]
         for name in self.fields:
             if not (name.startswith(":") and name.endswith(":")):
                 params.append(name)
