@@ -104,7 +104,7 @@ def run_post_proc(args, log):
     ]
 
     if args.include_json:
-        command.append("--include_json")
+        command.append("--include-json")
 
     if args.data_liftover is not None:
         command += ["--data-liftover", args.data_liftover]
