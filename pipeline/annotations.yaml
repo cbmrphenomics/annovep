@@ -122,12 +122,15 @@ dbSNP:
     "ids":
       Name: "dbSNP_ids"
       Help: "dbSNP ids for alleles alleles matching this pos:ref/alt"
+      Split-by: ","
     "alts":
       Name: "dbSNP_alts"
       Help: "dbSNP allele strings records matching pos:ref/*"
+      Split-by: ","
     "functions":
       Name: "dbSNP_functions"
       Help: "GO terms recorded in dbSNP"
+      Split-by: ","
 
 # Runtime ~= 1.0x
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
