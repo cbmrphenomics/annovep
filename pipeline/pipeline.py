@@ -103,6 +103,12 @@ def run_post_proc(args, log):
         args.data_liftover,
     ]
 
+    if args.include_json:
+        command.append("--include_json")
+
+    if args.data_liftover is not None:
+        command += ["--data-liftover", args.data_liftover]
+
     for annotation in args.annotations:
         command += ["--annotations", annotation]
 
