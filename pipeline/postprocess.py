@@ -1041,7 +1041,8 @@ def read_vep_json(filepath):
 
 
 def main(args, annotations):
-    args.include_json = args.include_json and "sql" in (args.output_format or ())
+    if not any(fmt.startswith("sql") for fmt in args.output_format):
+        args.include_json = False
 
     log = logging.getLogger("convert_vep")
     log.info("reading VEP annotations from '%s'", args.in_file)
