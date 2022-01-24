@@ -44,6 +44,37 @@ neighbours:
       Name: "Genes_downstream"
       Help: "Neighbouring genes downstream of allele"
 
+
+# https://www.ensembl.org/info/docs/tools/vep/script/vep_options.html#opt_symbol
+GeneSymbol:
+  Rank: 0
+  Type: Option
+  Command:
+    - "--symbol"
+  Fields:
+    "gene_symbol":
+      Name: "Func_gene_symbol"
+      Help: "Gene symbol (e.g. HGNC)"
+    "gene_symbol_source":
+      Name: "Func_gene_symbol_source"
+      Help: "Source of gene symbol"
+
+# https://www.ensembl.org/info/docs/tools/vep/script/vep_options.html#opt_polyphen
+Polyphen:
+  Rank: 5
+  Type: Option
+  Command:
+    - "--polyphen"
+    - "b"
+  Fields:
+    "polyphen_prediction":
+      Name: "Func_polyphen"
+      Help: "PolyPhen prediction"
+    "polyphen_score":
+      Name: "Func_polyphen_score"
+      FieldType: float
+      Help: "PolyPhen score"
+
 # Runtime ~= 2.4x
 # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
 Conservation:

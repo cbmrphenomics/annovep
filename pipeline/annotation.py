@@ -134,6 +134,27 @@ def _parse_fields(data, name) -> Dict[str, Field]:
     return data
 
 
+_OPTION_LAYOUT = {
+    "Rank": {"type": int, "default": 0},
+    "Command": {"type": _truthy(_str_list)},
+    "FieldType": {"type": str, "default": "str"},
+    "Fields": {"type": lambda it: it, "default": {}},
+}
+
+
+class Option:
+    def __init__(self, name, data, variables):
+        data = _parse(_OPTION_LAYOUT, name, data)
+
+        self.rank = data.pop("Rank")
+        self.name = name
+        self.params = data.pop("Command")
+        self.fields = _parse_fields(data, name)
+        self.files = ()
+
+        assert not data, data
+
+
 _PLUGIN_LAYOUT = {
     "Rank": {"type": int, "default": 0},
     "Files": {"type": _truthy(_str_list)},
@@ -233,6 +254,8 @@ def load_annotations(log, filepaths, variables=None):
             type = settings.pop("Type")
             if type == "Plugin":
                 value = Plugin(name, settings, variables)
+            elif type == "Option":
+                value = Option(name, settings, variables)
             elif type == "VCF":
                 value = Custom(name, settings, variables, type="vcf")
             elif type == "BED":

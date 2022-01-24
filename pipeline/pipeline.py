@@ -36,7 +36,6 @@ def run_vep(args, log, annotations):
         "--verbose",
         "--offline",
         "--cache",
-        "--symbol",
         # Marks canonical transcripts
         "--canonical",
         "--format",
@@ -55,8 +54,6 @@ def run_vep(args, log, annotations):
         args.install_plugins,
         "--assembly",
         "GRCh38",
-        "--polyphen",
-        "b",
         "--output_file",
         args.out_vep_json,
         "--stats_file",

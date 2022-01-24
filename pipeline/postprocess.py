@@ -15,7 +15,7 @@ from typing import Dict
 
 import liftover
 
-from annotation import Custom, Plugin
+from annotation import Custom, Option, Plugin
 
 ########################################################################################
 
@@ -102,6 +102,8 @@ COLUMNS_MAIN = {
 }
 
 COLUMNS_FUNC = {
+    "Func_gene_id": "Gene with the most significant consequence",
+    "Func_transcript_id": "Transcript with the most significant consequence",
     "Func_n_most_significant": IntegerCol(
         "Number of consequences ranked as most significant in terms of impact"
     ),
@@ -113,10 +115,6 @@ COLUMNS_FUNC = {
     "Func_most_significant_canonical": IntegerCol(
         "The most significant consequence for canonical transcripts only"
     ),
-    "Func_gene_id": "Gene with the most significant consequence",
-    "Func_transcript_id": "Transcript with the most significant consequence",
-    "Func_gene_symbol": "Gene symbol (e.g. HGNC)",
-    "Func_gene_symbol_source": "Source of gene symbol",
     "Func_cdna_position": "Relative position of base pair in cDNA sequence",
     "Func_cds_position": "Relative position of base pair in coding sequence",
     "Func_protein_position": "Relative position of amino acid in protein",
@@ -124,8 +122,6 @@ COLUMNS_FUNC = {
     "Func_codons": "Reference and variant codon sequence",
     "Func_impact": "Subjective impact classification of consequence type",
     "Func_strand": IntegerCol("Strand of the feature (1/-1)"),
-    "Func_polyphen": "PolyPhen prediction",
-    "Func_polyphen_score": FloatCol("PolyPhen score"),
 }
 
 
@@ -280,7 +276,7 @@ class Annotator:
             self._add_gene_info(consequence, copy)
 
             # add custom annotation
-            self._add_plugin_annotation(consequence, copy)
+            self._add_option_and_plugin_annotation(consequence, copy)
             self._add_custom_annotation(vep, copy)
 
             # Special handling of certain (optinal) annotation
@@ -440,8 +436,6 @@ class Annotator:
             "cdna_start",
             "gene_id",
             "transcript_id",
-            "gene_symbol",
-            "gene_symbol_source",
             "impact",
             "strand",
             "least_significant",
@@ -457,9 +451,6 @@ class Annotator:
             "protein",
         ):
             dst[f"Func_{key}_position"] = self._format_coordinates(consequence, key)
-
-        dst["Func_polyphen"] = consequence.get("polyphen_prediction")
-        dst["Func_polyphen_score"] = consequence.get("polyphen_score")
 
     def _format_coordinates(self, consequence, key):
         start = consequence.get(f"{key}_start")
@@ -483,9 +474,9 @@ class Annotator:
         if "Ancestral_allele" in dst and not dst["Ancestral_allele"]:
             dst["Ancestral_allele"] = None
 
-    def _add_plugin_annotation(self, consequence, copy):
+    def _add_option_and_plugin_annotation(self, consequence, copy):
         for annotation in self._annotations:
-            if isinstance(annotation, Plugin):
+            if isinstance(annotation, (Option, Plugin)):
                 for key, field in annotation.fields.items():
                     if field.name is not None:
                         copy[field.name] = consequence.get(key)
