@@ -264,7 +264,6 @@ class Annotator:
                 - gt_00
                 - gt_01
                 - gt_10
-                - gt_10
                 - gt_11
                 - gt_na
             )
