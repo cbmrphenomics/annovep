@@ -36,8 +36,6 @@ def run_vep(args, log, annotations):
         "--verbose",
         "--offline",
         "--cache",
-        # Marks canonical transcripts
-        "--canonical",
         "--format",
         "vcf",
         "--json",

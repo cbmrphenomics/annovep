@@ -79,69 +79,9 @@ COL_TYPES = {
     "float": FloatCol,
 }
 
-COLUMNS_MAIN = {
-    "Chr": "Chromosome/Contig recorded in input VCF",
-    "Pos": IntegerCol("Position recorded in input VCF"),
-    "ID": "ID recorded in input VCF",
-    "Ref": "Reference allele recorded in input VCF",
-    "Alt": "The single ALT allele described by this row",
-    "Alts": "The full ALT string from the input VCF",
-    "Quality": "Quality score recorded in VCF",
-    "Filters": "Filters recorded in input VCF",
-    "DP": IntegerCol("Sum of read depth for this position"),
-    "Freq": FloatCol("Frequency of alternative allele in samples"),
-    "GT_00": IntegerCol("Number of samples with ref/ref genotype"),
-    "GT_01": IntegerCol("Number of samples with ref/alt genotype"),
-    "GT_11": IntegerCol("Number of samples with alt/alt genotype"),
-    "GT_NA": IntegerCol("Number of samples with missing genotypes"),
-    "GT_other": IntegerCol("Number of samples with other genotypes"),
-    "Info": "INFO string from input VCF",
-    "Hg19_chr": "Corresponding chromosome/contig in hg19, if any.",
-    "Hg19_pos": IntegerCol("Corresponding position in hg19, if any."),
-    "VEP_allele": "The pos:ref:alt corresponding to VEP output",
-}
-
-COLUMNS_FUNC = {
-    "Func_gene_id": "Gene with the most significant consequence",
-    "Func_transcript_id": "Transcript with the most significant consequence",
-    "Func_n_most_significant": IntegerCol(
-        "Number of consequences ranked as most significant in terms of impact"
-    ),
-    "Func_most_significant": IntegerCol("The most significant consequence"),
-    "Func_least_significant": IntegerCol(
-        "The last significant consequence for the same gene as the most "
-        "significant consequence"
-    ),
-    "Func_most_significant_canonical": IntegerCol(
-        "The most significant consequence for canonical transcripts only"
-    ),
-    "Func_cdna_position": "Relative position of base pair in cDNA sequence",
-    "Func_cds_position": "Relative position of base pair in coding sequence",
-    "Func_protein_position": "Relative position of amino acid in protein",
-    "Func_amino_acids": "Reference and variant amino acids",
-    "Func_codons": "Reference and variant codon sequence",
-    "Func_impact": "Subjective impact classification of consequence type",
-    "Func_strand": IntegerCol("Strand of the feature (1/-1)"),
-}
-
 
 def _build_columns(annotations):
-    def _collect_columns(filter):
-        for annotation in annotations:
-            if filter(annotation):
-                for field in annotation.fields.values():
-                    if field.name is not None:
-                        wrapper = COL_TYPES[field.type]
-                        yield (field.name, wrapper(field.help))
-
-    columns = dict(COLUMNS_MAIN)
-    # User annotations placed before functional annotations
-    columns.update(_collect_columns(lambda it: it.rank < 0))
-    # Functional annotations
-    columns.update(COLUMNS_FUNC)
-    # User annotations placed after functional annotations
-    columns.update(_collect_columns(lambda it: it.rank >= 0))
-
+    columns = collections.OrderedDict()
     for annotation in annotations:
         for field in annotation.fields.values():
             if field.name is not None:
@@ -256,12 +196,7 @@ class Annotator:
             copy["GT_11"] = gt_11
             copy["GT_NA"] = gt_na
             copy["GT_other"] = (
-                sum(genotype_counts.values(), 0)
-                - gt_00
-                - gt_01
-                - gt_10
-                - gt_11
-                - gt_na
+                sum(genotype_counts.values(), 0) - gt_00 - gt_01 - gt_10 - gt_11 - gt_na
             )
 
             # Cleaned up coordinates/sequences used by VEP
@@ -273,7 +208,6 @@ class Annotator:
 
             # Add functional annotation
             consequence = self._get_allele_consequence(vep, vep_allele["alt"])
-            self._add_gene_info(consequence, copy)
 
             # add custom annotation
             self._add_option_and_plugin_annotation(consequence, copy)
@@ -426,31 +360,11 @@ class Annotator:
                 consequence["least_significant"] = term
                 break
 
+        # Convert start/end coordinates into single value
+        for key in ("cdna", "cds", "protein"):
+            consequence[f"{key}_position"] = self._format_coordinates(consequence, key)
+
         return consequence
-
-    def _add_gene_info(self, consequence, dst):
-        for key in (
-            "amino_acids",
-            "codons",
-            "cdna_end",
-            "cdna_start",
-            "gene_id",
-            "transcript_id",
-            "impact",
-            "strand",
-            "least_significant",
-            "most_significant",
-            "n_most_significant",
-            "most_significant_canonical",
-        ):
-            dst[f"Func_{key}"] = consequence.get(key)
-
-        for key in (
-            "cdna",
-            "cds",
-            "protein",
-        ):
-            dst[f"Func_{key}_position"] = self._format_coordinates(consequence, key)
 
     def _format_coordinates(self, consequence, key):
         start = consequence.get(f"{key}_start")
@@ -479,7 +393,7 @@ class Annotator:
             if isinstance(annotation, (Option, Plugin)):
                 for key, field in annotation.fields.items():
                     if field.name is not None:
-                        copy[field.name] = consequence.get(key)
+                        copy.setdefault(field.name, consequence.get(key))
 
     def _add_custom_annotation(self, src, dst):
         for annotation in self._annotations:
