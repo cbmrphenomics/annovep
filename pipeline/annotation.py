@@ -139,6 +139,7 @@ _OPTION_LAYOUT = {
     "Command": {"type": _truthy(_str_list)},
     "FieldType": {"type": str, "default": "str"},
     "Fields": {"type": lambda it: it, "default": {}},
+    "Enabled": {"type": bool, "default": True},
 }
 
 
@@ -149,6 +150,7 @@ class Option:
         self.rank = data.pop("Rank")
         self.name = name
         self.params = data.pop("Command")
+        self.enabled = data.pop("Enabled")
         self.fields = _parse_fields(data, name)
         self.files = ()
 
@@ -162,6 +164,7 @@ _PLUGIN_LAYOUT = {
     "Variables": {"type": _str_dict, "default": {}},
     "FieldType": {"type": str, "default": "str"},
     "Fields": {"type": lambda it: it, "default": {}},
+    "Enabled": {"type": bool, "default": True},
 }
 
 
@@ -175,6 +178,7 @@ class Plugin:
         self.name = name
         self.files = apply_variables(variables, data.pop("Files"))
         self._params = apply_variables(variables, data.pop("Parameters"))
+        self.enabled = data.pop("Enabled")
         self.fields = _parse_fields(data, name)
 
         assert not data, data
@@ -194,6 +198,7 @@ _CUSTOM_LAYOUT = {
     "Variables": {"type": _str_dict, "default": {}},
     "FieldType": {"type": str, "default": "str"},
     "Fields": {"type": lambda it: it, "default": {}},
+    "Enabled": {"type": bool, "default": True},
 }
 
 
@@ -210,6 +215,7 @@ class Custom:
         self._type = type
         self._file = data.pop("File").format(**variables)
         self._mode = data.pop("Mode").lower()
+        self.enabled = data.pop("Enabled")
         self.fields = _parse_fields(data, name)
 
         if self._mode not in ("exact", "overlap"):

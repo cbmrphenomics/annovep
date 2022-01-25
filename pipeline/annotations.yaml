@@ -188,6 +188,23 @@ BuiltinSecondary:
       FieldType: float
       Help: "PolyPhen score"
 
+# https://www.ensembl.org/info/docs/tools/vep/script/vep_options.html#opt_hgvs
+HGVS:
+  Type: Option
+  Command:
+    - "--hgvs"
+  Fields:
+    "hgvsc":
+      Name: "HGVSc"
+      Help: "HGVS ID for coding sequence"
+    "hgvsp":
+      Name: "HGVSp"
+      Help: "HGVS ID for protein sequence"
+    "hgvs_offset":
+      Name: "HGVS_offset"
+      Help: "HGVS genomic offset"
+  Enabled: false
+
 # Runtime ~= 2.4x
 # https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm
 Conservation:

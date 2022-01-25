@@ -12,6 +12,32 @@ from pipeline import main as pipeline_main
 from postprocess import main as postprocess_main
 from preprocess import main as preprocess_main
 
+# Enable annotation with `--enable Name`
+class EnableAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        getattr(namespace, self.dest)[values] = True
+
+
+# Enable annotation with `--disable Name`
+class DisableAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        getattr(namespace, self.dest)[values] = False
+
+
+def filter_annotations(log, annotations, enabled):
+    result = []
+    for annotation in annotations:
+        name = annotation.name
+        key = name.lower()
+
+        if enabled.get(key, annotation.enabled):
+            log.info("   [✓] %s", name)
+            result.append(annotation)
+        else:
+            log.warning("[☓] %s", name)
+
+    return result
+
 
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def __init__(self, *args, **kwargs):
@@ -34,6 +60,24 @@ def parse_args(argv):
         default=[],
         action="append",
         help="Optional files containing additional annotations",
+    )
+
+    parser.add_argument(
+        "--enable",
+        type=str.lower,
+        metavar="ANNOTATION",
+        default={},
+        action=EnableAction,
+        help="Enable annotations disabled by default",
+    )
+
+    parser.add_argument(
+        "--disable",
+        dest="enable",
+        type=str.lower,
+        metavar="ANNOTATION",
+        action=DisableAction,
+        help="Disable annotations enabled by default",
     )
 
     parser.add_argument(
@@ -144,6 +188,8 @@ def main(argv):
     except AnnotationError as error:
         log.error("error while loading annotations: %s", error)
         return 1
+
+    annotations = filter_annotations(log, annotations, args.enable)
 
     if args.do == "run":
         return pipeline_main(args, annotations)
