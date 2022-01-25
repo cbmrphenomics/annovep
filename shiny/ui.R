@@ -28,8 +28,11 @@ ui <- pageWithSidebar(
       conditionalPanel(
         condition = "input.select_by === 'contig'",
         selectInput("chr", NULL, choices = NULL),
-        numericInput("min_pos", "Start position (bp):", 1, min = 1, step = 1),
-        numericInput("max_pos", "End position (bp; max 10k rows shown):", NULL, min = 1, step = 1)
+        conditionalPanel(
+          condition = "input.chr !== '[Whole genome]'",
+          numericInput("min_pos", "Start position (bp):", 1, min = 1, step = 1),
+          numericInput("max_pos", "End position (bp; max 10k rows shown):", NULL, min = 1, step = 1)
+        )
       ),
       hr(),
       # Filters

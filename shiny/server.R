@@ -7,6 +7,8 @@ defaults <- list(
   build = "hg38",
   chrom = NULL,
   genes = NULL,
+  # Only for small datasets
+  whole_genome = FALSE,
   columns = c(
     "Chr",
     "Pos",
@@ -114,6 +116,7 @@ load_settings <- function(settings) {
   require_str("user settings", settings$build, optional = TRUE)
   require_str("user settings", settings$chrom, optional = TRUE)
   require_strs("user settings", settings$columns, optional = TRUE)
+  require_bool("user settings", settings$whole_genome)
 
   return(settings)
 }
@@ -536,6 +539,9 @@ server <- function(input, output, session) {
       # Genic regions are given relative to hg38
       params <- c(params_chr, params_min, params_max)
       where <- sprintf("(Hg38_chr = :%s AND Hg38_pos >= :%s AND Hg38_pos <= :%s)", names(params_chr), names(params_min), names(params_max))
+    } else if (settings$whole_genome && identical(input$chr, "[Whole genome]")) {
+      params <- NULL
+      where <- "TRUE"
     } else if (is.numeric(region$max_pos)) {
       params <- c(params_chr, params_min, params_max)
       where <- sprintf("(%s = :%s AND %s >= :%s AND %s <= :%s)", col_chr, names(params_chr), col_pos, names(params_min), col_pos, names(params_max))
@@ -544,6 +550,7 @@ server <- function(input, output, session) {
       where <- sprintf("(%s = :%s AND %s >= :%s)", col_chr, names(params_chr), col_pos, names(params_min))
     }
 
+    # Multiple regions may have been selected
     where <- sprintf("  (%s)", paste(where, collapse = " OR "))
 
     # Exclude rows that do not have positions on the selected build
@@ -646,6 +653,10 @@ server <- function(input, output, session) {
         database$chroms_hg19
       } else {
         database$chroms_hg38
+      }
+
+      if (settings$whole_genome) {
+        visible_chroms <- c("[Whole genome]", visible_chroms)
       }
 
       shiny::updateSelectInput(session, "chr", choices = visible_chroms)
