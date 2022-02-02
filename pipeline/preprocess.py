@@ -34,26 +34,41 @@ def main(args, _anotations):
     n_decoy_contigs = 0
     n_records = 0
 
+    samples = []
+
     log = logging.getLogger("preprocess_vcf")
     log.info("Reading VCF at %s", args.in_file)
     with open_ro(args.in_file) as handle:
-        for line in handle:
-            if line.startswith("#"):
-                line, old_name, new_name = fix_contig_name(line)
-                if old_name != new_name:
-                    n_bad_contigs += 1
-                    if n_bad_contigs == 1:
-                        log.warning("Changing bad names: %r -> %r", old_name, new_name)
+        line = handle.readline()
+        while line and line.startswith("#"):
+            line, old_name, new_name = fix_contig_name(line)
+            if old_name != new_name:
+                n_bad_contigs += 1
+                if n_bad_contigs == 1:
+                    log.warning("Changing bad names: %r -> %r", old_name, new_name)
 
-                if old_name and old_name.endswith("_decoy"):
-                    n_decoy_contigs += 1
-                    if n_decoy_contigs == 1:
-                        log.warning("Removing decoy contigs: %r", old_name)
-                    continue
-
+            if old_name and old_name.endswith("_decoy"):
+                n_decoy_contigs += 1
+                if n_decoy_contigs == 1:
+                    log.warning("Removing decoy contigs: %r", old_name)
+            else:
                 print(line, end="")
-                continue
 
+            if line.startswith("#CHROM"):
+                samples = line.split("\t")[9:]
+
+            line = handle.readline()
+
+        if line and not samples:
+            # No header in input; assign arbitrary names to samples
+            samples = ["Sample{}".format(i) for i in range(line.count("\t") - 8)]
+
+        if samples:
+            # Print fake variant containing meta data for use during post-processing
+            samples = ";".join(samples) or "."
+            print("chr1\t1\tAnnoVEP:Samples\tA\t.\t.\t.\t{}".format(samples))
+
+        while line:
             n_records += 1
             chrom, rest = line.split("\t", 1)
             if chrom.endswith("_decoy"):
@@ -70,6 +85,8 @@ def main(args, _anotations):
 
             if n_records % 100_000 == 0:
                 log.info("Read %s variants; at %r", "{:,}".format(n_records), chrom)
+
+            line = handle.readline()
 
     def _fmt(value):
         return "{:,}".format(value)

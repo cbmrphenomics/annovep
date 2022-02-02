@@ -2,6 +2,11 @@ from typing import Dict, Optional, NamedTuple
 
 import ruamel.yaml
 
+# Built-in annotations derived from input
+_BUILTINS = {
+    "samplegenotypes": "SampleGenotypes",
+}
+
 
 class AnnotationError(Exception):
     pass
@@ -237,6 +242,28 @@ class Custom:
         return ["--custom", ",".join(params)]
 
 
+_BUILTIN_LAYOUT = {
+    "Rank": {"type": int, "default": 0},
+    "Enabled": {"type": bool, "default": True},
+}
+
+
+class Builtin:
+    def __init__(self, name, data):
+        self.name = _BUILTINS.get(name.lower())
+        if self.name is None:
+            raise AnnotationError(f"unknown built-in annotation {name!r}")
+
+        self.rank = data.pop("Rank")
+        self.enabled = data.pop("Enabled")
+
+        self.fields = ()
+        self.files = ()
+        self.params = ()
+
+        assert not data, data
+
+
 def load_annotations(log, filepaths, variables=None):
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
@@ -266,6 +293,8 @@ def load_annotations(log, filepaths, variables=None):
                 value = Custom(name, settings, variables, type="vcf")
             elif type == "BED":
                 value = Custom(name, settings, variables, type="bed")
+            elif type == "Builtin":
+                value = Builtin(name, settings)
             else:
                 raise AnnotationError(f"Unknown annotation type {type!r} for {name!r}")
 

@@ -3,21 +3,22 @@
 import collections
 import functools
 import gzip
-import io
 import json
 import logging
 import re
 import sqlite3
 import sys
 import zlib
-from itertools import groupby
 from typing import Dict
 
 import liftover
 
-from annotation import Custom, Option, Plugin
+from annotation import Builtin, Custom, Option, Plugin, Field
 
 ########################################################################################
+
+
+_RE_ALLELE = re.compile("\b")
 
 
 def _build_consequence_ranks():
@@ -167,7 +168,7 @@ class Annotator:
 
     def annotate(self, vep):
         row = parse_vcf(vep["input"])
-        samples = row.pop("Samples")
+        samples = row["Samples"]
 
         row["Ref"] = self._validate_sequence(row["Ref"], "ACGTN*")
         row["DP"] = self._calculate_depth(samples)
@@ -182,7 +183,7 @@ class Annotator:
             allele = self._validate_sequence(allele, "ACGTN*.")
 
             copy = dict(row)
-            copy["Alt"] = allele.split(",")
+            copy["Alt"] = allele
             copy["Freq"] = frequencies.get(allele_idx)
 
             gt_00 = genotype_counts.get((0, 0), 0)
@@ -212,6 +213,7 @@ class Annotator:
             # add custom annotation
             self._add_option_and_plugin_annotation(consequence, copy)
             self._add_custom_annotation(vep, copy)
+            self._add_builtin_annotation(vep, copy)
 
             # Special handling of certain (optinal) annotation
             self._fix_ancestral_allele(consequence, copy)
@@ -434,6 +436,35 @@ class Annotator:
                         raise NotImplementedError(key)
 
                     dst[field.name] = value
+
+    def _add_builtin_annotation(self, src, dst):
+        for annotation in self._annotations:
+            if isinstance(annotation, Builtin):
+                if annotation.name == "SampleGenotypes":
+                    self._add_sample_genotypes(annotation, src, dst)
+                else:
+                    raise NotImplementedError(annotation.name)
+
+    def _add_sample_genotypes(self, annotation, src, dst):
+        alt_idx = dst["Alts"].index(dst["Alt"]) + 1
+
+        for name, data in zip(annotation.fields, dst["Samples"]):
+            genotypes = data.get("GT", "./.")
+            if genotypes != "./.":
+                values = []
+                for field in _RE_ALLELE.split(genotypes):
+                    if field == "0":
+                        values.append("0")
+                    elif field == alt_idx:
+                        values.append("1")
+                    elif field.isdigit():
+                        values.append("x")
+                    elif field:
+                        values.append(field)
+
+                dst[name] = "".join(values)
+            else:
+                dst[name] = genotypes
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
         # Check if pipeline was run with the 'overlapping' BED file
@@ -914,6 +945,43 @@ OUTPUT_FORMATS = {
 }
 
 
+class Metadata:
+    def __init__(self, args):
+        self._args = args
+        self.samples = ()
+
+    def parse(self, record):
+        fields = record["input"].split("\t", 7)
+
+        if fields[2] == "AnnoVEP:Samples":
+            self.samples = fields[7].split(";")
+            if self.samples == ".":
+                self.samples = ()
+
+            return True
+
+        return False
+
+    def update_annotations(self, annotations):
+        for item in annotations:
+            if isinstance(item, Builtin):
+                if item.name == "SampleGenotypes":
+                    self._update_sample_genotypes(item)
+                else:
+                    raise NotImplementedError(item.name)
+
+    def _update_sample_genotypes(self, item):
+        item.fields = {
+            sample: Field(
+                name=sample,
+                type="str",
+                help=f"Genotypes for {sample!r}",
+                split_by=None,
+            )
+            for sample in self.samples
+        }
+
+
 def open_ro(filepath):
     handle = None
 
@@ -951,12 +1019,6 @@ def main(args, annotations):
     log = logging.getLogger("convert_vep")
     log.info("reading VEP annotations from '%s'", args.in_file)
 
-    header = _build_columns(annotations)
-    annotator = Annotator(
-        annotations=annotations,
-        liftover_cache=args.data_liftover,
-    )
-
     output_formats = set(args.output_format)
     if not output_formats:
         output_formats = ["tsv"]
@@ -965,29 +1027,59 @@ def main(args, annotations):
         log.error("[out_prefix] must be set when writing more than one format")
         return 1
 
-    writers: Dict[str, Output] = {}
-    for key in output_formats:
-        cls = OUTPUT_FORMATS[key]
-        writers[key] = cls(keys=header, out_prefix=args.out_prefix)
-
-    def _contig_key(record):
-        return record["seq_region_name"]
-
     try:
-        for contig, records in groupby(read_vep_json(args.in_file), key=_contig_key):
-            count = 0
-            for record in records:
-                if args.include_json:
-                    for writer in writers.values():
-                        writer.process_json(record)
+        metadata = Metadata(args)
+        progress_chrom = None
+        progress_count = 0
 
-                for row in annotator.annotate(record):
-                    for writer in writers.values():
-                        writer.process_row(row)
+        # Remove meta-data
+        record = None
+        reader = read_vep_json(args.in_file)
+        for record in reader:
+            if not metadata.parse(record):
+                break
 
-                count += 1
+        # Update annotations that rely on metadata
+        metadata.update_annotations(annotations)
 
-            log.info("Processed %i records on %r", count, decode_contig_name(contig))
+        header = _build_columns(annotations)
+        annotator = Annotator(
+            annotations=annotations,
+            liftover_cache=args.data_liftover,
+        )
+
+        writers: Dict[str, Output] = {}
+        for key in output_formats:
+            cls = OUTPUT_FORMATS[key]
+            writers[key] = cls(keys=header, out_prefix=args.out_prefix)
+
+        def _process_record(record):
+            if args.include_json:
+                for writer in writers.values():
+                    writer.process_json(record)
+
+            for row in annotator.annotate(record):
+                for writer in writers.values():
+                    writer.process_row(row)
+
+        if record is not None:
+            _process_record(record)
+            progress_chrom = record["seq_region_name"]
+            progress_count += 1
+
+        for record in reader:
+            if record["seq_region_name"] != progress_chrom:
+                progress_chrom = decode_contig_name(progress_chrom)
+                log.info("Processed %i records on %r", progress_count, progress_chrom)
+                progress_chrom = record["seq_region_name"]
+                progress_count = 0
+
+            _process_record(record)
+            progress_count += 1
+
+        if progress_chrom is not None:
+            progress_chrom = decode_contig_name(progress_chrom)
+            log.info("Processed %i records on %r", progress_count, progress_chrom)
 
         for writer in writers.values():
             writer.finalize()

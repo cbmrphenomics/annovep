@@ -83,6 +83,12 @@ BuiltinMain:
       Name: "VEP_allele"
       Help: "The pos:ref:alt corresponding to VEP output"
 
+# Individual sample genotypes
+SampleGenotypes:
+  Rank: 50
+  Type: Builtin
+  Enabled: false
+  
 # Runtime ~= 1.3x
 # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
 AncestralAllele:
