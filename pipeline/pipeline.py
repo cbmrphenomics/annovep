@@ -107,6 +107,9 @@ def run_post_proc(args, log):
     for annotation in args.annotations:
         command += ["--annotations", annotation]
 
+    for name, enabled in args.enable.items():
+        command += ["--enable" if enabled else "--disable", name]
+
     for fmt in args.output_format:
         command += ["--output-format", fmt]
 
