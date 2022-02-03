@@ -29,7 +29,7 @@ def update_required(output, inputs):
     return False
 
 
-def open_ro(filename):
+def open_rb(filename):
     """Opens a file for reading, transparently handling
     GZip and BZip2 compressed files. Returns a file handle."""
     handle = open(fspath(filename), "rb")
@@ -42,10 +42,14 @@ def open_ro(filename):
         elif header == b"BZ":
             handle = bz2.BZ2File(handle, "rb")
 
-        return io.TextIOWrapper(handle)
+        return handle
     except:
         handle.close()
         raise
+
+
+def open_ro(filename):
+    return io.TextIOWrapper(open_rb(filename))
 
 
 def join_procs(log, procs):
