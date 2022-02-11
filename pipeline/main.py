@@ -26,9 +26,11 @@ class DisableAction(argparse.Action):
 
 def filter_annotations(log, annotations, enabled):
     result = []
+    names = set()
     for annotation in annotations:
         name = annotation.name
         key = name.lower()
+        names.add(key)
 
         if enabled.get(key, annotation.enabled):
             log.info("   [✓] %s", name)
@@ -36,7 +38,12 @@ def filter_annotations(log, annotations, enabled):
         else:
             log.warning("[☓] %s", name)
 
-    return result
+    annotations[:] = result
+    unknown_annotations = enabled.keys() - names
+    for unknown in unknown_annotations:
+        log.error("--enable/--disable on unknown annotation: %r", unknown)
+
+    return not unknown_annotations
 
 
 class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -189,7 +196,8 @@ def main(argv):
         log.error("error while loading annotations: %s", error)
         return 1
 
-    annotations = filter_annotations(log, annotations, args.enable)
+    if not filter_annotations(log, annotations, args.enable):
+        return 1
 
     if args.do == "run":
         return pipeline_main(args, annotations)
