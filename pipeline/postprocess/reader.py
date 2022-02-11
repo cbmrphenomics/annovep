@@ -7,10 +7,11 @@ from utils import open_rb
 
 class VEPReader:
     def __init__(self, filename):
+        self._first_record = None
+
         self._log = logging.getLogger(__name__)
         self._handle = open_rb(filename)
         self.metadata = self._read_metadata()
-        self._first_record = None
 
     def _read_metadata(self):
         metadata = {}
