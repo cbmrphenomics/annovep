@@ -28,6 +28,10 @@ RUN mkdir -p /data/user && touch /data/user/not_mounted
 COPY ./pipeline/ /opt/annovep/pipeline/
 COPY ./scripts/ /opt/annovep/scripts/
 
+# Normalize permissions
+RUN find /opt/annovep/ -type f -exec chmod +r \{\} \; && \
+    find /opt/annovep/ -type d -exec chmod +rx \{\} \;
+
 # Mountpoint for the current working directory
 WORKDIR /data/user
 
