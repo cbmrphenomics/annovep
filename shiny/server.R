@@ -541,7 +541,7 @@ server <- function(input, output, session) {
       where <- sprintf("(Hg38_chr = :%s AND Hg38_pos >= :%s AND Hg38_pos <= :%s)", names(params_chr), names(params_min), names(params_max))
     } else if (settings$whole_genome && identical(input$chr, "[Whole genome]")) {
       params <- NULL
-      where <- "TRUE"
+      where <- "1"
     } else if (is.numeric(region$max_pos)) {
       params <- c(params_chr, params_min, params_max)
       where <- sprintf("(%s = :%s AND %s >= :%s AND %s <= :%s)", col_chr, names(params_chr), col_pos, names(params_min), col_pos, names(params_max))
