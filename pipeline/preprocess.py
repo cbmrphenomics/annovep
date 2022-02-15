@@ -63,10 +63,9 @@ def main(args, _anotations):
             # No header in input; assign arbitrary names to samples
             samples = ["Sample{}".format(i) for i in range(line.count("\t") - 8)]
 
-        if samples:
-            # Print fake variant containing meta data for use during post-processing
-            samples = ";".join(samples) or "."
-            print("chr1\t1\tAnnoVEP:Samples\tA\t.\t.\t.\t{}".format(samples))
+        # Print fake variant containing meta data for use during post-processing
+        samples = ";".join(samples) or "."
+        print("chr1\t1\tAnnoVEP:Samples\tA\t.\t.\t.\t{}".format(samples))
 
         while line:
             n_records += 1
