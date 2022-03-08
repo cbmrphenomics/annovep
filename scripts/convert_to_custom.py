@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
+from __future__ import annotations
+
 import argparse
 import bz2
 import collections
+import fnmatch
 import gzip
 import io
 import itertools
 import logging
 import sys
+import zipfile
 from os import fspath
 from pathlib import Path
-from typing import IO, Optional, Union, cast, NamedTuple
+from typing import IO, NamedTuple, Optional, Union, cast
 
 import coloredlogs
 import pysam
+from ruamel.yaml import YAML
 
 TEMPLATE = "{chrom}\t{pos}\t{id}\t{ref}\t{alt}\t{qual}\t{filter}\t{info}"
 
@@ -455,6 +460,64 @@ def read_genes_from_gff(log, filename):
 ########################################################################################
 
 
+def dbnsfp4_to_vcf(log, counter, args):
+    log.info("loading annotation list from %r", str(args.annotations))
+    yaml = YAML(typ="safe")
+    with open(args.annotations) as handle:
+        data = yaml.load(handle)
+
+    columns = []
+    for settings in data.values():
+        columns.extend(settings["Fields"])
+
+    log.info("loading annotations from %r", str(args.zip))
+    with zipfile.ZipFile(args.zip) as zhandle:
+        for filename in fnmatch.filter(zhandle.namelist(), "dbNSFP4*_variant.chr*.gz"):
+            log.info("extracting annotation file %r", str(filename))
+            with zhandle.open(filename) as gzhandle:
+                with gzip.GzipFile(fileobj=gzhandle) as handle:
+                    handle = io.TextIOWrapper(handle)
+                    header = handle.readline().rstrip().split("\t")
+
+                    for line in handle:
+                        row = dict(zip(header, line.rstrip().split("\t")))
+
+                        info = []
+                        for key in columns:
+                            value = row[key]
+                            if value not in (".", ".;", "./."):
+                                if ";" in value:
+                                    # Workaround to handle multiple values in a field:
+                                    # ASCII comma is replaced with Unicode Small Comma
+                                    value = ",".join(value.replace(",", "﹐").split(";"))
+
+                                if info:
+                                    info.append(";")
+                                info.append(key)
+                                info.append("=")
+                                info.append(value)
+
+                        info = "".join(info)
+
+                        out = [
+                            row["#chr"],
+                            row["pos(1-based)"],
+                            ".",
+                            row["ref"],
+                            row["alt"],
+                            ".",
+                            ".",
+                            info,
+                        ]
+
+                        print("\t".join(out))
+
+                        counter(row["#chr"])
+
+
+########################################################################################
+
+
 def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=False):
     def _repr_values(values):
         strings = []
@@ -558,6 +621,11 @@ def parse_args(argv):
     sub = subparsers.add_parser("neighbours")
     sub.set_defaults(command=neighbouring_genes_to_bed)
     sub.add_argument("gff", metavar="FILE")
+
+    sub = subparsers.add_parser("dbnsfp4")
+    sub.set_defaults(command=dbnsfp4_to_vcf)
+    sub.add_argument("annotations", metavar="YAML")
+    sub.add_argument("zip", metavar="ZIP")
 
     return parser
 
