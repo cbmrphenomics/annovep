@@ -264,12 +264,25 @@ class Builtin:
         assert not data, data
 
 
+def _collect_yaml_files(filepaths):
+    result = []
+    for filepath in filepaths:
+        if filepath.is_dir():
+            result.extend(filepath.glob("*.yaml"))
+            result.extend(filepath.glob("*.yml"))
+        else:
+            result.append(filepath)
+
+    result.sort(key=lambda it: it.name)
+    return result
+
+
 def load_annotations(log, filepaths, variables=None):
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
 
     annotations = {}
-    for filepath in filepaths:
+    for filepath in _collect_yaml_files(filepaths):
         log.info("reading annotation settings from %s", filepath)
         with filepath.open("rt") as handle:
             data = yaml.load(handle)

@@ -27,6 +27,7 @@ RUN mkdir -p /data/user && touch /data/user/not_mounted
 
 COPY ./pipeline/ /opt/annovep/pipeline/
 COPY ./scripts/ /opt/annovep/scripts/
+COPY ./annotations/ /opt/annovep/annotations/
 
 # Normalize permissions
 RUN find /opt/annovep/ -type f -exec chmod +r \{\} \; && \

@@ -38,7 +38,7 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
         "--install-plugins",
         VEP_PLUGINS,
         "--annotations",
-        ANNOVEP_ROOT / "pipeline" / "annotations.yaml",
+        ANNOVEP_ROOT / "annotations",
     ],
 }
 
