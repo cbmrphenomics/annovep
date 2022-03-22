@@ -45,7 +45,11 @@ def main(args, _anotations):
             if old_name != new_name:
                 n_bad_contigs += 1
                 if n_bad_contigs == 1:
-                    log.warning("Changing bad names: %r -> %r", old_name, new_name)
+                    log.warning(
+                        "Encoding incompatible contig names: %r -> %r",
+                        old_name,
+                        new_name,
+                    )
 
             if old_name and old_name.endswith("_decoy"):
                 n_decoy_contigs += 1
