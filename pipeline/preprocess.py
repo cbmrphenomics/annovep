@@ -74,6 +74,8 @@ def main(args, _anotations):
                 n_decoys += 1
                 if n_decoys == 1:
                     log.warning("Filtering variants on decoy contigs (e.g. %r)", chrom)
+
+                line = handle.readline()
                 continue
 
             new_chrom = encode_contig_name(chrom)
