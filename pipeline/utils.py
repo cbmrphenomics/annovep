@@ -1,12 +1,23 @@
 import bz2
-import gzip
 import io
 import os
 import shlex
 import signal
 import subprocess
+import sys
 import time
 from os import fspath
+
+try:
+    # Isal provides a significantly faster GZip implementation
+    from isal.igzip import GzipFile
+except ModuleNotFoundError:
+    print(
+        "WARNING: isal is not install; using built-in (slow) gzip reader\n"
+        "         to install isal, run `python3 -m pip install isal`",
+        file=sys.stderr,
+    )
+    from gzip import GzipFile
 
 
 def cmd_to_str(command, max_length=float("inf")):
@@ -44,7 +55,7 @@ def open_rb(filename):
                 # ISA-L is significantly faster than the built-in gzip decompressor
                 handle = isal.igzip.GzipFile(mode="rb", fileobj=handle)
             except ModuleNotFoundError:
-                handle = gzip.GzipFile(mode="rb", fileobj=handle)
+                handle = GzipFile(mode="rb", fileobj=handle)
         elif header == b"BZ":
             handle = bz2.BZ2File(handle, "rb")
 

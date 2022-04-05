@@ -18,7 +18,7 @@ RUN cd /opt/vep-plugins && \
     cp -a loftee-1.0.3/* Plugins/
 
 RUN apt-get update && apt-get install python3-ruamel.yaml
-RUN pip3 install aush --no-cache
+RUN pip3 install aush isal --no-cache
 
 # Create folder for mounting the (shared) cache
 RUN mkdir -p /data/cache && touch /data/cache/not_mounted
