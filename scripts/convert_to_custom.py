@@ -459,6 +459,11 @@ def read_genes_from_gff(log, filename):
 
 ########################################################################################
 
+DBNSFP4_HEADER = """\
+##fileformat=VCFv4.2
+#CHROM  POS   ID REF  ALT   QUAL   FILTER INFO
+"""
+
 
 def dbnsfp4_to_vcf(log, counter, args):
     log.info("loading annotation list from %r", str(args.annotations))
@@ -472,6 +477,8 @@ def dbnsfp4_to_vcf(log, counter, args):
 
     log.info("loading annotations from %r", str(args.zip))
     with zipfile.ZipFile(args.zip) as zhandle:
+        print(DBNSFP4_HEADER)
+
         for filename in fnmatch.filter(zhandle.namelist(), "dbNSFP4*_variant.chr*.gz"):
             log.info("extracting annotation file %r", str(filename))
             with zhandle.open(filename) as gzhandle:
