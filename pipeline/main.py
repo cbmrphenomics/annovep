@@ -133,7 +133,13 @@ def parse_args(argv):
 
     group = parser.add_argument_group("VEP options")
     group.add_argument("--fork", metavar="N", type=int)
-    group.add_argument("--buffer_size", metavar="N", default=100_000, type=int)
+    group.add_argument(
+        "--buffer_size",
+        metavar="N",
+        default=100_000,
+        type=int,
+        help="Number of VCF records read by VEP per cycle",
+    )
 
     group = parser.add_argument_group("Logging")
     group.add_argument(
