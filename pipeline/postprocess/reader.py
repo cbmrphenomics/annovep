@@ -82,6 +82,8 @@ class VEPReader:
                     self._log.info("processed %i records on %r", count, chrom)
                 chrom = record["Chr"]
                 count = 1
+            else:
+                count += 1
 
             yield record
 
