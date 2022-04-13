@@ -19,7 +19,7 @@ class Annotator:
 
         self._apply_metadata(metadata)
 
-        self.fields = {}
+        self.fields = collections.OrderedDict()
         for annotation in self._annotations:
             for field in annotation.fields.values():
                 if field.name is not None:

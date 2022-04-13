@@ -7,30 +7,6 @@ import zlib
 from . import consequences
 
 
-class IntegerCol(str):
-    """Indicates that a column contains integer values."""
-
-
-class FloatCol(str):
-    """Indicates that a column contains floating point values."""
-
-
-COL_TYPES = {
-    "str": lambda it: it,
-    "int": IntegerCol,
-    "float": FloatCol,
-}
-
-
-def columns(annotations):
-    columns = collections.OrderedDict()
-    for field in annotations.values():
-        wrapper = COL_TYPES[field.type]
-        columns[field.name] = wrapper(field.help)
-
-    return columns
-
-
 # Columns that contain consequence terms (see `consequences.ranks()`)
 CONSEQUENCE_COLUMNS = (
     "Func_most_significant",
@@ -40,8 +16,8 @@ CONSEQUENCE_COLUMNS = (
 
 
 class Output:
-    def __init__(self, keys, out_prefix, extension):
-        self.keys = keys
+    def __init__(self, fields, out_prefix, extension):
+        self.fields = fields
         self._handle = sys.stdout
         if out_prefix is not None:
             self._handle = open(f"{out_prefix}{extension}", "wt")
@@ -64,29 +40,29 @@ class Output:
 
 
 class JSONOutput(Output):
-    def __init__(self, keys, out_prefix):
-        super().__init__(keys, out_prefix, ".json")
+    def __init__(self, fields, out_prefix):
+        super().__init__(fields, out_prefix, ".json")
 
     def process_row(self, data):
-        json.dump({key: data[key] for key in self.keys}, self._handle)
+        json.dump({key: data[key] for key in self.fields}, self._handle)
         self._handle.write("\n")
 
 
 class TSVOutput(Output):
-    def __init__(self, keys, out_prefix):
-        super().__init__(keys, out_prefix, ".tsv")
+    def __init__(self, fields, out_prefix):
+        super().__init__(fields, out_prefix, ".tsv")
 
-        self._print("#{}", "\t".join(self.keys))
+        self._print("#{}", "\t".join(self.fields))
 
         if out_prefix is not None:
             with open(f"{out_prefix}.tsv.columns", "wt") as handle:
                 print("Name\tDescription", file=handle)
 
-                for name, description in self.keys.items():
-                    print(name, description, sep="\t", file=handle)
+                for name, field in self.fields.items():
+                    print(name, field.help, sep="\t", file=handle)
 
     def process_row(self, data):
-        row = [self._to_string(data[key]) for key in self.keys]
+        row = [self._to_string(data[key]) for key in self.fields]
 
         self._print("\t".join(row))
 
@@ -107,8 +83,8 @@ class SQLOutput(Output):
         "Pos": "Hg38_pos",
     }
 
-    def __init__(self, keys, out_prefix):
-        super().__init__(keys, out_prefix, ".sql")
+    def __init__(self, fields, out_prefix):
+        super().__init__(fields, out_prefix, ".sql")
 
         self._consequence_ranks = self._build_consequence_ranks()
         self._contigs = {
@@ -143,7 +119,7 @@ class SQLOutput(Output):
             "    [pk] INTEGER PRIMARY KEY ASC",
         ]
 
-        for key, description in self.keys.items():
+        for key, field in self.fields.items():
             datatype = "TEXT"
             if key in CONSEQUENCE_COLUMNS:
                 key = f"{key}_id"
@@ -152,10 +128,12 @@ class SQLOutput(Output):
             # Rename columns for SQL output only
             key = self.COLUMN_MAPPING.get(key, key)
 
-            if isinstance(description, IntegerCol):
+            if field.type == "int":
                 datatype = "INTEGER"
-            elif isinstance(description, FloatCol):
+            elif field.type == "float":
                 datatype = "REAL"
+            else:
+                assert field.type == "str", field.type
 
             query.append(f",\n    [{key}] {datatype}")
         query.append("\n);")
@@ -236,7 +214,7 @@ class SQLOutput(Output):
             data[key] = value
 
         values = [str(self._n_row)]
-        values.extend(self._to_string(data[key]) for key in self.keys)
+        values.extend(self._to_string(data[key]) for key in self.fields)
 
         self._print("INSERT INTO [Annotations] VALUES ({});", ", ".join(values))
 
@@ -283,12 +261,15 @@ class SQLOutput(Output):
               [Name] TEXT,
               [Table] TEXT,
               [Column] TEXT,
-              [Description] TEXT
+              [Description] TEXT,
+              [Type] TEXT,
+              [ThousandsSep] TEXT,
+              [Digits] INTEGER
             );
             """
         )
 
-        for pk, (key, description) in enumerate(self.keys.items()):
+        for pk, (key, field) in enumerate(self.fields.items()):
             # Rename columns for SQL output only
             key = self.COLUMN_MAPPING.get(key, key)
 
@@ -300,12 +281,15 @@ class SQLOutput(Output):
                 column = f"{key}_id"
 
             self._print(
-                "INSERT INTO [Columns] VALUES ({}, {}, {}, {}, {});",
+                "INSERT INTO [Columns] VALUES ({}, {}, {}, {}, {}, {}, {}, {});",
                 pk,
                 self._to_string(key),
                 self._to_string(table),
                 self._to_string(column),
-                self._to_string(description),
+                self._to_string(field.help),
+                self._to_string(field.type),
+                self._to_string("," if field.thousands_sep else ""),
+                field.digits,
             )
 
     def _print_consequence_terms(self):
@@ -419,11 +403,11 @@ class SQLOutput(Output):
 
 
 class SQLite3Output(SQLOutput):
-    def __init__(self, keys, out_prefix):
+    def __init__(self, fields, out_prefix):
         self._conn = sqlite3.connect(f"{out_prefix}.sqlite3")
         self._curs = self._conn.cursor()
 
-        super().__init__(keys, None)
+        super().__init__(fields, None)
 
     def finalize(self):
         super().finalize()

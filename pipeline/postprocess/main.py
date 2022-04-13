@@ -31,11 +31,13 @@ def main(args, annotations):
         liftover_cache=args.data_liftover,
     )
 
-    header = output.columns(annotations.fields)
     writers: Dict[str, output.Output] = {}
     for key in output_formats:
         cls = output.FORMATS[key]
-        writers[key] = cls(keys=header, out_prefix=args.out_prefix)
+        writers[key] = cls(
+            fields=annotations.fields,
+            out_prefix=args.out_prefix,
+        )
 
     try:
         for record in vep_reader:

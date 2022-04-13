@@ -21,8 +21,9 @@ BuiltinMain:
       Help: "Chromosome/Contig recorded in input VCF"
     "Pos":
       Name: "Pos"
-      FieldType: int
       Help: "Position recorded in input VCF"
+      FieldType: int
+      ThousandsSep: yes
     "ID":
       Name: "ID"
       Help: "ID recorded in input VCF"
@@ -43,32 +44,32 @@ BuiltinMain:
       Help: "Filters recorded in input VCF"
     "DP":
       Name: "DP"
-      FieldType: int
       Help: "Sum of read depth for this position"
+      FieldType: int
     "Freq":
       Name: "Freq"
-      FieldType: float
       Help: "Frequency of alternative allele in samples"
+      FieldType: float
     "GT_00":
       Name: "GT_00"
-      FieldType: int
       Help: "Number of samples with ref/ref genotype"
+      FieldType: int
     "GT_01":
       Name: "GT_01"
-      FieldType: int
       Help: "Number of samples with ref/alt genotype"
+      FieldType: int
     "GT_11":
       Name: "GT_11"
-      FieldType: int
       Help: "Number of samples with alt/alt genotype"
+      FieldType: int
     "GT_NA":
       Name: "GT_NA"
-      FieldType: int
       Help: "Number of samples with missing genotypes"
+      FieldType: int
     "GT_other":
       Name: "GT_other"
-      FieldType: int
       Help: "Number of samples with other genotypes"
+      FieldType: int
     "Info":
       Name: "Info"
       Help: "INFO string from input VCF"
@@ -77,8 +78,9 @@ BuiltinMain:
       Help: "Corresponding chromosome/contig in hg19, if any."
     "Hg19_pos":
       Name: "Hg19_pos"
-      FieldType: int
       Help: "Corresponding position in hg19, if any."
+      FieldType: int
+      ThousandsSep: yes
     "VEP_allele":
       Name: "VEP_allele"
       Help: "The pos:ref:alt corresponding to VEP output"
@@ -150,20 +152,20 @@ BuiltinSecondary:
       Help: "Source of gene symbol"
     "n_most_significant":
       Name: "Func_n_most_significant"
-      FieldType: int
       Help: "Number of consequences ranked as most significant in terms of impact"
+      FieldType: int
     "most_significant":
       Name: "Func_most_significant"
-      FieldType: int
       Help: "The most significant consequence"
+      FieldType: int
     "least_significant":
       Name: "Func_least_significant"
-      FieldType: int
       Help: "The last significant consequence for the same gene as the most significant consequence"
+      FieldType: int
     "most_significant_canonical":
       Name: "Func_most_significant_canonical"
-      FieldType: int
       Help: "The most significant consequence for canonical transcripts only"
+      FieldType: int
     "cdna_position":
       Name: "Func_cdna_position"
       Help: "Relative position of base pair in cDNA sequence"
@@ -184,15 +186,15 @@ BuiltinSecondary:
       Help: "Subjective impact classification of consequence type"
     "strand":
       Name: "Func_strand"
-      FieldType: int
       Help: "Strand of the feature (1/-1)"
+      FieldType: int
     "polyphen_prediction":
       Name: "Func_polyphen"
       Help: "PolyPhen prediction"
     "polyphen_score":
       Name: "Func_polyphen_score"
-      FieldType: float
       Help: "PolyPhen score"
+      FieldType: float
 
 # https://www.ensembl.org/info/docs/tools/vep/script/vep_options.html#opt_hgvs
 HGVS:
@@ -225,8 +227,9 @@ Conservation:
   Fields:
     "conservation":
       Name: "Func_conservation_score"
-      FieldType: float
       Help: "The conservation score for this site"
+      FieldType: float
+      Digits: 3
 
 # Runtime ~= 1.9x
 # https://github.com/konradjk/loftee
@@ -275,8 +278,9 @@ ExACpLI:
   Fields:
     "exacpli":
       Name: "Func_ExACpLI"
-      FieldType: float
       Help: "Probabililty of a gene being loss-of-function intolerant"
+      FieldType: float
+      Digits: 2
 
 # Runtime ~= 2.8x
 # Custom made dbSNP VCF containing aggregated information
@@ -335,6 +339,7 @@ gnomAD_coverage:
     "mean":
       Name: "gnomAD_mean"
       Help: "gnomAD genomes mean coverage for this site"
+      Digits: 2
     "median":
       Name: "gnomAD_median"
       FieldType: int
@@ -342,9 +347,11 @@ gnomAD_coverage:
     "over_15":
       Name: "gnomAD_over_15"
       Help: "gnomAD genomes fraction with coverage over 15x"
+      Digits: 4
     "over_50":
       Name: "gnomAD_over_50"
       Help: "gnomAD genomes fraction with coverage over 50x"
+      Digits: 4
 
 # Runtime ~= 4.0x
 # Custom made gnomAD VCF containing allele frequencies
@@ -356,6 +363,7 @@ gnomAD_sites:
   Mode: exact
   File: "{data-custom}/gnomAD.genomes.r3.0.0.sites.vcf.gz"
   FieldType: float
+  Digits: 6
   Fields:
     "FILTER":
       Name: "gnomAD_filter"
@@ -404,6 +412,7 @@ gnomAD_sites:
   Mode: exact
   File: "{data-custom}/1000Genomes_20200805.vcf.gz"
   FieldType: float
+  Digits: 6
   Fields:
     "AF_AFR_unrel":
       Name: "1KG_AFR_AF"

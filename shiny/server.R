@@ -300,6 +300,18 @@ parse_query <- function(value, symbols, special_symbols = list(), special_values
   return(list(string = paste0(query, collapse = ""), params = params))
 }
 
+# Create a DataTable formatter for numeric values
+number_helper <- function(thousands_sep="", digits=-1) {
+  if (digits >= 0) {
+    render <- sprintf("'%s', '.', %i", row$ThousandsSep, row$Digits)
+  } else {
+    render <- sprintf("'%s', '.'", row$ThousandsSep)
+  }
+
+  # https://datatables.net/manual/data/renderers#Number-helper
+  return(DT::JS(paste("DataTable.render.number(", render, ")", sep="")))
+}
+
 
 server <- function(input, output, session) {
   # Attempt to open the user-provided database
@@ -329,9 +341,12 @@ server <- function(input, output, session) {
           # The exact column will depend on the build
           Column = NA,
           Description = c("Contig in the selected build", "Position in the selected build"),
+          Type = c("str", "int"),
+          ThousandsSep = c("", ","),
+          Digits = c(-1, -1),
           stringsAsFactors = FALSE
         ),
-        query("SELECT [Name], [Table], [Column], [Description] FROM [Columns] ORDER BY [pk];")
+        query("SELECT [Name], [Table], [Column], [Description], [Type], [ThousandsSep], [Digits] FROM [Columns] ORDER BY [pk];")
       )
 
       list(
@@ -374,6 +389,9 @@ server <- function(input, output, session) {
   require_strs("database", database$columns)
   require_strs("database", database$columns_info$Name)
   require_strs("database", database$columns_info$Description)
+  require_strs("database", database$columns_info$Type)
+  require_strs("database", database$columns_info$ThousandsSep)
+  require_nums("database", database$columns_info$Digits)
   require_nums("database", database$consequences$pk)
   require_strs("database", database$consequences$Name)
   require_strs("database", database$genes)
@@ -771,6 +789,20 @@ server <- function(input, output, session) {
       # Hide columns containing consequence IDs/ranks
       coldefs <- c(coldefs, list(list(targets = hidden_columns, visible = FALSE)))
 
+      # Collect numberic columns with special formating
+      formatted_columns <- database$columns_info[
+        (database$columns_info$Name %in% visible_columns) &
+        (database$columns_info$Type %in% c("int", "float")) &
+        (database$columns_info$ThousandsSep != "" |
+         database$columns_info$Digits >= 0),
+      ]
+
+      for (idx in rownames(formatted_columns)) {
+        row <- formatted_columns[idx, ]
+        helper <- number_helper(row$ThousandsSep, row$Digits)
+        coldefs <- c(coldefs, list(list(targets = match(row$Name, visible_columns), render = helper)))
+      }
+ 
       output$table <- DT::renderDataTable(
         {
           results <- data()

@@ -16,7 +16,12 @@ class Field(NamedTuple):
     name: str
     type: str
     help: str
+    # Normalize lists of items using this separator
     split_by: Optional[str]
+    # Enable thousands separator
+    thousands_sep: bool
+    # Floating point precision (int/float only)
+    digits: int
 
 
 def _str_list(value):
@@ -104,6 +109,8 @@ def apply_variables(variables, values):
 
 def _parse_fields(data, name) -> Dict[str, Field]:
     default_type = data.pop("FieldType")
+    default_thousands_sep = data.pop("ThousandsSep")
+    default_digits = data.pop("Digits")
     data = data.pop("Fields")
 
     if data is None:
@@ -116,6 +123,8 @@ def _parse_fields(data, name) -> Dict[str, Field]:
         "Help": {"type": str, "default": ""},
         "FieldType": {"type": str, "default": default_type},
         "Split-by": {"type": str, "default": None},
+        "ThousandsSep": {"type": bool, "default": default_thousands_sep},
+        "Digits": {"type": int, "default": default_digits},
     }
 
     for key, value in data.items():
@@ -134,6 +143,8 @@ def _parse_fields(data, name) -> Dict[str, Field]:
             help=value["Help"],
             type=value["FieldType"],
             split_by=value["Split-by"],
+            thousands_sep=value["ThousandsSep"],
+            digits=value["Digits"],
         )
 
     return data
@@ -143,6 +154,8 @@ _OPTION_LAYOUT = {
     "Rank": {"type": int, "default": 0},
     "Command": {"type": _truthy(_str_list)},
     "FieldType": {"type": str, "default": "str"},
+    "ThousandsSep": {"type": str, "default": ""},
+    "Digits": {"type": int, "default": -1},
     "Fields": {"type": lambda it: it, "default": {}},
     "Enabled": {"type": bool, "default": True},
 }
@@ -168,6 +181,8 @@ _PLUGIN_LAYOUT = {
     "Parameters": {"type": _truthy(_str_list)},
     "Variables": {"type": _str_dict, "default": {}},
     "FieldType": {"type": str, "default": "str"},
+    "ThousandsSep": {"type": str, "default": ""},
+    "Digits": {"type": int, "default": -1},
     "Fields": {"type": lambda it: it, "default": {}},
     "Enabled": {"type": bool, "default": True},
 }
@@ -202,6 +217,8 @@ _CUSTOM_LAYOUT = {
     "Mode": {"type": str},
     "Variables": {"type": _str_dict, "default": {}},
     "FieldType": {"type": str, "default": "str"},
+    "ThousandsSep": {"type": str, "default": ""},
+    "Digits": {"type": int, "default": -1},
     "Fields": {"type": lambda it: it, "default": {}},
     "Enabled": {"type": bool, "default": True},
 }
