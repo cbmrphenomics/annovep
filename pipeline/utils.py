@@ -49,13 +49,8 @@ def open_rb(filename):
         handle.seek(0)
 
         if header == b"\x1f\x8b":
-            try:
-                import isal.igzip
-
-                # ISA-L is significantly faster than the built-in gzip decompressor
-                handle = isal.igzip.GzipFile(mode="rb", fileobj=handle)
-            except ModuleNotFoundError:
-                handle = GzipFile(mode="rb", fileobj=handle)
+            # ISA-l or builting GzipFile (see above)
+            handle = GzipFile(mode="rb", fileobj=handle)
         elif header == b"BZ":
             handle = bz2.BZ2File(handle, "rb")
 
