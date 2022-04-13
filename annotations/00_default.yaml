@@ -255,15 +255,15 @@ LoF:
     "lof_filter":
       Name: "Func_lof_filter"
       Help: "Reason for LoF not being HC"
-      Split-by: ","
+      SplitBy: ","
     "lof_flags":
       Name: "Func_lof_flags"
       Help: "Possible warning flags for LoF"
-      Split-by: ","
+      SplitBy: ","
     "lof_info":
       Name: "Func_lof_info"
       Help: "Info used for LoF annotation"
-      Split-by: ","
+      SplitBy: ","
 
 # Runtime ~= 1.0x
 ExACpLI:
@@ -293,15 +293,15 @@ dbSNP:
     "ids":
       Name: "dbSNP_ids"
       Help: "dbSNP ids for alleles alleles matching this pos:ref/alt"
-      Split-by: ","
+      SplitBy: ","
     "alts":
       Name: "dbSNP_alts"
       Help: "dbSNP allele strings records matching pos:ref/*"
-      Split-by: ","
+      SplitBy: ","
     "functions":
       Name: "dbSNP_functions"
       Help: "GO terms recorded in dbSNP"
-      Split-by: ","
+      SplitBy: ","
 
 # Runtime ~= 1.0x
 # http://m.ensembl.org/info/docs/tools/vep/script/vep_custom.html#custom_example
@@ -318,7 +318,7 @@ ClinVar:
     "CLNDN":
       Name: "ClinVar_disease"
       Help: "ClinVar's preferred disease name"
-      Split-by: "|"
+      SplitBy: "|"
     "CLNDISDB": null
     "CLNREVSTAT": null
     "CLNSIG":
@@ -369,7 +369,7 @@ gnomAD_sites:
       Name: "gnomAD_filter"
       FieldType: str
       Help: "gnomAD genomes FILTER"
-      Split-by: ","
+      SplitBy: ","
     ":min:":
       Name: "gnomAD_min"
       Help: "Minimum allele frequency in gnomAD genomes"

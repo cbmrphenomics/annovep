@@ -122,7 +122,7 @@ def _parse_fields(data, name) -> Dict[str, Field]:
         "Name": {"type": str, "default": None},
         "Help": {"type": str, "default": ""},
         "FieldType": {"type": str, "default": default_type},
-        "Split-by": {"type": str, "default": None},
+        "SplitBy": {"type": str, "default": None},
         "ThousandsSep": {"type": bool, "default": default_thousands_sep},
         "Digits": {"type": int, "default": default_digits},
     }
@@ -142,7 +142,7 @@ def _parse_fields(data, name) -> Dict[str, Field]:
             name=value["Name"],
             help=value["Help"],
             type=value["FieldType"],
-            split_by=value["Split-by"],
+            split_by=value["SplitBy"],
             thousands_sep=value["ThousandsSep"],
             digits=value["Digits"],
         )
