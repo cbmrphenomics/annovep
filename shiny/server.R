@@ -303,9 +303,9 @@ parse_query <- function(value, symbols, special_symbols = list(), special_values
 # Create a DataTable formatter for numeric values
 number_helper <- function(thousands_sep="", digits=-1) {
   if (digits >= 0) {
-    render <- sprintf("'%s', '.', %i", row$ThousandsSep, row$Digits)
+    render <- sprintf("'%s', '.', %i", thousands_sep, digits)
   } else {
-    render <- sprintf("'%s', '.'", row$ThousandsSep)
+    render <- sprintf("'%s', '.'", thousands_sep)
   }
 
   # https://datatables.net/manual/data/renderers#Number-helper
