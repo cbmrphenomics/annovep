@@ -34,10 +34,14 @@ def main(args, annotations):
     writers: Dict[str, output.Output] = {}
     for key in output_formats:
         cls = output.FORMATS[key]
-        writers[key] = cls(
-            fields=annotations.fields,
+        writer = cls(
+            annotations=annotations,
             out_prefix=args.out_prefix,
         )
+
+        writer.set_vcf_timestamp(args.vcf_timestamp)
+        writer.set_vep_timestamp(vep_reader.timestamp)
+        writers[key] = writer
 
     try:
         for record in vep_reader:

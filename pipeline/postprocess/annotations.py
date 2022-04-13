@@ -13,20 +13,20 @@ _RE_ALLELE = re.compile("\b")
 
 class Annotator:
     def __init__(self, annotations, metadata=None, liftover_cache=None) -> None:
-        self._annotations = annotations
+        self.groups = annotations
         self._consequence_ranks = consequences.ranks()
         self._lifter = liftover.get_lifter("hg38", "hg19", liftover_cache)
 
         self._apply_metadata(metadata)
 
         self.fields = collections.OrderedDict()
-        for annotation in self._annotations:
+        for annotation in self.groups:
             for field in annotation.fields.values():
                 if field.name is not None:
                     self.fields[field.name] = field
 
     def _apply_metadata(self, metadata):
-        for annotation in self._annotations:
+        for annotation in self.groups:
             if isinstance(annotation, Builtin):
                 if annotation.name.lower() == "samplegenotypes":
                     annotation.fields = {}
@@ -267,14 +267,14 @@ class Annotator:
             dst["Ancestral_allele"] = None
 
     def _add_option_and_plugin_annotation(self, consequence, copy):
-        for annotation in self._annotations:
+        for annotation in self.groups:
             if isinstance(annotation, (Option, Plugin)):
                 for key, field in annotation.fields.items():
                     if field.name is not None:
                         copy.setdefault(field.name, consequence.get(key))
 
     def _add_custom_annotation(self, src, dst):
-        for annotation in self._annotations:
+        for annotation in self.groups:
             if isinstance(annotation, Custom):
                 data = {}
 
@@ -314,7 +314,7 @@ class Annotator:
                     dst[field.name] = value
 
     def _add_builtin_annotation(self, src, dst):
-        for annotation in self._annotations:
+        for annotation in self.groups:
             if isinstance(annotation, Builtin):
                 if annotation.name == "SampleGenotypes":
                     self._add_sample_genotypes(annotation, src, dst)

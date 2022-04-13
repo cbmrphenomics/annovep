@@ -361,6 +361,7 @@ server <- function(input, output, session) {
         columns_info = columns_info,
         consequences = query("SELECT [pk], [Name] FROM [Consequences] ORDER BY [pk];"),
         genes = query_vec("SELECT [Name] FROM [Genes] ORDER BY [Name];"),
+        metadata = query("SELECT [Label], [Text] FROM [Meta] ORDER BY [pk];"),
         has_json = length(query_vec("SELECT 1 FROM [JSON] LIMIT 1;")) > 0
       )
     },
@@ -378,6 +379,7 @@ server <- function(input, output, session) {
         columns_info = data.frame(Name = character(), Description = character(), stringsAsFactors = FALSE),
         consequences = data.frame(pk = integer(), Name = character(), stringsAsFactors = FALSE),
         genes = character(),
+        metadata = data.frame(Label = character(), Text = character()),
         has_json = FALSE
       )
     }
@@ -395,6 +397,8 @@ server <- function(input, output, session) {
   require_nums("database", database$consequences$pk)
   require_strs("database", database$consequences$Name)
   require_strs("database", database$genes)
+  require_strs("database", database$metadata$Label)
+  require_strs("database", database$metadata$Text)
   require_bool("database", database$has_json)
 
   # Consequences are foreign keys/ranks to allow ordering comparisons
@@ -839,6 +843,25 @@ server <- function(input, output, session) {
       output$columns <- DT::renderDataTable(
         info,
         selection = "single",
+        options = list(
+          scrollX = TRUE,
+          scrollY = "80vh",
+          paging = FALSE
+        )
+      )
+    }
+  )
+
+  observeEvent(
+    {
+      input$password
+    },
+    {
+      shiny::validate(shiny::need(input$password == settings$password, "Password required"))
+
+      output$metadata <- DT::renderDataTable(
+        database$metadata,
+        selection = "none",
         options = list(
           scrollX = TRUE,
           scrollY = "80vh",

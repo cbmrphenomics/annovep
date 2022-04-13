@@ -96,6 +96,8 @@ def run_post_proc(args, log):
         args.log_level,
         "--data-liftover",
         args.data_liftover,
+        "--vcf-timestamp",
+        repr(args.in_file.stat().st_mtime),
     ]
 
     if args.include_json:

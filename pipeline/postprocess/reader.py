@@ -12,6 +12,7 @@ class VEPReader:
         self._log = logging.getLogger(__name__)
         self._handle = open_rb(filename)
         self.metadata = self._read_metadata()
+        self.timestamp = filename.stat().st_mtime
 
     def _read_metadata(self):
         metadata = {}

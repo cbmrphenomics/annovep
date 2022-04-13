@@ -72,6 +72,7 @@ ui <- pageWithSidebar(
         tabPanel("Variants", DT::dataTableOutput("table"), value = "tab_var"),
         tabPanel("Genes", DT::dataTableOutput("gene_tbl"), value = "tab_gene"),
         tabPanel("Columns", DT::dataTableOutput("columns"), value = "tab_col"),
+        tabPanel("Metadata", DT::dataTableOutput("metadata"), value = "tab_meta"),
         tabPanel("JSON", uiOutput("json"), value = "tab_json")
       )
     ),

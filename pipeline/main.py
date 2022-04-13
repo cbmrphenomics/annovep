@@ -95,6 +95,13 @@ def parse_args(argv):
         help=argparse.SUPPRESS,
     )
 
+    # Allows the vcf time-stamp to be passed to post-procesing
+    parser.add_argument(
+        "--vcf-timestamp",
+        type=float,
+        help=argparse.SUPPRESS,
+    )
+
     parser.add_argument(
         "--root",
         metavar="DIR",

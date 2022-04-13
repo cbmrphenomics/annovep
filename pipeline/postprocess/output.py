@@ -1,10 +1,13 @@
 import collections
+import datetime
 import json
+import logging
 import sqlite3
 import sys
 import zlib
 
 from . import consequences
+from _version import VERSION
 
 
 # Columns that contain consequence terms (see `consequences.ranks()`)
@@ -16,11 +19,27 @@ CONSEQUENCE_COLUMNS = (
 
 
 class Output:
-    def __init__(self, fields, out_prefix, extension):
-        self.fields = fields
+    def __init__(self, annotations, out_prefix, extension):
+        self.annotations = annotations
+        self.fields = annotations.fields
         self._handle = sys.stdout
         if out_prefix is not None:
             self._handle = open(f"{out_prefix}{extension}", "wt")
+
+        self._date_vcf = "Unspecified"
+        self._date_vep = "Unspecified"
+        self._date_post = datetime.datetime.now().replace(microsecond=0).isoformat()
+
+    def set_vcf_timestamp(self, value):
+        if value is not None:
+            value = datetime.datetime.fromtimestamp(value)
+            self._date_vcf = value.replace(microsecond=0).isoformat()
+        else:
+            self._date_vcf = "Unspecified"
+
+    def set_vep_timestamp(self, value):
+        value = datetime.datetime.fromtimestamp(value)
+        self._date_vep = value.replace(microsecond=0).isoformat()
 
     def finalize(self):
         if self._handle is not sys.stdout:
@@ -40,8 +59,8 @@ class Output:
 
 
 class JSONOutput(Output):
-    def __init__(self, fields, out_prefix):
-        super().__init__(fields, out_prefix, ".json")
+    def __init__(self, annotations, out_prefix):
+        super().__init__(annotations, out_prefix, ".json")
 
     def process_row(self, data):
         json.dump({key: data[key] for key in self.fields}, self._handle)
@@ -49,8 +68,8 @@ class JSONOutput(Output):
 
 
 class TSVOutput(Output):
-    def __init__(self, fields, out_prefix):
-        super().__init__(fields, out_prefix, ".tsv")
+    def __init__(self, annotations, out_prefix):
+        super().__init__(annotations, out_prefix, ".tsv")
 
         self._print("#{}", "\t".join(self.fields))
 
@@ -83,8 +102,8 @@ class SQLOutput(Output):
         "Pos": "Hg38_pos",
     }
 
-    def __init__(self, fields, out_prefix):
-        super().__init__(fields, out_prefix, ".sql")
+    def __init__(self, annotations, out_prefix):
+        super().__init__(annotations, out_prefix, ".sql")
 
         self._consequence_ranks = self._build_consequence_ranks()
         self._contigs = {
@@ -166,6 +185,8 @@ class SQLOutput(Output):
 
         self._print()
         self._print_contig_names()
+        self._print()
+        self._print_meta_data()
         self._print()
         self._print("CREATE INDEX IPositions_hg38 ON Annotations (Hg38_chr, Hg38_pos);")
         self._print("CREATE INDEX IPositions_hg19 ON Annotations (Hg19_chr, Hg19_pos);")
@@ -376,6 +397,37 @@ class SQLOutput(Output):
                 self._to_string(variants),
             )
 
+    def _print_meta_data(self):
+        self._print("DROP TABLE IF EXISTS [Meta];")
+        self._print(
+            """
+            CREATE TABLE [Meta] (
+              [pk] INTEGER PRIMARY KEY ASC,
+              [Label] TEXT,
+              [Text] TEXT
+            );
+            """
+        )
+
+        metadata = [
+            ("Version", VERSION),
+            ("Date[VCF]", self._date_vcf),
+            ("Date[Annotation]", self._date_vep),
+            ("Date[Post-processing]", self._date_post),
+            ("Variants", self._n_row),
+        ]
+
+        for idx, group in enumerate(self.annotations.groups, start=1):
+            metadata.append((f"Annotation[{idx}]", group.name))
+
+        for pk, (label, text) in enumerate(metadata):
+            self._print(
+                "INSERT INTO [Meta] VALUES ({}, {}, {});",
+                pk,
+                self._to_string(label),
+                self._to_string(text),
+            )
+
     @staticmethod
     def _build_consequence_ranks():
         """Returns consequences with a human friendly ranking: bad > insignificant."""
@@ -403,11 +455,11 @@ class SQLOutput(Output):
 
 
 class SQLite3Output(SQLOutput):
-    def __init__(self, fields, out_prefix):
+    def __init__(self, annotations, out_prefix):
         self._conn = sqlite3.connect(f"{out_prefix}.sqlite3")
         self._curs = self._conn.cursor()
 
-        super().__init__(fields, None)
+        super().__init__(annotations, None)
 
     def finalize(self):
         super().finalize()

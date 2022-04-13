@@ -4,3 +4,5 @@ binaries/*.gz
 venv
 __pycache__
 *.pyc
+
+pipeline/_version.py
