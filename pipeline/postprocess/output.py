@@ -421,7 +421,15 @@ class SQLite3Output(SQLOutput):
 
         query = line.strip()
         if query:
-            self._curs.execute(query)
+            try:
+                self._curs.execute(query)
+            except sqlite3.OperationalError as error:
+                pretty_query = " ".join(l.strip() for l in query.split("\n"))
+
+                log = logging.getLogger(__name__)
+                log.error("Error executing query: %s", error)
+                log.error("  Query = %r", pretty_query)
+                sys.exit(1)
 
 
 FORMATS = {
