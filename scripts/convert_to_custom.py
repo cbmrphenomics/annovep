@@ -6,19 +6,26 @@ import argparse
 import bz2
 import collections
 import fnmatch
-import gzip
 import io
 import itertools
 import logging
 import sys
 import zipfile
 from os import fspath
+from shlex import quote
 from pathlib import Path
 from typing import IO, NamedTuple, Optional, Union, cast
+from gzip import GzipFile
 
 import coloredlogs
 import pysam
 from ruamel.yaml import YAML
+
+try:
+    # ISA-L is significantly faster than the built-in gzip decompressor
+    from isal.igzip import GzipFile
+except ModuleNotFoundError:
+    pass
 
 TEMPLATE = "{chrom}\t{pos}\t{id}\t{ref}\t{alt}\t{qual}\t{filter}\t{info}"
 
@@ -425,7 +432,7 @@ def iter_nearest_genes_upstream(genes, nnearest=3):
 
     # The last region must cover everything downstream of the final gene. But since we
     # don't know how big the contig is, simply use the largest value supported by tabix.
-    yield last_position, 2 ** 29 - 1, genes[-3:]
+    yield last_position, 2**29 - 1, genes[-3:]
 
 
 def read_genes_from_gff(log, filename):
@@ -482,7 +489,7 @@ def dbnsfp4_to_vcf(log, counter, args):
         for filename in fnmatch.filter(zhandle.namelist(), "dbNSFP4*_variant.chr*.gz"):
             log.info("extracting annotation file %r", str(filename))
             with zhandle.open(filename) as gzhandle:
-                with gzip.GzipFile(fileobj=gzhandle) as handle:
+                with GzipFile(fileobj=gzhandle) as handle:
                     handle = io.TextIOWrapper(handle)
                     header = handle.readline().rstrip().split("\t")
 
@@ -582,7 +589,7 @@ def open_ro(filename: Union[str, Path]) -> IO[str]:
         handle.seek(0)
 
         if header == b"\x1f\x8b":
-            handle = cast(IO[bytes], gzip.GzipFile(mode="rb", fileobj=handle))
+            handle = cast(IO[bytes], GzipFile(mode="rb", fileobj=handle))
         elif header == b"BZ":
             handle = bz2.BZ2File(handle, "rb")
 
@@ -644,6 +651,12 @@ def main(argv):
         fmt="%(asctime)s %(levelname)s %(message)s",
         format="%(asctime)s %(levelname)s %(message)s",
     )
+
+    try:
+        from isal.igzip import GzipFile
+    except ModuleNotFoundError:
+        log.warning("Python module 'isal' not installed; will use slow gzip reader")
+        log.warning("To install, run `%s -m pip install isal`", quote(sys.executable))
 
     parser = parse_args(argv)
     args = parser.parse_args(argv)
