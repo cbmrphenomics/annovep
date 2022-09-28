@@ -20,6 +20,10 @@ RUN cd /opt/vep-plugins && \
 RUN apt-get update && apt-get install python3-ruamel.yaml
 RUN pip3 install aush==0.1.3 isal==0.11.1 --no-cache
 
+# Workaround for leak in built-in version ()
+RUN apt-get remove -y python3-pysam
+RUN pip3 install pysam==0.16.0.1 --no-cache
+
 # Create folder for mounting the (shared) cache
 RUN mkdir -p /data/cache && touch /data/cache/not_mounted
 # Create folder for user data (i.e. the user's current working directory)
