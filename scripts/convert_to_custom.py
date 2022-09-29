@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-from __future__ import annotations
-
 import argparse
 import bz2
 import collections
@@ -31,7 +29,7 @@ TEMPLATE = "{chrom}\t{pos}\t{id}\t{ref}\t{alt}\t{qual}\t{filter}\t{info}"
 
 
 class Counter:
-    STEP = 1e6
+    STEP = 10e6
 
     def __init__(self, log):
         self._log = log
@@ -149,83 +147,92 @@ DBSNP_HEADER = """\
 
 def dbsnp_to_vcf(log, counter, args):
     log.info("Creating custom DBSNP annotation from %r", args.vcf)
-    with pysam.VariantFile(args.vcf) as handle:
+    with pysam.VariantFile(args.vcf, threads=2) as handle:
         if args.assembly_report is not None:
             log.info("Reading genome assembly info from %r", args.assembly_report)
             mapping = read_assembly_report(args.assembly_report)
         else:
             mapping = dict(zip(handle.header.contigs, handle.header.contigs))
 
+        # Some fields are never used; this saves some time
+        template = TEMPLATE.format(
+            chrom="{chrom}",
+            pos="{pos}",
+            id=".",
+            ref="{ref}",
+            alt="{alt}",
+            qual=".",
+            filter=".",
+            info="{info}",
+        )
+
         print(DBSNP_HEADER, end="")
 
         def _grouper(record):
             return (record.contig, record.pos)
 
-        for _, records in itertools.groupby(handle.fetch(), key=_grouper):
-            records = list(records)
-            contig = mapping.get(records[0].contig)
-            if contig is None:
-                counter.skip(records[0].contig, len(records))
+        for (contig, pos), records in itertools.groupby(handle, key=_grouper):
+            mapped_contig = mapping.get(contig)
+            if mapped_contig is None:
+                counter.skip(contig, sum(1 for _ in records))
                 continue
 
-            # Group by contig:pos:ref so that each comparable SNP can be annotated with
-            # information from similar SNPs/Indels at the same position
-            by_ref = collections.defaultdict(list)
+            contig = mapped_contig
+            # ALT strings for a given REF; one or more SNPs/INDELS or None
+            alt_strings = collections.defaultdict(list)
+            # DBSNP may contain multiple records for the same REF/ALT combination,
+            # if a SNP has been registered multiple times. These are combined into
+            # a single record with relevant information aggregated
+            duplicate_records = collections.defaultdict(list)
+
+            nrecords = 0
             for record in records:
-                by_ref[record.ref].append(record)
+                ref = record.ref
+                alts = tuple(record.alts or ".")
 
-            for records in by_ref.values():
-                # Group by ALT string so that identical SNPs with multiple records are
-                # merged into a single entry
-                by_alt_string = collections.defaultdict(list)
-                for record in records:
-                    by_alt_string["/".join(sorted(record.alts or "."))].append(record)
+                nrecords += 1
+                alt_strings[ref].append("/".join(alts))
+                duplicate_records[(ref, alts)].append(record)
 
-                for alt_string, records in by_alt_string.items():
-                    record = records[0]
-                    info_string = _dbsnp_info_string(
-                        alt_string=alt_string,
-                        records=records,
-                        alt_string_set=by_alt_string.keys(),
+            for (ref, alts), records in duplicate_records.items():
+                print(
+                    template.format(
+                        chrom=contig,
+                        pos=pos,
+                        ref=ref,
+                        alt=",".join(alts),
+                        info=_dbsnp_info_string(
+                            records=records,
+                            alt_string_set=alt_strings[ref],
+                        ),
                     )
+                )
 
-                    print(
-                        TEMPLATE.format(
-                            chrom=contig,
-                            pos=record.pos,
-                            id=".",
-                            ref=record.ref,
-                            alt=",".join(record.alts or "."),
-                            qual=".",
-                            filter=".",
-                            info=info_string,
-                        )
-                    )
-
-                    counter(contig, len(records))
+            counter(contig, nrecords)
 
 
-def _dbsnp_info_string(alt_string, records, alt_string_set):
-    info = {}
+def _dbsnp_info_string(records, alt_string_set):
+    ids = set()
+    info_keys = set()
+    for record in records:
+        assert record.id not in ids
+        ids.add(record.id)
+        info_keys.update(record.info)
 
     # All ALT allele strings at the current site with matching REF
-    info["alts"] = ",".join(sorted(alt_string_set))
+    info = [
+        "alts=",
+        ",".join(alt_string_set),
+        ";ids=",
+        ",".join(ids),
+    ]
 
-    ids = set()
-    functions = set()
-    for record in records:
-        ids.add(record.id)
-
-        for key, value in DBSNP_FUNCTIONS.items():
-            if record.info.get(key):
-                functions.add(value)
-
-    info["ids"] = ",".join(ids)
-
+    functions = info_keys & DBSNP_FUNCTIONS.keys()
     if functions:
-        info["functions"] = ",".join(sorted(functions))
+        info.append(";functions=")
+        info.append(",".join(DBSNP_FUNCTIONS[key] for key in functions))
 
-    return ";".join(f"{key}={value}" for key, value in info.items())
+    return "".join(info)
 
 
 THOUSAND_GENOMES_FIELDS = set(
@@ -321,32 +328,40 @@ def gnomad_coverage_to_vcf(log, counter, args):
     with open_ro(args.txt) as handle:
         header = handle.readline().rstrip().split("\t")
 
+        # Some fields are never used; this saves some time
+        template = TEMPLATE.format(
+            chrom="{chrom}",
+            pos="{pos}",
+            id=".",
+            ref=".",
+            alt=".",
+            qual=".",
+            filter=".",
+            info="{info}",
+        )
+
         # TODO: VCF header
         for line in handle:
             fields = line.rstrip().split("\t")
             row = dict(zip(header, fields))
 
-            info = [
-                "mean={}".format(row["mean"]),
-                "median={}".format(row["median_approx"]),
-                "over_15={}".format(row["over_15"]),
-                "over_50={}".format(row["over_50"]),
-            ]
+            chrom, pos = row["locus"].split(":")
+            info = "mean={};median={};over_15={};over_50={}".format(
+                row["mean"],
+                row["median_approx"],
+                row["over_15"],
+                row["over_50"],
+            )
 
             print(
-                TEMPLATE.format(
-                    chrom=row["#chr"],
-                    pos=row["pos"],
-                    id=".",
-                    ref=".",
-                    alt=".",
-                    qual=".",
-                    filter=".",
-                    info=";".join(info),
+                template.format(
+                    chrom=chrom,
+                    pos=pos,
+                    info=info,
                 )
             )
 
-            counter(row["#chr"])
+            counter(chrom)
 
     return 0
 
@@ -543,7 +558,7 @@ def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=Fals
 
         return ",".join(strings)
 
-    with pysam.VariantFile(filepath) as handle:
+    with pysam.VariantFile(filepath, threads=2) as handle:
         if print_header:
             print("##fileformat=VCFv4.2")
             for value in handle.header.filters.values():
