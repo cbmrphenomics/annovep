@@ -90,7 +90,7 @@ SampleGenotypes:
   Rank: 50
   Type: Builtin
   Enabled: false
-  
+
 # Runtime ~= 1.3x
 # http://www.ensembl.org/info/docs/tools/vep/script/vep_plugins.html#ancestralallele
 AncestralAllele:
@@ -327,8 +327,6 @@ ClinVar:
 
 # Runtime ~= 3.7x
 # Custom made gnomAD VCFs containing coverage statistics
-#   $ wget https://storage.googleapis.com/gcp-public-data--gnomad/release/3.0.1/coverage/genomes/gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz
-#   $ python3 convert_to_custom gnomad:coverage gnomad.genomes.r3.0.1.coverage.summary.tsv.bgz | bgzip > gnomAD.genomes.r3.0.1.coverage.vcf.gz
 gnomAD_coverage:
   Rank: 900
   Type: VCF
@@ -355,8 +353,6 @@ gnomAD_coverage:
 
 # Runtime ~= 4.0x
 # Custom made gnomAD VCF containing allele frequencies
-#   $ wget $(printf "https://storage.googleapis.com/gnomad-public/release/3.0/vcf/genomes/gnomad.genomes.r3.0.sites.chr%s.vcf.gz " $(seq 1 22) X Y)
-#   $ python3 convert_to_custom gnomad:sites gnomad.genomes.r3.0.sites.chr*.vcf.gz | bgzip > gnomad.genomes.r3.0.0.sites.vcf.gz
 gnomAD_sites:
   Rank: 1000
   Type: VCF
