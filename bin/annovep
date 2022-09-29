@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 import os
+import shutil
 import subprocess
 import sys
 
@@ -12,16 +13,20 @@ def eprint(*args, **kwargs):
     print(*args, **kwargs)
 
 
-def run_podman(image, root, argv):
-    command = ["podman", "run", "-i"]
+def run_container(runner, image, root, argv):
+    command = [runner, "run", "-i"]
     if sys.stdin.isatty():
         command.append("-t")
 
+    if runner == "podman":
+        command += [
+            # ensure that file permissions are reflected in the (rootless) container
+            "--userns=keep-id",
+            # ensure that files are created as the current user
+            f"--user={os.getuid()}:{os.getgid()}",
+        ]
+
     command += [
-        # ensure that file permissions are reflected in the (rootless) container
-        "--userns=keep-id",
-        # ensure that files are created as the current user
-        f"--user={os.getuid()}:{os.getgid()}",
         "--rm",
         "-v",
         f"{root}:/data/cache",
@@ -39,6 +44,18 @@ def run_podman(image, root, argv):
 def main(argv):
     image = os.environ.get("ANNOVEP_IMAGE", "annovep:v1")
     root = os.environ.get("ANNOVEP_CACHE", Path("~/annovep/").expanduser())
+    runner = os.environ.get("ANNOVEP_RUNNER", "").lower()
+    if runner not in ("", "docker", "podman"):
+        eprint("ANNOVEP_RUNNER must be 'docker', 'podman', or not set")
+        return 1
+
+    for executable in ("podman", "docker"):
+        if shutil.which(executable):
+            runner = executable
+            break
+    else:
+        eprint("ERROR: 'podman' or 'docker' is required to run annovep")
+        return 1
 
     os.makedirs(root, exist_ok=True)
 
@@ -51,7 +68,12 @@ def main(argv):
         return 1
 
     try:
-        return run_podman(image, root, argv)
+        return run_container(
+            runner=runner,
+            image=image,
+            root=root,
+            argv=argv,
+        )
     except KeyboardInterrupt:
         return 1
 
