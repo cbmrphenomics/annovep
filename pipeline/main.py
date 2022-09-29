@@ -54,7 +54,10 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=HelpFormatter,
+        prog="annovep pipeline",
+    )
 
     # Pipeline
     parser.add_argument("in_file", type=Path)
@@ -81,6 +84,7 @@ def parse_args(argv):
     parser.add_argument(
         "--disable",
         dest="enable",
+        default={},
         type=str.lower,
         metavar="ANNOTATION",
         action=DisableAction,
@@ -111,15 +115,44 @@ def parse_args(argv):
     )
 
     group = parser.add_argument_group("Data locations")
-    parser.add_argument("--data-cache", metavar="DIR", type=Path)
-    parser.add_argument("--data-custom", metavar="DIR", type=Path)
-    parser.add_argument("--data-plugins", metavar="DIR", type=Path)
-    parser.add_argument("--data-liftover", metavar="DIR", type=Path)
+    group.add_argument(
+        "--data-cache",
+        metavar="DIR",
+        type=Path,
+        help="Location of VEP cache; defaults to [$root/cache]",
+    )
+    group.add_argument(
+        "--data-custom",
+        metavar="DIR",
+        type=Path,
+        help="Location of custom annotation files; defaults to [$root/custom]",
+    )
+    group.add_argument(
+        "--data-plugins",
+        metavar="DIR",
+        type=Path,
+        help="Location of plugin data; defaults to [$root/plugins]",
+    )
+    group.add_argument(
+        "--data-liftover",
+        metavar="DIR",
+        type=Path,
+        help="Location of liftover cache; defaults to [$root/liftover]",
+    )
 
     group = parser.add_argument_group("Installation locations")
-    group.add_argument("--install", metavar="DIR", type=Path)
-    group.add_argument("--install-plugins", metavar="DIR", type=Path)
-    group.add_argument("--install-annovep", metavar="DIR", type=Path)
+    group.add_argument(
+        "--install",
+        metavar="DIR",
+        type=Path,
+        help="Installation folder; defaults to [$root/install]",
+    )
+    group.add_argument(
+        "--install-plugins",
+        metavar="DIR",
+        type=Path,
+        help="Installation folder for plugins; defaults to [$install/vep-plugins/Plugins]",
+    )
 
     group = parser.add_argument_group("Output")
     group.add_argument(
@@ -139,9 +172,15 @@ def parse_args(argv):
     )
 
     group = parser.add_argument_group("VEP options")
-    group.add_argument("--fork", metavar="N", type=int)
     group.add_argument(
-        "--buffer_size",
+        "--fork",
+        metavar="N",
+        type=int,
+        default=0,
+        help="Use forking to improve VEP runtime",
+    )
+    group.add_argument(
+        "--buffer-size",
         metavar="N",
         default=100_000,
         type=int,
@@ -199,7 +238,6 @@ def main(argv):
         # Installation folders
         "install": args.install,
         "install-plugins": args.install_plugins,
-        "install-annovep": args.install_annovep,
     }
 
     log = logging.getLogger("annovep")

@@ -58,11 +58,11 @@ def run_vep(args, log, annotations):
         args.out_vep_html,
     ]
 
-    if args.fork is not None:
+    if args.fork > 0:
         command.append("--fork")
         command.append(str(args.fork))
 
-    if args.buffer_size is not None:
+    if args.buffer_size > 0:
         command.append("--buffer_size")
         command.append(str(args.buffer_size))
 
