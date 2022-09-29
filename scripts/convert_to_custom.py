@@ -679,6 +679,9 @@ def main(argv):
         parser.print_usage()
         return 1
 
+    # Silence log-messages from HTSLIB
+    pysam.set_verbosity(0)
+
     log = logging.getLogger("__main__")
     with Counter(log) as counter:
         try:
