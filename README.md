@@ -2,6 +2,8 @@
 
 ## Installation
 
+### Container image
+
 The pipeline is designed to be run run using podman (preferred) or docker:
 
 1. To build the docker image, simply run `make`.
@@ -13,7 +15,7 @@ The following environmental variables may be set when running `annovep`:
 - `ANNOVEP_CACHE` the location of the annotation files, defaulting to `~/annovep`
 - `ANNOVEP_RUNNER` the container manager to use. `podman` is preferred if both `podman` and `docker` is available.
 
-## Setup
+### Setup
 
 To download and build custom annotations, run
 
@@ -24,10 +26,19 @@ annovep setup
 The location of the annotations may be changed by setting `ANNOVEP_CACHE` (see above)
 
 Note that this process downloads about 350 GB of data in total and uses about 150 GB of space when done.
+See below for a list of annotations used.
 
 ## Usage
 
-The follow omits command-line options that are not relevant when running the pipeline through `podman`/`docker`:
+To run the pipeline, simply specify the location of a VCF file and (optionally) the prefix used for output files. If no output prefix is provided, the name of the input file is used.
+
+```bash
+annovep pipeline input.vcf.gz output_prefix
+```
+
+### Commandline options
+
+A number of command-line options are used to specify the location of data, scripts, and plugins. The following therefore excludes command-line options that are automatically set when running the pipeline through `podman`/`docker`:
 
 ```
 usage: annovep pipeline [-h]
@@ -69,15 +80,9 @@ Logging:
                         printed to the terminal. (default: info)
 ```
 
-## Example usage
-
-```bash
-annovep pipeline input.vcf.gz output_prefix
-```
-
 ## Shiny server
 
-A shiny server is provided for browsing and filtering the annotations:
+A shiny server is provided for browsing and filtering annotations written as a SQLite3 database:
 
 1. Use the pipeline to generate a SQLite3 file:
 
