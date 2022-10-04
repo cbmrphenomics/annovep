@@ -127,3 +127,20 @@ settings$database <- "output_prefix.db"
 ```
 
 4. Install [shiny](https://shiny.rstudio.com/), [flexo](https://github.com/coolbutuseless/flexo), and run shiny as descibed in the shiny documentation.
+
+## Annotation sources
+
+The following sources of annotations are used. For information about data sources and annotation fields used, refer to `annotations/*.yaml` and `scripts/setup_vep.sh`.
+
+- [VEP](https://www.ensembl.org/info/docs/tools/vep/index.html) release 104 with plugins
+  - [Ancestral Allele](https://github.com/Ensembl/VEP_plugins/blob/release/104/AncestralAllele.pm)
+  - [ExACpLI](https://github.com/Ensembl/VEP_plugins/blob/postreleasefix/104/ExACpLI.pm)
+  - [GERP Conservation Scores](https://github.com/Ensembl/VEP_plugins/blob/release/104/Conservation.pm)
+  - [LOFTEE](https://github.com/konradjk/loftee) v[1.0.3](https://github.com/konradjk/loftee/releases/tag/v1.0.3)
+- Custom annotation based on
+  - [1000 Genomes](https://www.internationalgenome.org/) phased hapoltypes [20201028](https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20201028_3202_phased)
+  - [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/) [20210821](https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/weekly/)
+  - [dbSNP](https://www.ncbi.nlm.nih.gov/snp/) release [155](https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/)
+  - [Ensemble](https://www.ensembl.org/) GTF features release [104](https://ftp.ensembl.org/pub/release-104/gtf/homo_sapiens/)
+  - [GnomAD](https://gnomad.broadinstitute.org/) coverage summary r3.0.1
+  - [GnomAD](https://gnomad.broadinstitute.org/) sites r3.0
