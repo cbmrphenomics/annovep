@@ -130,7 +130,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
         local -r dbsnp_custom="${custom_cache}/dbsnp_155_20210513_custom.vcf.gz"
         if [ ! -e "${dbsnp_custom}" -o "${dbsnp_raw}" -nt "${dbsnp_custom}" ]; then
             # DBSNP VCF used for --custom annotation (requires processing)
-            download "${dbsnp_raw}" "https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz"
+            download_vcf "${dbsnp_raw}" "https://ftp.ncbi.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz"
 
             local -r dbsnp_tmp="${dbsnp_custom}.${RANDOM}.tmp"
             log_command python3 "${ANNOVEP_ROOT}/convert_to_custom.py" dbsnp "${dbsnp_raw}" | bgzip >"${dbsnp_tmp}"

@@ -139,12 +139,9 @@ DBSNP_FUNCTIONS = {
 }
 
 DBSNP_HEADER = """\
-##fileformat=VCFv4.2
 ##INFO=<ID=ids,Number=.,Type=String,Description="List of rsIDs for this SNP.">
 ##INFO=<ID=alts,Number=.,Type=String,Description="List of sets of alleles observed for a given chr:pos:ref (e.g. 'A,A/T,A/T/G').">
-##INFO=<ID=functions,Number=.,Type=String,Description="List of GO terms assosiated with this SNP in DBSNP.">
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
-"""
+##INFO=<ID=functions,Number=.,Type=String,Description="List of GO terms assosiated with this SNP in DBSNP.">"""
 
 
 def dbsnp_to_vcf(log, counter, args):
@@ -168,7 +165,14 @@ def dbsnp_to_vcf(log, counter, args):
             info="{info}",
         )
 
-        print(DBSNP_HEADER, end="")
+        info_printed = False
+        for line in str(handle.header).splitlines():
+            if line.startswith("##INFO"):
+                if not info_printed:
+                    print(DBSNP_HEADER)
+                    info_printed = True
+            else:
+                print(line)
 
         def _grouper(record):
             return (record.contig, record.pos)
