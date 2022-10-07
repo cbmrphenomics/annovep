@@ -138,9 +138,9 @@ DBSNP_FUNCTIONS = {
 
 DBSNP_HEADER = """\
 ##fileformat=VCFv4.2
-##INFO=<ID=ids,Number=0,Type=String,Description="List of rsIDs for this SNP.">
-##INFO=<ID=alts,Number=0,Type=String,Description="List of sets of alleles observed for a given chr:pos:ref (e.g. "A,A/T,A/T/G").">
-##INFO=<ID=functions,Number=0,Type=String,Description="List of GO terms assosiated with this SNP in DBSNP.">
+##INFO=<ID=ids,Number=.,Type=String,Description="List of rsIDs for this SNP.">
+##INFO=<ID=alts,Number=.,Type=String,Description="List of sets of alleles observed for a given chr:pos:ref (e.g. 'A,A/T,A/T/G').">
+##INFO=<ID=functions,Number=.,Type=String,Description="List of GO terms assosiated with this SNP in DBSNP.">
 #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
 """
 
