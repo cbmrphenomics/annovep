@@ -667,6 +667,8 @@ def main(argv):
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
+    log = logging.getLogger("__main__")
+
     try:
         from isal.igzip import GzipFile
     except ModuleNotFoundError:
@@ -682,7 +684,6 @@ def main(argv):
     # Silence log-messages from HTSLIB
     pysam.set_verbosity(0)
 
-    log = logging.getLogger("__main__")
     with Counter(log) as counter:
         try:
             return args.command(log, counter, args)
