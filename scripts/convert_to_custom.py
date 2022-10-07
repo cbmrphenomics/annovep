@@ -141,7 +141,7 @@ DBSNP_HEADER = """\
 ##INFO=<ID=ids,Number=0,Type=String,Description="List of rsIDs for this SNP.">
 ##INFO=<ID=alts,Number=0,Type=String,Description="List of sets of alleles observed for a given chr:pos:ref (e.g. "A,A/T,A/T/G").">
 ##INFO=<ID=functions,Number=0,Type=String,Description="List of GO terms assosiated with this SNP in DBSNP.">
-#CHROM  POS   ID REF  ALT   QUAL   FILTER INFO
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
 """
 
 
@@ -483,7 +483,7 @@ def read_genes_from_gff(log, filename):
 
 DBNSFP4_HEADER = """\
 ##fileformat=VCFv4.2
-#CHROM  POS   ID REF  ALT   QUAL   FILTER INFO
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
 """
 
 
@@ -570,7 +570,7 @@ def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=Fals
                 # Exclude uninformative header entries
                 if value.length is not None:
                     print(value.header_record, end="")
-            print("#CHROM  POS   ID REF  ALT   QUAL   FILTER INFO")
+            print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")
 
         for record in handle.fetch():
             infos = []
