@@ -25,7 +25,9 @@ try:
 except ModuleNotFoundError:
     pass
 
-TEMPLATE = "{chrom}\t{pos}\t{id}\t{ref}\t{alt}\t{qual}\t{filter}\t{info}"
+VCF_HEADER = "##fileformat=VCFv4.2"
+VCF_COLUMN_NAMES = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO"
+VCF_ROW_TEMPLATE = "{chrom}\t{pos}\t{id}\t{ref}\t{alt}\t{qual}\t{filter}\t{info}"
 
 
 class Counter:
@@ -155,7 +157,7 @@ def dbsnp_to_vcf(log, counter, args):
             mapping = dict(zip(handle.header.contigs, handle.header.contigs))
 
         # Some fields are never used; this saves some time
-        template = TEMPLATE.format(
+        template = VCF_ROW_TEMPLATE.format(
             chrom="{chrom}",
             pos="{pos}",
             id=".",
@@ -329,7 +331,7 @@ def gnomad_coverage_to_vcf(log, counter, args):
         header = handle.readline().rstrip().split("\t")
 
         # Some fields are never used; this saves some time
-        template = TEMPLATE.format(
+        template = VCF_ROW_TEMPLATE.format(
             chrom="{chrom}",
             pos="{pos}",
             id=".",
@@ -481,11 +483,6 @@ def read_genes_from_gff(log, filename):
 
 ########################################################################################
 
-DBNSFP4_HEADER = """\
-##fileformat=VCFv4.2
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
-"""
-
 
 def dbnsfp4_to_vcf(log, counter, args):
     log.info("loading annotation list from %r", str(args.annotations))
@@ -499,7 +496,8 @@ def dbnsfp4_to_vcf(log, counter, args):
 
     log.info("loading annotations from %r", str(args.zip))
     with zipfile.ZipFile(args.zip) as zhandle:
-        print(DBNSFP4_HEADER)
+        print(VCF_HEADER)
+        print(VCF_COLUMN_NAMES)
 
         for filename in fnmatch.filter(zhandle.namelist(), "dbNSFP4*_variant.chr*.gz"):
             log.info("extracting annotation file %r", str(filename))
@@ -560,7 +558,7 @@ def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=Fals
 
     with pysam.VariantFile(filepath, threads=2) as handle:
         if print_header:
-            print("##fileformat=VCFv4.2")
+            print(VCF_HEADER)
             for value in handle.header.filters.values():
                 print(value.record, end="")
             for name in fields:
@@ -570,7 +568,7 @@ def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=Fals
                 # Exclude uninformative header entries
                 if value.length is not None:
                     print(value.header_record, end="")
-            print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")
+            print(VCF_COLUMN_NAMES)
 
         for record in handle.fetch():
             infos = []
@@ -580,7 +578,7 @@ def reduce_vcf_file(counter, filepath, fields, repr_value=str, print_header=Fals
                     infos.append("{}={}".format(key, _repr_values(value)))
 
             print(
-                TEMPLATE.format(
+                VCF_ROW_TEMPLATE.format(
                     chrom=record.contig,
                     pos=record.pos,
                     id=record.id or ".",
