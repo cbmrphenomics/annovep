@@ -3,12 +3,11 @@ import functools
 import re
 
 import liftover
+from annotation import Builtin, Custom, Field, Option, Plugin
 
 from . import consequences
 
-from annotation import Builtin, Custom, Field, Option, Plugin
-
-_RE_ALLELE = re.compile("\b")
+_RE_ALLELE = re.compile(r"[/|]")
 
 
 class Annotator:
@@ -36,6 +35,8 @@ class Annotator:
                             type="str",
                             help=f"Genotypes for {sample!r}",
                             split_by=None,
+                            thousands_sep=False,
+                            digits=-1,
                         )
                 else:
                     raise NotImplementedError(
@@ -316,31 +317,33 @@ class Annotator:
     def _add_builtin_annotation(self, src, dst):
         for annotation in self.groups:
             if isinstance(annotation, Builtin):
-                if annotation.name == "SampleGenotypes":
+                if annotation.name.lower() == "samplegenotypes":
                     self._add_sample_genotypes(annotation, src, dst)
                 else:
                     raise NotImplementedError(annotation.name)
 
     def _add_sample_genotypes(self, annotation, src, dst):
-        alt_idx = dst["Alts"].index(dst["Alt"]) + 1
+        alt_genotype = str(dst["Alts"].index(dst["Alt"]) + 1)
 
         for name, data in zip(annotation.fields, dst["Samples"]):
             genotypes = data.get("GT", "./.")
             if genotypes != "./.":
                 values = []
-                for field in _RE_ALLELE.split(genotypes):
-                    if field == "0":
-                        values.append("0")
-                    elif field == alt_idx:
+                for value in _RE_ALLELE.split(genotypes):
+                    if value == "0":
+                        values.append(value)
+                    elif value == alt_genotype:
                         values.append("1")
-                    elif field.isdigit():
+                    else:
                         values.append("x")
-                    elif field:
-                        values.append(field)
 
-                dst[name] = "".join(values)
-            else:
-                dst[name] = genotypes
+                # Normalize x/1 to 1/x
+                if values[0] == "x":
+                    values = values[::-1]
+
+                genotypes = "/".join(values)
+
+            dst[name] = genotypes
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
         # Check if pipeline was run with the 'overlapping' BED file
