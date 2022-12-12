@@ -31,7 +31,7 @@ class Annotator:
                     annotation.fields = {}
                     for sample in metadata["samples"]:
                         annotation.fields[sample] = Field(
-                            name=sample,
+                            name=f"GT_{sample}",
                             type="str",
                             help=f"Genotypes for {sample!r}",
                             split_by=None,
@@ -343,7 +343,7 @@ class Annotator:
 
                 genotypes = "/".join(values)
 
-            dst[name] = genotypes
+            dst[f"GT_{name}"] = genotypes
 
     def _add_neighbouring_genes(self, src, dst, nnearest=3):
         # Check if pipeline was run with the 'overlapping' BED file
