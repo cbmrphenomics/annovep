@@ -27,6 +27,11 @@ def fix_contig_name(line):
     return line, None, None
 
 
+def is_valid(sequence, whitelist=frozenset("ACGTNacgtn.,*")):
+    # Don't bother supporting old/weird VCFs
+    return not set(sequence).difference(whitelist)
+
+
 def main(args, _anotations):
     n_decoys = 0
     n_bad_contigs = 0
@@ -73,7 +78,11 @@ def main(args, _anotations):
 
         while line:
             n_records += 1
-            chrom, rest = line.split("\t", 1)
+            chrom, _, _, ref, alt, rest = line.split("\t", 5)
+            if not (is_valid(ref) and is_valid(alt)):
+                log.error("Invalid REF/ALT sequence on line %r", line)
+                return 1
+
             if chrom.endswith("_decoy"):
                 n_decoys += 1
                 if n_decoys == 1:
