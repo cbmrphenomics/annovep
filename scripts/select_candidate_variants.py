@@ -400,6 +400,14 @@ def main(argv: List[str]):
     project = load_project(args.models)
 
     with TableReader(args.annotations, selected_consequences) as reader:
+        sample_names = set()
+        for family in project:
+            sample_names.update(family.members.values())
+
+        missing_samples = sample_names - set(reader.header)
+        if missing_samples:
+            abort("Samples from {} not found: {}", args.models, missing_samples)
+
         common_columns = [key for key in reader.header if not key.startswith("GTS_")]
 
         handles: Dict[str, IO[str]] = {}
