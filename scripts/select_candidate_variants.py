@@ -28,6 +28,14 @@ from dataclass_wizard import JSONWizard
 from dataclass_wizard.errors import ParseError
 
 try:
+    from tqdm import tqdm
+except ImportError:
+
+    def tqdm(iterable: Any, **_kwargs: Any) -> Any:
+        return iterable
+
+
+try:
     from isal.igzip import GzipFile
 except ModuleNotFoundError:
     warnings.warn("Module isal not found; using slow gzip reader")
@@ -307,7 +315,9 @@ class TableReader:
         return self
 
     def __iter__(self):
-        for lineno, line in enumerate(self._handle, start=1):
+        handle = tqdm(self._handle, unit_scale=True, unit=" rows")
+
+        for lineno, line in enumerate(handle, start=1):
             row = line.rstrip("\r\n").split("\t")
             if len(row) != len(self.header):
                 abort(f"Wrong number of columns at {self._filepath}:{lineno}")
