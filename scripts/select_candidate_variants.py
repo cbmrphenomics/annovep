@@ -188,15 +188,24 @@ class Genotype(NamedTuple):
     @staticmethod
     def load(genotype: str, samples: Tuple[str, ...]) -> "Genotype":
         invert: bool = False
-        if genotype.startswith("!"):
-            genotype = genotype[1:]
-            invert = True
+        allow_uncalled: bool = False
+        while genotype:
+            if genotype.startswith("!"):
+                genotype = genotype[1:]
+                invert = True
+            elif genotype.startswith("?"):
+                genotype = genotype[1:]
+                allow_uncalled = True
+            else:
+                break
 
-        if genotype not in GENOTYPES:
-            abort("invalid genotype {}", genotype)
+        if genotype in GENOTYPES:
+            abort("invalid genotype {!r}", genotype)
         genotypes = frozenset((genotype,))
         if invert:
             genotypes = GENOTYPES - genotypes
+        if allow_uncalled:
+            genotypes = genotypes | set(("./.",))
 
         return Genotype(
             genotypes=genotypes,
