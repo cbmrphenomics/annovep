@@ -372,12 +372,12 @@ def parse_args(argv: List[str], consequences: Dict[str, int]):
     )
 
     group = parser.add_argument_group("Filters")
-    cosequence_choices = list(consequences)
+    consequence_choices = list(consequences)
     group.add_argument(
         "--greatest-consequence",
         default="transcript_ablation",
         metavar="NAME",
-        choices=cosequence_choices,
+        choices=consequence_choices,
         help="Exclude consequences more significant (as judged by VEP) than this "
         "consequence",
     )
@@ -385,14 +385,14 @@ def parse_args(argv: List[str], consequences: Dict[str, int]):
         "--smallest-consequence",
         default="splice_region_variant",
         metavar="NAME",
-        choices=cosequence_choices,
+        choices=consequence_choices,
         help="Exclude consequences less significant (as judged by VEP) than this "
         "consequence",
     )
     group.add_argument(
         "--consequence",
         metavar="NAME",
-        choices=cosequence_choices,
+        choices=consequence_choices,
         help="Equivalent to using --smallest-consequence and --greatest-consequence"
         "with the same consequence, i.e. only select this consequence",
     )
