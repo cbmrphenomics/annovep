@@ -199,7 +199,7 @@ class Genotype(NamedTuple):
             else:
                 break
 
-        if genotype in GENOTYPES:
+        if genotype not in GENOTYPES:
             abort("invalid genotype {!r}", genotype)
         genotypes = frozenset((genotype,))
         if invert:
