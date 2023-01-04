@@ -78,7 +78,8 @@ def main(args, _anotations):
 
         while line:
             n_records += 1
-            chrom, _, _, ref, alt, rest = line.split("\t", 5)
+            chrom, rest = line.split("\t", 1)
+            _, _, ref, alt, _ = rest.split("\t", 4)
             if not (is_valid(ref) and is_valid(alt)):
                 log.error("Invalid REF/ALT sequence on line %r", line)
                 return 1
