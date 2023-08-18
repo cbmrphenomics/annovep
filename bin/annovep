@@ -42,7 +42,7 @@ def run_container(runner, image, root, argv):
 
 
 def main(argv):
-    image = os.environ.get("ANNOVEP_IMAGE", "annovep:v1")
+    image = os.environ.get("ANNOVEP_IMAGE", "annovep:v2")
     root = os.environ.get("ANNOVEP_CACHE", Path("~/annovep/").expanduser())
     runner = os.environ.get("ANNOVEP_RUNNER", "").lower()
     if runner not in ("", "docker", "podman"):
