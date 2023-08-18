@@ -372,7 +372,9 @@ gnomAD_sites:
     ":max:":
       Name: "gnomAD_max"
       Help: "Maximum allele frequency in gnomAD genomes"
-    "AF": null
+    "AF":
+      Name: "gnomAD_ALL_AF"
+      Help: "Frequency of existing variant in all gnomAD genomes"
     "AF_afr":
       Name: "gnomAD_AFR_AF"
       Help: "Frequency of existing variant in gnomAD genomes African/American population"
