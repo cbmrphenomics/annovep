@@ -17,15 +17,12 @@ RUN cd /opt/vep-plugins && \
     tar xvzf ./loftee-v1.0.3.tar.gz && \
     cp -a loftee-1.0.3/* Plugins/
 
-RUN apt-get update && apt-get install python3-ruamel.yaml
-RUN pip3 install aush==0.1.3 isal==0.11.1 --no-cache
+# ruamel for YAML parsing; vcftools for merging VCFs during setup
+RUN apt-get update && apt-get -y install python3-ruamel.yaml vcftools
 
-# Workaround for leak in built-in version
+# Pysam for leak in packaged version; isal for faster decompression
 RUN apt-get remove -y python3-pysam
-RUN pip3 install pysam==0.16.0.1 --no-cache
-
-# Required for merging VCFs during setup
-RUN apt-get install -y vcftools
+RUN pip3 install isal==0.11.1 pysam==0.16.0.1 --no-cache
 
 # Create folder for mounting the (shared) cache
 RUN mkdir -p /data/cache && touch /data/cache/not_mounted
