@@ -31,7 +31,7 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
     "setup": ["bash", ANNOVEP_ROOT / "scripts" / "setup_vep.sh"],
     # Main pipeline
     "pipeline": [
-        "python3",
+        sys.executable,
         ANNOVEP_ROOT / "pipeline" / "main.py",
         "--root",
         CACHE_ROOT,
