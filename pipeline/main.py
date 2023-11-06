@@ -6,11 +6,12 @@ import sys
 from pathlib import Path
 
 import coloredlogs
-
 from annotation import AnnotationError, load_annotations
-from pipeline import main as pipeline_main
 from postprocess import main as postprocess_main
 from preprocess import main as preprocess_main
+
+from pipeline import main as pipeline_main
+
 
 # Enable annotation with `--enable Name`
 class EnableAction(argparse.Action):

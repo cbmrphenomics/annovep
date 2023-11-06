@@ -14,12 +14,12 @@ from typing import (
     Dict,
     FrozenSet,
     List,
-    Tuple,
-    Union,
-    cast,
     NamedTuple,
     NoReturn,
     Set,
+    Tuple,
+    Union,
+    cast,
 )
 
 import ruamel.yaml

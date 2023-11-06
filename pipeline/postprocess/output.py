@@ -6,9 +6,9 @@ import sqlite3
 import sys
 import zlib
 
-from . import consequences
 from _version import VERSION
 
+from . import consequences
 
 # Columns that contain consequence terms (see `consequences.ranks()`)
 CONSEQUENCE_COLUMNS = (

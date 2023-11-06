@@ -10,10 +10,9 @@ import logging
 import sys
 import zipfile
 from os import fspath
-from shlex import quote
 from pathlib import Path
+from shlex import quote
 from typing import IO, NamedTuple, Optional, Union, cast
-from gzip import GzipFile
 
 import coloredlogs
 import pysam
@@ -23,7 +22,7 @@ try:
     # ISA-L is significantly faster than the built-in gzip decompressor
     from isal.igzip import GzipFile
 except ModuleNotFoundError:
-    pass
+    from gzip import GzipFile
 
 VCF_HEADER = "##fileformat=VCFv4.2"
 VCF_COLUMN_NAMES = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO"
@@ -520,7 +519,9 @@ def dbnsfp4_to_vcf(log, counter, args):
                                 if ";" in value:
                                     # Workaround to handle multiple values in a field:
                                     # ASCII comma is replaced with Unicode Small Comma
-                                    value = ",".join(value.replace(",", "﹐").split(";"))
+                                    value = ",".join(
+                                        value.replace(",", "﹐").split(";")
+                                    )
 
                                 if info:
                                     info.append(";")
