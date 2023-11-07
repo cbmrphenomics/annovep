@@ -223,7 +223,7 @@ class Model(NamedTuple):
         data: Dict[str, Union[str, List[str]]],
         mapping: Dict[str, str],
     ) -> "Model":
-        requirements = []
+        requirements: list[Genotype] = []
         for genotype, members in data.items():
             if isinstance(members, str):
                 members = [members]
@@ -335,7 +335,7 @@ class TableReader:
             if row["Func_most_significant"] in self._consequences:
                 yield row
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type: object, value: object, traceback: object) -> bool:
         self._handle.close()
         return False
 
@@ -419,11 +419,11 @@ def main(argv: List[str]):
     project = load_project(args.models)
 
     with TableReader(args.annotations, selected_consequences) as reader:
-        sample_names = set()
+        sample_names: set[str] = set()
         for family in project:
             sample_names.update(family.members.values())
 
-        missing_samples = sample_names - set(reader.header)
+        missing_samples: set[str] = sample_names - set(reader.header)
         if missing_samples:
             abort("Samples from {} not found: {}", args.models, missing_samples)
 

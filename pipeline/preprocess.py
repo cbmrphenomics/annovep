@@ -1,14 +1,16 @@
-#!/usr/bin/env python3
-# -*- coding: utf8 -*-
+from __future__ import annotations
+
+import argparse
 import logging
 import re
 
+from annotation import Annotations
 from utils import open_ro
 
 _RE_CONTIG_ID = re.compile("^(##contig=<.*ID=)([^,]+)(.*>)$", re.I)
 
 
-def encode_contig_name(name):
+def encode_contig_name(name: str) -> str:
     """Reversible encoding of contig names that cause problems with VEP."""
     if ":" in name or "*" in name:
         return "annovep_{}".format(name.encode("utf-8").hex())
@@ -16,7 +18,7 @@ def encode_contig_name(name):
     return name
 
 
-def fix_contig_name(line):
+def fix_contig_name(line: str) -> tuple[str, str | None, str | None]:
     match = _RE_CONTIG_ID.match(line)
     if match is not None:
         before, name, after = match.groups()
@@ -27,12 +29,12 @@ def fix_contig_name(line):
     return line, None, None
 
 
-def is_valid(sequence, whitelist=frozenset("ACGTNacgtn.,*")):
+def is_valid(sequence: str, whitelist: str = "ACGTNacgtn.,*"):
     # Don't bother supporting old/weird VCFs
     return not set(sequence).difference(whitelist)
 
 
-def main(args, _anotations):
+def main(args: argparse.Namespace, anotations: list[Annotations]) -> int:
     n_decoys = 0
     n_bad_contigs = 0
     n_bad_contigs_vcf = 0
@@ -103,7 +105,7 @@ def main(args, _anotations):
 
             line = handle.readline()
 
-    def _fmt(value):
+    def _fmt(value: int) -> str:
         return "{:,}".format(value)
 
     log.info("Read %s variants", _fmt(n_records))

@@ -12,14 +12,15 @@ import textwrap
 from math import isnan
 from os import fspath
 from pathlib import Path
+from typing import NoReturn
 
 
-def abort(*args, **kwargs):
-    logging.error(*args, **kwargs)
+def abort(*args: object) -> NoReturn:
+    logging.error(*args)
     sys.exit(1)
 
 
-def quote(pathlike):
+def quote(pathlike: str | Path) -> str:
     return shlex.quote(fspath(pathlike))
 
 
@@ -28,7 +29,7 @@ def quote(pathlike):
 
 
 # Duplicated from pipeline.postprocess.consequences
-def consequence_ranks():
+def consequence_ranks() -> dict[str, int]:
     # https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
     consequences = [
         "transcript_ablation",
@@ -71,7 +72,7 @@ def consequence_ranks():
         ".",
     ]
 
-    ranks = collections.OrderedDict()
+    ranks: dict[str, int] = collections.OrderedDict()
     for rank, consequence in enumerate(reversed(consequences)):
         ranks[consequence] = rank
 
@@ -79,7 +80,7 @@ def consequence_ranks():
 
 
 # Duplicated from pipeline.utils
-def open_rb(filename):
+def open_rb(filename: str | Path):
     """Opens a file for reading, transparently handling
     GZip and BZip2 compressed files. Returns a file handle."""
     handle = open(fspath(filename), "rb")

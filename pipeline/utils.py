@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import bz2
 import io
 import os
@@ -7,6 +9,11 @@ import subprocess
 import sys
 import time
 from os import fspath
+from typing import IO, TYPE_CHECKING, AnyStr, Iterable
+
+if TYPE_CHECKING:
+    import logging
+    from pathlib import Path
 
 try:
     # Isal provides a significantly faster GZip implementation
@@ -20,55 +27,51 @@ except ModuleNotFoundError:
     from gzip import GzipFile
 
 
-def cmd_to_str(command, max_length=float("inf")):
+def cmd_to_str(command: Iterable[object], max_length: int | None = None) -> str:
     text = " ".join(shlex.quote(str(value)) for value in command)
-    if len(text) > max(0, max_length - 3):
+    if max_length is not None and len(text) > max(0, max_length - 3):
         return text[: max_length - 3] + "..."
 
     return text
 
 
-def update_required(output, inputs):
+def update_required(output: str | Path, inputs: Iterable[str | Path]) -> bool:
     if not os.path.exists(output):
         return True
 
     mtime = os.stat(output).st_mtime
-    for dependency in inputs:
-        if os.stat(dependency).st_mtime > mtime:
-            return True
-
-    return False
+    return any(os.stat(dependency).st_mtime > mtime for dependency in inputs)
 
 
-def open_rb(filename):
+def open_rb(filename: str | Path) -> IO[bytes]:
     """Opens a file for reading, transparently handling
     GZip and BZip2 compressed files. Returns a file handle."""
-    handle = open(fspath(filename), "rb")
+    handle: IO[bytes] = open(fspath(filename), "rb")  # noqa: SIM115
 
     try:
         header = handle.peek(2)
 
         if header.startswith(b"\x1f\x8b"):
             # ISA-l or builting GzipFile (see above)
-            handle = GzipFile(mode="rb", fileobj=handle)
+            handle = GzipFile(mode="rb", fileobj=handle)  # type: ignore
         elif header.startswith(b"BZ"):
             handle = bz2.BZ2File(handle, "rb")
-
-        return handle
     except:
         handle.close()
         raise
+    else:
+        return handle
 
 
-def open_ro(filename):
+def open_ro(filename: str) -> IO[str]:
     return io.TextIOWrapper(open_rb(filename))
 
 
-def join_procs(log, procs):
+def join_procs(log: logging.Logger, procs: Iterable[subprocess.Popen[AnyStr]]) -> bool:
     start_time = time.time()
     sleep_time = 0.05
     commands = list(enumerate(procs))
-    return_codes = [None] * len(commands)
+    return_codes: list[int | None] = [None] * len(commands)
 
     assert all(hasattr(cmd, "args") for (_, cmd) in commands)
 
@@ -89,12 +92,14 @@ def join_procs(log, procs):
                 if return_code < 0:
                     return_code = signal.Signals(-return_code).name
 
+                assert isinstance(command.args, Iterable)
                 log.info("Command finished: %s", cmd_to_str(command.args, 80))
                 log.info("  Runtime:        %.1fs", time.time() - start_time)
                 log.info("  Return-code:    %s", return_code)
 
     if any(return_codes):
         for index, command in commands:
+            assert isinstance(command.args, Iterable)
             log.warning("Terminating command: %s", cmd_to_str(command.args, 80))
             command.terminate()
             return_codes[index] = command.wait()

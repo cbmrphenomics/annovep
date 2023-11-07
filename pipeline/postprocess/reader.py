@@ -1,12 +1,30 @@
+from __future__ import annotations
+
 import json
 import logging
 import re
+from pathlib import Path
+from typing import Iterator
 
+from typing_extensions import TypedDict
 from utils import open_rb
 
 
+class VEPRecord(TypedDict):
+    Chr: str
+    Pos: int
+    ID: list[str]
+    Ref: str
+    Alts: list[str]
+    Quality: None | float
+    Filters: list[str]
+    Info: list[str]
+    Samples: list[dict[str, str]]
+    VEP: object
+
+
 class VEPReader:
-    def __init__(self, filename):
+    def __init__(self, filename: Path):
         self._first_record = None
 
         self._log = logging.getLogger(__name__)
@@ -30,7 +48,11 @@ class VEPReader:
 
         return metadata
 
-    def _read_record(self, line, nan_re=re.compile(rb":(-)?NaN\b", flags=re.I)):
+    def _read_record(
+        self,
+        line: bytes,
+        nan_re: re.Pattern[bytes] = re.compile(rb":(-)?NaN\b", flags=re.I),
+    ) -> VEPRecord:
         # Workaround for non-standard JSON output observed in some records, where
         # an expected string value was -nan. Python accepts "NaN", but null seems
         # more reasonable for downstream compatibility
@@ -44,7 +66,7 @@ class VEPReader:
 
         data["input"] = "\t".join((chr, pos, id, ref, alt, qual, filters, info))
 
-        samples = []
+        samples: list[dict[str, str]] = []
         if fmt_and_samples:
             fmt_keys = fmt_and_samples[0].split(":")
             for sample in fmt_and_samples[1:]:
@@ -65,7 +87,7 @@ class VEPReader:
             "VEP": data,
         }
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[VEPRecord]:
         chrom = None
         count = 0
 
@@ -92,7 +114,7 @@ class VEPReader:
             self._log.info("processed %i records on %r", count, chrom)
 
 
-def decode_contig_name(name):
+def decode_contig_name(name: str) -> str:
     """Decode contig name encoded by `preprocess_vcf.py`"""
     if name.startswith("annovep_"):
         return bytes.fromhex(name[8:]).decode("utf-8")

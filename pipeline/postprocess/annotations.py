@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import collections
 import functools
 import re
 
 import liftover
-from annotation import Builtin, Custom, Field, Option, Plugin
+from annotation import Annotations, Builtin, Column, Custom, Field, Option, Plugin
 
 from . import consequences
 
@@ -11,17 +13,22 @@ _RE_ALLELE = re.compile(r"[/|]")
 
 
 class Annotator:
-    def __init__(self, annotations, metadata=None, liftover_cache=None) -> None:
+    def __init__(
+        self,
+        annotations: list[Annotations],
+        metadata=None,
+        liftover_cache: str | None = None,
+    ) -> None:
         self.groups = annotations
         self._consequence_ranks = consequences.ranks()
         self._lifter = liftover.get_lifter("hg38", "hg19", liftover_cache)
 
         self._apply_metadata(metadata)
 
-        self.fields = collections.OrderedDict()
+        self.fields: dict[str, Column] = collections.OrderedDict()
         for annotation in self.groups:
             for field in annotation.fields.values():
-                if field.name is not None:
+                if field is not None:
                     self.fields[field.name] = field
 
     def _apply_metadata(self, metadata):
@@ -301,7 +308,7 @@ class Annotator:
                             value = [] if value is None else value.split(field.split_by)
 
                         dst[field.name] = value
-                        if value is not None and field.type in ("int", "float"):
+                        if value is not None and field.fieldtype in ("int", "float"):
                             numeric_values.append(value)
 
                 for key, field in derived_values:

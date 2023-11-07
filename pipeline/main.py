@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf8 -*-
+from __future__ import annotations
+
 import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Sequence
 
 import coloredlogs
-from annotation import AnnotationError, load_annotations
+from annotation import AnnotationError, Annotations, load_annotations
 from postprocess import main as postprocess_main
 from preprocess import main as preprocess_main
 
@@ -15,19 +16,35 @@ from pipeline import main as pipeline_main
 
 # Enable annotation with `--enable Name`
 class EnableAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | Sequence[object] | None,
+        option_string: str | None = None,
+    ) -> None:
         getattr(namespace, self.dest)[values] = True
 
 
 # Enable annotation with `--disable Name`
 class DisableAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | Sequence[object] | None,
+        option_string: str | None = None,
+    ) -> None:
         getattr(namespace, self.dest)[values] = False
 
 
-def filter_annotations(log, annotations, enabled):
-    result = []
-    names = set()
+def filter_annotations(
+    log: logging.Logger,
+    annotations: list[Annotations],
+    enabled: dict[str, bool],
+) -> bool:
+    result: list[Annotations] = []
+    names: set[str] = set()
     for annotation in annotations:
         name = annotation.name
         key = name.lower()
@@ -54,7 +71,7 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super().__init__(*args, **kwargs)
 
 
-def parse_args(argv):
+def parse_args(argv: list[str]):
     parser = argparse.ArgumentParser(
         formatter_class=HelpFormatter,
         prog="annovep pipeline",
@@ -201,7 +218,7 @@ def parse_args(argv):
     return parser
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     parser = parse_args(argv)
     args = parser.parse_args(argv)
 

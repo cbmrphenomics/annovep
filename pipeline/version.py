@@ -5,3 +5,7 @@ try:
     from ._version import VERSION
 except ModuleNotFoundError:
     VERSION = "Undefined"
+
+__all__ = [
+    "VERSION",
+]

@@ -43,11 +43,11 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
 }
 
 
-def quote_command(args):
+def quote_command(args: list[str | Path]) -> list[str]:
     return [shlex.quote(str(value)) for value in args]
 
 
-def user_exists(uid):
+def user_exists(uid: int) -> bool:
     try:
         pwd.getpwuid(uid)
     except KeyError:
@@ -56,16 +56,16 @@ def user_exists(uid):
     return True
 
 
-def user_add(uid, name):
+def user_add(uid: int, name: str):
     return not subprocess.call(["useradd", "-u", str(uid), name])
 
 
-def check_container(log):
+def check_container(log: logging.Logger) -> bool:
     log.info("Checking container ..")
 
     folders = [
-        ["cache", CACHE_ROOT],
-        ["user data", USER_ROOT],
+        ("cache", CACHE_ROOT),
+        ("user data", USER_ROOT),
     ]
 
     for name, root in folders:
@@ -82,13 +82,13 @@ def check_container(log):
     return True
 
 
-def check_databases(log):
+def check_databases(log: logging.Logger) -> bool:
     log.info("VEP cache accessible at '%s'", CACHE_ROOT)
 
     return True
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     coloredlogs.install(
         level="INFO",
         datefmt="%Y-%m-%d %H:%M:%S",

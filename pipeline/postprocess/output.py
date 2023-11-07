@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import datetime
 import json
@@ -5,10 +7,12 @@ import logging
 import sqlite3
 import sys
 import zlib
+from typing import Any
 
 from _version import VERSION
 
 from . import consequences
+from .annotations import Annotator
 
 # Columns that contain consequence terms (see `consequences.ranks()`)
 CONSEQUENCE_COLUMNS = (
@@ -19,7 +23,12 @@ CONSEQUENCE_COLUMNS = (
 
 
 class Output:
-    def __init__(self, annotations, out_prefix, extension):
+    def __init__(
+        self,
+        annotations: Annotator,
+        out_prefix: str | None,
+        extension: str,
+    ) -> None:
         self.annotations = annotations
         self.fields = annotations.fields
         self._handle = sys.stdout
@@ -30,45 +39,45 @@ class Output:
         self._date_vep = "Unspecified"
         self._date_post = datetime.datetime.now().replace(microsecond=0).isoformat()
 
-    def set_vcf_timestamp(self, value):
-        if value is not None:
-            value = datetime.datetime.fromtimestamp(value)
+    def set_vcf_timestamp(self, timestamp: float | None) -> None:
+        if timestamp is not None:
+            value = datetime.datetime.fromtimestamp(timestamp)
             self._date_vcf = value.replace(microsecond=0).isoformat()
         else:
             self._date_vcf = "Unspecified"
 
-    def set_vep_timestamp(self, value):
-        value = datetime.datetime.fromtimestamp(value)
+    def set_vep_timestamp(self, timestamp: float) -> None:
+        value = datetime.datetime.fromtimestamp(timestamp)
         self._date_vep = value.replace(microsecond=0).isoformat()
 
     def finalize(self):
         if self._handle is not sys.stdout:
             self._handle.close()
 
-    def process_json(self, data):
+    def process_json(self, data) -> None:
         pass
 
-    def process_row(self, data):
+    def process_row(self, data) -> None:
         raise NotImplementedError()
 
-    def _print(self, line="", *args, **kwargs):
+    def _print(self, line: str = "", *args: object) -> None:
         if args:
             line = line.format(*args)
 
-        print(line, file=self._handle, **kwargs)
+        print(line, file=self._handle)
 
 
 class JSONOutput(Output):
-    def __init__(self, annotations, out_prefix):
+    def __init__(self, annotations: Annotator, out_prefix: str | None):
         super().__init__(annotations, out_prefix, ".json")
 
-    def process_row(self, data):
+    def process_row(self, data) -> None:
         json.dump({key: data[key] for key in self.fields}, self._handle)
         self._handle.write("\n")
 
 
 class TSVOutput(Output):
-    def __init__(self, annotations, out_prefix):
+    def __init__(self, annotations: Annotator, out_prefix: str | None):
         super().__init__(annotations, out_prefix, ".tsv")
 
         self._print("#{}", "\t".join(self.fields))
@@ -86,9 +95,9 @@ class TSVOutput(Output):
         self._print("\t".join(row))
 
     @staticmethod
-    def _to_string(value):
+    def _to_string(value: object) -> str:
         if isinstance(value, (tuple, list)):
-            return ";".join(map(str, value or "."))
+            return ";".join(map(str, value or "."))  # type: ignore
         elif value is None:
             return "."
 
@@ -102,7 +111,7 @@ class SQLOutput(Output):
         "Pos": "Hg38_pos",
     }
 
-    def __init__(self, annotations, out_prefix):
+    def __init__(self, annotations: Annotator, out_prefix: str | None) -> None:
         super().__init__(annotations, out_prefix, ".sql")
 
         self._consequence_ranks = self._build_consequence_ranks()
@@ -199,7 +208,7 @@ class SQLOutput(Output):
 
         self._handle.close()
 
-    def process_json(self, data):
+    def process_json(self, data: dict[Any, Any]) -> None:
         data = dict(data)
 
         # Remove any sample specific information and leave only summary information
@@ -219,7 +228,7 @@ class SQLOutput(Output):
 
         self._n_json += 1
 
-    def process_row(self, data):
+    def process_row(self, data) -> None:
         self._n_row += 1
         self._contigs["hg38"][data["Chr"]] += 1
         self._contigs["hg19"][data["Hg19_chr"]] += 1
@@ -438,7 +447,7 @@ class SQLOutput(Output):
         return human_friendly_ranks
 
     @staticmethod
-    def _to_string(value):
+    def _to_string(value: object) -> str:
         if isinstance(value, (int, float)):
             return repr(value)
         elif isinstance(value, (tuple, list)):
@@ -467,7 +476,7 @@ class SQLite3Output(SQLOutput):
         self._conn.commit()
         self._conn.close()
 
-    def _print(self, line="", *args, **kwargs):
+    def _print(self, line: str = "", *args: object) -> None:
         if args:
             line = line.format(*args)
 
@@ -476,7 +485,7 @@ class SQLite3Output(SQLOutput):
             try:
                 self._curs.execute(query)
             except sqlite3.OperationalError as error:
-                pretty_query = " ".join(l.strip() for l in query.split("\n"))
+                pretty_query = " ".join(line.strip() for line in query.split("\n"))
 
                 log = logging.getLogger(__name__)
                 log.error("Error executing query: %s", error)

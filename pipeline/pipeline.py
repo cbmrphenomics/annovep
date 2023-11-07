@@ -1,14 +1,22 @@
-#!/usr/bin/env python3
-# -*- coding: utf8 -*-
+from __future__ import annotations
+
+import argparse
 import logging
 import os
 import subprocess
 import sys
+from typing import IO, AnyStr
 
+from annotation import Annotations
 from utils import cmd_to_str, join_procs, update_required
 
 
-def exec(log, command, stdin=subprocess.DEVNULL, stdout=None):
+def exec(
+    log: logging.Logger,
+    command: list[str],
+    stdin: None | int | IO[AnyStr] = subprocess.DEVNULL,
+    stdout: None | int | IO[AnyStr] = None,
+) -> subprocess.Popen[bytes]:
     log.info("Running %s", cmd_to_str(command))
 
     return subprocess.Popen(
@@ -19,7 +27,12 @@ def exec(log, command, stdin=subprocess.DEVNULL, stdout=None):
     )
 
 
-def exec_self(log, command, stdin=subprocess.DEVNULL, stdout=None):
+def exec_self(
+    log: logging.Logger,
+    command: list[str],
+    stdin: None | int | IO[AnyStr] = subprocess.DEVNULL,
+    stdout: None | int | IO[AnyStr] = None,
+) -> subprocess.Popen[bytes]:
     import main
 
     return exec(
@@ -30,7 +43,11 @@ def exec_self(log, command, stdin=subprocess.DEVNULL, stdout=None):
     )
 
 
-def run_vep(args, log, annotations):
+def run_vep(
+    args: argparse.Namespace,
+    log: logging.Logger,
+    annotations: list[Annotations],
+) -> bool:
     command = [
         "vep",
         "--verbose",
@@ -86,7 +103,7 @@ def run_vep(args, log, annotations):
     return join_procs(log, [preproc, vepproc])
 
 
-def run_post_proc(args, log):
+def run_post_proc(args: argparse.Namespace, log: logging.Logger) -> bool:
     command = [
         "--do",
         "post-process",
@@ -120,7 +137,7 @@ def run_post_proc(args, log):
     return join_procs(log, [proc])
 
 
-def main(args, annotations):
+def main(args: argparse.Namespace, annotations: list[Annotations]) -> int:
     log = logging.getLogger("annovep")
 
     any_errors = False

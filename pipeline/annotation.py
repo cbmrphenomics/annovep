@@ -1,6 +1,13 @@
-from typing import Dict, NamedTuple, Optional
+from __future__ import annotations
 
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+
+import pydantic
 import ruamel.yaml
+from pydantic import ConfigDict, Field, RootModel, ValidationError
+from typing_extensions import Annotated, Literal, override
 
 # Built-in annotations derived from input
 _BUILTINS = {
@@ -12,246 +19,99 @@ class AnnotationError(Exception):
     pass
 
 
-class Field(NamedTuple):
-    name: str
-    type: str
-    help: str
+class BaseModel(pydantic.BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class Column(BaseModel):
+    name: str = Field(alias="Name")
+    fieldtype: str = Field(alias="FieldType", default="str")
+    help: Optional[str] = Field(alias="Help", default=None)
     # Normalize lists of items using this separator
-    split_by: Optional[str]
+    split_by: Optional[str] = Field(alias="SplitBy", default=None)
     # Enable thousands separator
-    thousands_sep: bool
+    thousands_sep: bool = Field(alias="ThousandsSep", default=False)
     # Floating point precision (int/float only)
-    digits: int
+    digits: int = Field(alias="Digits", default=-1)
 
 
-def _str_list(value):
-    """Require that a value is List[str]"""
-    if not isinstance(value, list):
-        raise AnnotationError("not a list")
-    elif any(not isinstance(it, str) for it in value):
-        raise AnnotationError("non-string values found")
+class AnnotationBase(BaseModel):
+    _name: Optional[str] = None
+    rank: int = Field(alias="Rank", default=0)
+    fieldtype: str = Field(alias="FieldType", default="str")
+    thousandssep: str = Field(alias="ThousandsSep", default="")
+    digits: int = Field(alias="Digits", default=-1)
+    fields: Dict[str, Column] = Field(alias="Fields", default_factory=dict)
+    enabled: bool = Field(alias="Enabled", default=True)
 
-    return value
-
-
-def _str_dict(value):
-    """Require that a value is Dict[str, str]"""
-    if not isinstance(value, dict):
-        raise AnnotationError("not a dict")
-    elif not all(isinstance(it, str) for it in value):
-        raise AnnotationError("non-string keys found")
-    elif not all(isinstance(it, str) for it in value.values()):
-        raise AnnotationError("non-string values found")
-
-    return value
-
-
-def _truthy(type):
-    """Wraper around _str_list/_str_dict to also require a truthy (non-empty) value"""
-
-    def _is_truthy(value):
-        value = type(value)
-        if not value:
-            raise AnnotationError("no value")
-
-        return value
-
-    return _is_truthy
-
-
-def _parse(layout, name, data):
-    if not isinstance(name, str):
-        raise AnnotationError(f"Name {name!r} is not a string")
-    elif not isinstance(data, dict):
-        raise AnnotationError(f"{name!r} settings are not a dict")
-
-    output = {}
-    for key, info in layout.items():
-        value = data.pop(key, None)
-        if value is None:
-            if "default" not in info:
-                raise AnnotationError(f"no {key} specified for {name}")
-
-            # No validation of default value to allow e.g. None
-            output[key] = info["default"]
-            continue
-
-        vtype = info["type"]
-        if type(vtype) is type and not isinstance(value, vtype):
-            raise AnnotationError(f"{key} for {name} is not a {vtype.__name__}")
-
-        try:
-            output[key] = vtype(value)
-        except AnnotationError as error:
-            raise AnnotationError(f"invalid {key} for {name}: {error}")
-
-    if data:
-        raise AnnotationError(f"unexpected settings in {name!r}: {data!r}")
-
-    return output
-
-
-def combine_variables(variables, user_variables):
-    """Combine user Variables with built-in variables"""
-    user_variables = dict(user_variables)
-    user_variables.update(variables)
-
-    return {
-        key: str(value).format(**user_variables)
-        for key, value in user_variables.items()
-    }
-
-
-def apply_variables(variables, values):
-    for value in values:
-        yield value.format(**variables)
-
-
-def _parse_fields(data, name) -> Dict[str, Field]:
-    default_type = data.pop("FieldType")
-    default_thousands_sep = data.pop("ThousandsSep")
-    default_digits = data.pop("Digits")
-    data = data.pop("Fields")
-
-    if data is None:
-        return {}
-    elif not isinstance(data, dict):
-        raise AnnotationError(f"Fields for plugin {name!r} are not a dict")
-
-    layout = {
-        "Name": {"type": str, "default": None},
-        "Help": {"type": str, "default": ""},
-        "FieldType": {"type": str, "default": default_type},
-        "SplitBy": {"type": str, "default": None},
-        "ThousandsSep": {"type": bool, "default": default_thousands_sep},
-        "Digits": {"type": int, "default": default_digits},
-    }
-
-    for key, value in data.items():
-        if not isinstance(key, str):
-            raise AnnotationError(f"Fields for plugin {name!r} has non-str key {key!r}")
-        elif value is None:
-            value = {"Name": None}
-
-        value = _parse(layout, f"Field {key} for {name}", value)
-        field_type = value["FieldType"]
-        if field_type not in ("str", "int", "float"):
-            raise AnnotationError(f"Bad type {field_type!r} in {key!r} for {name!r}")
-
-        data[key] = Field(
-            name=value["Name"],
-            help=value["Help"],
-            type=value["FieldType"],
-            split_by=value["SplitBy"],
-            thousands_sep=value["ThousandsSep"],
-            digits=value["Digits"],
-        )
-
-    return data
-
-
-_OPTION_LAYOUT = {
-    "Rank": {"type": int, "default": 0},
-    "Command": {"type": _truthy(_str_list)},
-    "FieldType": {"type": str, "default": "str"},
-    "ThousandsSep": {"type": str, "default": ""},
-    "Digits": {"type": int, "default": -1},
-    "Fields": {"type": lambda it: it, "default": {}},
-    "Enabled": {"type": bool, "default": True},
-}
-
-
-class Option:
-    def __init__(self, name, data, variables):
-        data = _parse(_OPTION_LAYOUT, name, data)
-
-        self.rank = data.pop("Rank")
-        self.name = name
-        self.params = data.pop("Command")
-        self.enabled = data.pop("Enabled")
-        self.fields = _parse_fields(data, name)
-        self.files = ()
-
-        assert not data, data
-
-
-_PLUGIN_LAYOUT = {
-    "Rank": {"type": int, "default": 0},
-    "Files": {"type": _truthy(_str_list)},
-    "Parameters": {"type": _truthy(_str_list)},
-    "Variables": {"type": _str_dict, "default": {}},
-    "FieldType": {"type": str, "default": "str"},
-    "ThousandsSep": {"type": str, "default": ""},
-    "Digits": {"type": int, "default": -1},
-    "Fields": {"type": lambda it: it, "default": {}},
-    "Enabled": {"type": bool, "default": True},
-}
-
-
-class Plugin:
-    def __init__(self, name, data, variables):
-        data = _parse(_PLUGIN_LAYOUT, name, data)
-
-        variables = combine_variables(variables, data.pop("Variables"))
-
-        self.rank = data.pop("Rank")
-        self.name = name
-        self.files = apply_variables(variables, data.pop("Files"))
-        self._params = apply_variables(variables, data.pop("Parameters"))
-        self.enabled = data.pop("Enabled")
-        self.fields = _parse_fields(data, name)
-
-        assert not data, data
+    def apply_variables(self, variables: Dict[str, Union[str, Path]]) -> None:
+        ...
 
     @property
-    def params(self):
-        params = [self.name]
-        params.extend(str(value) for value in self._params)
+    def name(self) -> str:
+        if self._name is None:
+            raise AssertionError(self)
+        return self._name
+
+    def set_name(self, name: str) -> None:
+        self._name = name
+
+    @property
+    def params(self) -> List[str]:
+        return []
+
+
+class Option(AnnotationBase):
+    type: Literal["Option"] = Field(..., alias="Type")
+    command: List[str] = Field(alias="Command")
+
+    @property
+    def files(self) -> list[str]:
+        return []
+
+
+class Plugin(AnnotationBase):
+    type: Literal["Plugin"] = Field(..., alias="Type")
+    files: List[str] = Field(alias="Files")
+    parameters: List[str] = Field(alias="Parameters")
+    variables: Dict[str, str] = Field(alias="Variables", default_factory=dict)
+
+    @override
+    def apply_variables(self, variables: Dict[str, Union[str, Path]]) -> None:
+        variables = dict(variables)
+        variables.update(self.variables)
+
+        self.files = _apply_variables(self.files, variables)
+        self.parameters = _apply_variables(self.parameters, variables)
+
+    @property
+    def params(self) -> List[str]:
+        params: List[str] = [self.name]
+        params.extend(self.parameters)
 
         return ["--plugin", ",".join(params)]
 
 
-_CUSTOM_LAYOUT = {
-    "Rank": {"type": int, "default": 0},
-    "File": {"type": str},
-    "Mode": {"type": str},
-    "Variables": {"type": _str_dict, "default": {}},
-    "FieldType": {"type": str, "default": "str"},
-    "ThousandsSep": {"type": str, "default": ""},
-    "Digits": {"type": int, "default": -1},
-    "Fields": {"type": lambda it: it, "default": {}},
-    "Enabled": {"type": bool, "default": True},
-}
-
-
-class Custom:
-    def __init__(self, name, data, variables, type):
-        if type not in ("vcf", "bed"):
-            raise AnnotationError(f"invalid custom annotation type {type!r}")
-
-        data = _parse(_CUSTOM_LAYOUT, name, data)
-        variables = combine_variables(variables, data.pop("Variables"))
-
-        self.rank = data.pop("Rank")
-        self.name = name
-        self._type = type
-        self._file = data.pop("File").format(**variables)
-        self._mode = data.pop("Mode").lower()
-        self.enabled = data.pop("Enabled")
-        self.fields = _parse_fields(data, name)
-
-        if self._mode not in ("exact", "overlap"):
-            raise AnnotationError(f"Bad Mode {self._mode!r} for {name!r}")
-
-        assert not data, data
+class Custom(AnnotationBase):
+    type: Literal["BED", "VCF"] = Field(..., alias="Type")
+    mode: Literal["exact", "overlap"] = Field(..., alias="Mode")
+    file: str = Field(..., alias="File")
+    variables: Dict[str, str] = Field(alias="Variables", default_factory=dict)
 
     @property
-    def files(self):
-        return [self._file, f"{self._file}.tbi"]
+    def files(self) -> List[str]:
+        return [self.file, f"{self.file}.tbi"]
+
+    @override
+    def apply_variables(self, variables: Dict[str, Union[str, Path]]) -> None:
+        variables = dict(variables)
+        variables.update(self.variables)
+
+        (self.file,) = _apply_variables([self.file], variables)
 
     @property
-    def params(self):
-        params = [self._file, self.name, self._type, self._mode, "0"]
+    def params(self) -> List[str]:
+        params = [self.file, self.name, self.type, self.mode, "0"]
         for name in self.fields:
             if not (name.startswith(":") and name.endswith(":")):
                 params.append(name)
@@ -259,30 +119,35 @@ class Custom:
         return ["--custom", ",".join(params)]
 
 
-_BUILTIN_LAYOUT = {
-    "Rank": {"type": int, "default": 0},
-    "Enabled": {"type": bool, "default": True},
-}
+class Builtin(AnnotationBase):
+    type: Literal["Builtin"] = Field(..., alias="Type")
+
+    @property
+    def files(self) -> list[str]:
+        return []
+
+    @override
+    def set_name(self, name: str) -> None:
+        builtin_name = _BUILTINS.get(name.lower())
+        if builtin_name is None:
+            raise ValueError(f"unknown built-in annotation {name!r}")
+
+        super().set_name(builtin_name)
 
 
-class Builtin:
-    def __init__(self, name, data):
-        self.name = _BUILTINS.get(name.lower())
-        if self.name is None:
-            raise AnnotationError(f"unknown built-in annotation {name!r}")
+Annotations = Annotated[
+    Union[Option, Plugin, Custom, Builtin], Field(discriminator="type")
+]
 
-        self.rank = data.pop("Rank")
-        self.enabled = data.pop("Enabled")
-
-        self.fields = ()
-        self.files = ()
-        self.params = ()
-
-        assert not data, data
+AnnotationsDict = Dict[str, Annotations]
 
 
-def _collect_yaml_files(filepaths):
-    result = []
+class _Root(RootModel[AnnotationsDict]):
+    root: AnnotationsDict
+
+
+def _collect_yaml_files(filepaths: List[Path]) -> List[Path]:
+    result: List[Path] = []
     for filepath in filepaths:
         if filepath.is_dir():
             result.extend(filepath.glob("*.yaml"))
@@ -294,43 +159,60 @@ def _collect_yaml_files(filepaths):
     return result
 
 
-def load_annotations(log, filepaths, variables=None):
+def _apply_variables(
+    values: list[str],
+    variables: Dict[str, Union[str, Path]],
+) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        last_value: str | None = None
+        while value != last_value:
+            last_value = value
+            value = value.format_map(variables)
+        result.append(value)
+
+    return result
+
+
+def load_annotations(
+    log: logging.Logger,
+    filepaths: List[Path],
+    variables: Dict[str, Union[str, Path]],
+) -> List[Annotations]:
     yaml = ruamel.yaml.YAML(typ="safe", pure=True)
     yaml.version = (1, 1)
 
-    annotations = {}
+    annotations: Dict[str, Annotations] = {}
     for filepath in _collect_yaml_files(filepaths):
         log.info("reading annotation settings from %s", filepath)
         with filepath.open("rt") as handle:
-            data = yaml.load(handle)
+            data: object = yaml.load(handle)
 
         if data is None:
             log.warning("file is empty")
             continue
-        elif not isinstance(data, dict):
-            raise AnnotationError(f"root is not a dict")
 
-        for name, settings in data.items():
-            if not isinstance(settings, dict):
-                raise AnnotationError(f"{name} is not a dict")
+        try:
+            result = _Root.model_validate(data, strict=True)
+        except ValidationError as error:
+            for err in error.errors():
+                raise AnnotationError(
+                    "error at {loc}: {msg}: {input!r}".format(
+                        loc=".".join(map(str, err["loc"])),
+                        input=err["input"],
+                        msg=err["msg"],
+                    )
+                )
 
-            type = settings.pop("Type")
-            if type == "Plugin":
-                value = Plugin(name, settings, variables)
-            elif type == "Option":
-                value = Option(name, settings, variables)
-            elif type == "VCF":
-                value = Custom(name, settings, variables, type="vcf")
-            elif type == "BED":
-                value = Custom(name, settings, variables, type="bed")
-            elif type == "Builtin":
-                value = Builtin(name, settings)
-            else:
-                raise AnnotationError(f"Unknown annotation type {type!r} for {name!r}")
+            raise AssertionError("should not happen")
 
+        for name, obj in result.root.items():
             if name in annotations:
                 log.warning("Overriding settings for annotations %r", name)
 
-            annotations[name] = value
+            obj.set_name(name)
+            obj.apply_variables(variables)
+
+            annotations[name] = obj
 
     return sorted(annotations.values(), key=lambda it: it.rank)

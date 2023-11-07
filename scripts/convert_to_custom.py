@@ -624,7 +624,7 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super().__init__(*args, **kwargs)
 
 
-def parse_args(argv):
+def parse_args(argv: list[str]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(formatter_class=HelpFormatter)
     parser.set_defaults(command=None)
     subparsers = parser.add_subparsers()
@@ -662,7 +662,7 @@ def parse_args(argv):
     return parser
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     coloredlogs.install(
         level="INFO",
         datefmt="%Y-%m-%d %H:%M:%S",

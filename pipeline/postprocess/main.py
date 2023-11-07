@@ -1,14 +1,18 @@
-#!/usr/bin/env python3
-# -*- coding: utf8 -*-
+from __future__ import annotations
+
+import argparse
 import logging
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from . import output
 from .annotations import Annotator
 from .reader import VEPReader
 
+if TYPE_CHECKING:
+    from ..annotation import Annotations
 
-def main(args, annotations):
+
+def main(args: argparse.Namespace, annotations: list[Annotations]) -> int:
     if not any(fmt.startswith("sql") for fmt in args.output_format):
         args.include_json = False
 
@@ -25,7 +29,7 @@ def main(args, annotations):
 
     vep_reader = VEPReader(args.in_file)
 
-    annotations = Annotator(
+    annotator = Annotator(
         annotations=annotations,
         metadata=vep_reader.metadata,
         liftover_cache=args.data_liftover,
@@ -35,7 +39,7 @@ def main(args, annotations):
     for key in output_formats:
         cls = output.FORMATS[key]
         writer = cls(
-            annotations=annotations,
+            annotations=annotator,
             out_prefix=args.out_prefix,
         )
 
@@ -49,7 +53,7 @@ def main(args, annotations):
                 for writer in writers.values():
                     writer.process_json(record)
 
-            for row in annotations.annotate(record):
+            for row in annotator.annotate(record):
                 for writer in writers.values():
                     writer.process_row(row)
 

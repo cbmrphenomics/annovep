@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import collections
 
 
-def ranks():
+def ranks() -> dict[str, int]:
     # https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html
     consequences = [
         "transcript_ablation",
@@ -43,7 +45,7 @@ def ranks():
         "intergenic_variant",
     ]
 
-    ranks = collections.OrderedDict()
+    ranks: dict[str, int] = collections.OrderedDict()
     for rank, consequence in enumerate(consequences):
         ranks[consequence] = rank
 
