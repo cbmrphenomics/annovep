@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 
 try:
-    from ._version import VERSION
+    from annovep._version import VERSION
 except ModuleNotFoundError:
     VERSION = "Undefined"
 

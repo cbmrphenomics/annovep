@@ -9,10 +9,9 @@ import sys
 import zlib
 from typing import Any
 
-from _version import VERSION
-
-from . import consequences
-from .annotations import Annotator
+from annovep._version import VERSION
+from annovep.postprocess import consequences
+from annovep.postprocess.annotations import Annotator
 
 # Columns that contain consequence terms (see `consequences.ranks()`)
 CONSEQUENCE_COLUMNS = (

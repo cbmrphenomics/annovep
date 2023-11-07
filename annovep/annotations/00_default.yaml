@@ -144,6 +144,9 @@ BuiltinSecondary:
     "transcript_id":
       Name: "Func_transcript_id"
       Help: "Transcript with the most significant consequence"
+    "canonical_transcript_id":
+      Name: "Func_canonical_transcript_id"
+      Help: "Canonical transcript with the most significant consequence"
     "gene_symbol":
       Name: "Func_gene_symbol"
       Help: "Gene symbol (e.g. HGNC)"
@@ -319,8 +322,8 @@ ClinVar:
       Name: "ClinVar_disease"
       Help: "ClinVar's preferred disease name"
       SplitBy: "|"
-    "CLNDISDB": null
-    "CLNREVSTAT": null
+    # "CLNDISDB":
+    # "CLNREVSTAT":
     "CLNSIG":
       Name: ClinVar_significance
       Help: "Clinical significance for this single variant"

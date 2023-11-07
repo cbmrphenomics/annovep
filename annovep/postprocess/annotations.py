@@ -5,9 +5,17 @@ import functools
 import re
 
 import liftover
-from annotation import Annotations, Builtin, Column, Custom, Field, Option, Plugin
 
-from . import consequences
+from annovep.annotation import (
+    Annotations,
+    Builtin,
+    Column,
+    Custom,
+    Field,
+    Option,
+    Plugin,
+)
+from annovep.postprocess import consequences
 
 _RE_ALLELE = re.compile(r"[/|]")
 

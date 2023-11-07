@@ -4,12 +4,12 @@ import argparse
 import logging
 from typing import TYPE_CHECKING, Dict
 
-from . import output
-from .annotations import Annotator
-from .reader import VEPReader
+from annovep.postprocess import output
+from annovep.postprocess.annotations import Annotator
+from annovep.postprocess.reader import VEPReader
 
 if TYPE_CHECKING:
-    from ..annotation import Annotations
+    from annovep.annotation import Annotations
 
 
 def main(args: argparse.Namespace, annotations: list[Annotations]) -> int:

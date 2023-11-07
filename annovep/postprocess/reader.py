@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Iterator
 
 from typing_extensions import TypedDict
-from utils import open_rb
+
+from annovep.utils import open_rb
 
 
 class VEPRecord(TypedDict):

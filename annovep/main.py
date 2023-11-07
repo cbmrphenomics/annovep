@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Sequence
 
 import coloredlogs
-from annotation import AnnotationError, Annotations, load_annotations
-from postprocess import main as postprocess_main
-from preprocess import main as preprocess_main
 
-from pipeline import main as pipeline_main
+from annovep.annotation import AnnotationError, Annotations, load_annotations
+from annovep.pipeline import main as pipeline_main
+from annovep.postprocess import main as postprocess_main
+from annovep.preprocess import main as preprocess_main
 
 
 # Enable annotation with `--enable Name`

@@ -9,6 +9,8 @@ import ruamel.yaml
 from pydantic import ConfigDict, Field, RootModel, ValidationError
 from typing_extensions import Annotated, Literal, override
 
+from annovep.resources import access_resources
+
 # Built-in annotations derived from input
 _BUILTINS = {
     "samplegenotypes": "SampleGenotypes",
@@ -183,36 +185,37 @@ def load_annotations(
     yaml.version = (1, 1)
 
     annotations: Dict[str, Annotations] = {}
-    for filepath in _collect_yaml_files(filepaths):
-        log.info("reading annotation settings from %s", filepath)
-        with filepath.open("rt") as handle:
-            data: object = yaml.load(handle)
+    with access_resources("annotations") as built_in:
+        for filepath in _collect_yaml_files([built_in, *filepaths]):
+            log.info("reading annotation settings from %s", filepath)
+            with filepath.open("rt") as handle:
+                data: object = yaml.load(handle)
 
-        if data is None:
-            log.warning("file is empty")
-            continue
+            if data is None:
+                log.warning("file is empty")
+                continue
 
-        try:
-            result = _Root.model_validate(data, strict=True)
-        except ValidationError as error:
-            for err in error.errors():
-                raise AnnotationError(
-                    "error at {loc}: {msg}: {input!r}".format(
-                        loc=".".join(map(str, err["loc"])),
-                        input=err["input"],
-                        msg=err["msg"],
+            try:
+                result = _Root.model_validate(data, strict=True)
+            except ValidationError as error:
+                for err in error.errors():
+                    raise AnnotationError(
+                        "error at {loc}: {msg}: {input!r}".format(
+                            loc=".".join(map(str, err["loc"])),
+                            input=err["input"],
+                            msg=err["msg"],
+                        )
                     )
-                )
 
-            raise AssertionError("should not happen")
+                raise AssertionError("should not happen")
 
-        for name, obj in result.root.items():
-            if name in annotations:
-                log.warning("Overriding settings for annotations %r", name)
+            for name, obj in result.root.items():
+                if name in annotations:
+                    log.warning("Overriding settings for annotations %r", name)
 
-            obj.set_name(name)
-            obj.apply_variables(variables)
+                obj.set_name(name)
+                obj.apply_variables(variables)
 
-            annotations[name] = obj
+                annotations[name] = obj
 
     return sorted(annotations.values(), key=lambda it: it.rank)

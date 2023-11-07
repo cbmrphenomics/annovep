@@ -17,20 +17,22 @@ RUN cd /opt/vep-plugins && \
 COPY ./scripts/install_dependencies.sh /opt/
 RUN bash /opt/install_dependencies.sh
 
-# Install python dependencies
-COPY requirements.txt /opt/annovep/
 # Pip must be upgraded in order to enable installation of requirements
 RUN python3.7 -m pip install --upgrade pip==23.3.1
-RUN python3.7 -m pip install --no-cache -r /opt/annovep/requirements.txt
+
+# Install specific python dependencies for containerized version
+COPY requirements.container.txt /opt/annovep/
+RUN python3.7 -m pip install --no-cache -r /opt/annovep/requirements.container.txt
 
 # Create folder for mounting the (shared) cache
 RUN mkdir -p /data/cache && touch /data/cache/not_mounted
 # Create folder for user data (i.e. the user's current working directory)
 RUN mkdir -p /data/user && touch /data/user/not_mounted
 
-COPY ./pipeline/ /opt/annovep/pipeline/
+COPY ./annovep /opt/annovep/annovep/
 COPY ./scripts/ /opt/annovep/scripts/
-COPY ./annotations/ /opt/annovep/annotations/
+COPY ./setup.py /opt/annovep/
+RUN python3.7 -m pip install /opt/annovep/
 
 # Normalize permissions
 RUN find /opt/annovep/ -type f -exec chmod +r \{\} \; && \

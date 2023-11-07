@@ -7,8 +7,8 @@ import subprocess
 import sys
 from typing import IO, AnyStr
 
-from annotation import Annotations
-from utils import cmd_to_str, join_procs, update_required
+from annovep.annotation import Annotations
+from annovep.utils import cmd_to_str, join_procs, update_required
 
 
 def exec(
@@ -33,11 +33,9 @@ def exec_self(
     stdin: None | int | IO[AnyStr] = subprocess.DEVNULL,
     stdout: None | int | IO[AnyStr] = None,
 ) -> subprocess.Popen[bytes]:
-    import main
-
     return exec(
         log=log,
-        command=[sys.executable, main.__file__] + command,
+        command=[sys.executable, "-m", "annovep", *command],
         stdin=stdin,
         stdout=stdout,
     )

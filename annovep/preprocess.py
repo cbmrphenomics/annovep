@@ -4,8 +4,8 @@ import argparse
 import logging
 import re
 
-from annotation import Annotations
-from utils import open_ro
+from annovep.annotation import Annotations
+from annovep.utils import open_ro
 
 _RE_CONTIG_ID = re.compile("^(##contig=<.*ID=)([^,]+)(.*>)$", re.I)
 

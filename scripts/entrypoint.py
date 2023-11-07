@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf8 -*-
+from __future__ import annotations
+
 import logging
 import os
 import pwd
@@ -32,13 +33,12 @@ COMMANDS: Dict[str, List[Union[Path, str]]] = {
     # Main pipeline
     "pipeline": [
         sys.executable,
-        ANNOVEP_ROOT / "pipeline" / "main.py",
+        "-m",
+        "annovep",
         "--root",
         CACHE_ROOT,
         "--install-plugins",
         VEP_PLUGINS,
-        "--annotations",
-        ANNOVEP_ROOT / "annotations",
     ],
 }
 

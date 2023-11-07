@@ -4,7 +4,7 @@ MANAGER := podman
 .PHONY: all clean
 
 all:
-	echo "VERSION = '$(shell git log -1 --format="%h (%ai)")'" > pipeline/_version.py
+	echo "VERSION = \"$(shell git log -1 --format="%h (%ai)")\"" > annovep/_version.py
 	${MANAGER} build -t annovep:${TAG} .
 
 clean:
