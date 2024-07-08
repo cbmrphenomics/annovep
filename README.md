@@ -1,3 +1,5 @@
+# NOTICE: The annovep repository has moved to https://github.com/cbmr-data/annovep
+
 # Custom annotations using VEP
 
 ## Installation
